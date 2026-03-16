@@ -1,6 +1,12 @@
 .crystal-navbar {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding-top: env(safe-area-inset-top);
+}
+
+.crystal-navbar .container {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
 }
 
 .crystal-brand {
@@ -24,6 +30,10 @@
   font-weight: 500;
   border-radius: 8px;
   transition: color 0.2s, background 0.2s;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem !important;
 }
 
 .crystal-nav-link:hover {
@@ -37,4 +47,10 @@
 
 .navbar-toggler-icon {
   filter: invert(1);
+}
+
+@media (max-width: 991px) {
+  .crystal-navbar .navbar-collapse {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

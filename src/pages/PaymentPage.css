@@ -22,11 +22,25 @@
   border-radius: 8px;
   font-weight: 600;
   padding: 0.75rem;
+  min-height: 48px;
+}
+
+/* iPhone: 16px input font prevents zoom on focus */
+.payment-page input.form-control,
+.payment-page select.form-select {
+  font-size: 16px !important;
+  min-height: 48px;
+}
+
+.payment-page .form-label {
+  margin-bottom: 0.35rem;
 }
 
 @media (max-width: 767px) {
   .payment-page {
     padding: 1.5rem 0 2rem;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   .payment-page__title {

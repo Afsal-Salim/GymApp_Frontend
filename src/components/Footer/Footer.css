@@ -5,6 +5,12 @@
   color: #e2e8f0;
   margin-top: auto;
   overflow: hidden;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.crystal-footer .container {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
 }
 
 .crystal-footer__row {

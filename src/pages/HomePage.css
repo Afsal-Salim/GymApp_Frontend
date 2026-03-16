@@ -317,4 +317,23 @@ html {
   .crystal-stat-value {
     font-size: 1.25rem;
   }
+
+  .crystal-hero .container,
+  .crystal-section .container,
+  .crystal-packages .container,
+  .crystal-contacts .container {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Touch targets (iPhone): min 44px */
+.crystal-package-card {
+  min-height: 44px;
+}
+
+.crystal-cta,
+.crystal-cta-outline,
+.crystal-package-card .btn {
+  min-height: 48px;
 }

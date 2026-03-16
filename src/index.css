@@ -53,6 +53,7 @@
 #root {
   width: 100%;
   min-height: 100svh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -60,10 +61,34 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Anchor scroll offset: section starts from top when navigated to */
+[id="home"],
+[id="about"],
+[id="contacts"],
+[id="packages"] {
+  scroll-margin-top: 14vh;
+}
+
+@media (max-width: 767px) {
+  [id="about"],
+  [id="contacts"],
+  [id="packages"] {
+    scroll-margin-top: 30vh;
+  }
+
+  /* #home needs extra offset so welcome text isn’t under the sticky nav */
+  [id="home"] {
+    scroll-margin-top: calc(30vh + 5rem);
+  }
 }
 
 body {
   margin: 0;
+  -webkit-tap-highlight-color: rgba(14, 165, 233, 0.15);
+  -webkit-touch-callout: none;
 }
 
 h1,

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Container, Nav, Navbar as BSNavbar } from 'react-bootstrap';
 import logo from '../../assets/logo.svg';
@@ -11,10 +12,14 @@ const navItems = [
 ] as const;
 
 export default function Navbar() {
+  const [expanded, setExpanded] = useState(false);
+
+  const closeMenu = () => setExpanded(false);
+
   return (
-    <BSNavbar expand="lg" className="crystal-navbar" sticky="top">
+    <BSNavbar expand="lg" className="crystal-navbar" sticky="top" expanded={expanded} onToggle={setExpanded}>
       <Container>
-        <BSNavbar.Brand as={Link} to="/myapp" className="crystal-brand d-flex align-items-center gap-2">
+        <BSNavbar.Brand as={Link} to="/myapp" className="crystal-brand d-flex align-items-center gap-2" onClick={closeMenu}>
           <img src={logo} alt="Crystal" width="36" height="36" className="crystal-logo" />
           <span>Crystal</span>
         </BSNavbar.Brand>
@@ -22,7 +27,7 @@ export default function Navbar() {
         <BSNavbar.Collapse id="crystal-nav">
           <Nav className="ms-auto">
             {navItems.map(({ label, href }) => (
-              <Nav.Link key={href} href={href} className="crystal-nav-link px-3">
+              <Nav.Link key={href} href={href} className="crystal-nav-link px-3" onClick={closeMenu}>
                 {label}
               </Nav.Link>
             ))}
