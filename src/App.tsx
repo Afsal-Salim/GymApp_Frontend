@@ -7,10 +7,10 @@ function App() {
   return (
     <Routes>
       <Route element={<MainLayout />}>
-        <Route path="/myapp" element={<HomePage />} />
+        <Route path="/crystal" element={<HomePage />} />
         <Route path="/starter" element={<PaymentPage plan="starter" />} />
         <Route path="/pro" element={<PaymentPage plan="pro" />} />
-        <Route path="/" element={<Navigate to="/myapp" replace />} />
+        <Route path="/" element={<Navigate to="/crystal" replace />} />
       </Route>
     </Routes>
   );

@@ -22,7 +22,7 @@ export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="crystal-footer">
+    <footer id="crystal-footer" className="crystal-footer">
       <Container>
         <Row className="crystal-footer__row g-4 py-5">
           <Col xs={12} md={4} lg={4} className="crystal-footer__brand-col">

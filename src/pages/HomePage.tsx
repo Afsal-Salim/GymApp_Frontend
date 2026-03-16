@@ -1,7 +1,51 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Card, Button } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
+import { getPlanList, type PlanListItem } from '../api';
 import './HomePage.css';
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+};
+
+function formatPrice(price: string, currency?: string): string {
+  const num = Number(price);
+  const symbol = currency && CURRENCY_SYMBOLS[currency] ? CURRENCY_SYMBOLS[currency] : currency ?? '₹';
+  return `${symbol}${num.toFixed(0)}`;
+}
+
+type DisplayPlan = {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  currency: string;
+  features: string[];
+  cta: string;
+  paymentSlug: 'starter' | 'pro' | null;
+  popular: boolean;
+};
+
+function mapPlanToDisplay(apiPlan: PlanListItem, index: number): DisplayPlan {
+  const slug = apiPlan.name.toLowerCase() as string;
+  const paymentSlug = slug === 'starter' || slug === 'pro' ? (slug as 'starter' | 'pro') : null;
+  const priceFormatted = formatPrice(apiPlan.price, apiPlan.currency);
+  const period = apiPlan.duration ? ` / ${apiPlan.duration} days` : '';
+  return {
+    id: String(apiPlan.id),
+    name: apiPlan.name,
+    price: priceFormatted,
+    period,
+    currency: apiPlan.currency ?? 'INR',
+    features: apiPlan.features?.map((f) => f.name) ?? [],
+    cta: paymentSlug ? (slug === 'pro' ? 'Start free trial' : 'Get started') : 'Contact sales',
+    paymentSlug,
+    popular: index === 1,
+  };
+}
 
 const ABOUT = {
   title: 'About Crystal',
@@ -24,34 +68,6 @@ const CONTACTS = {
   ],
 };
 
-const PACKAGES = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: '$9',
-    period: '/month',
-    features: ['Up to 3 projects', 'Basic analytics', 'Email support'],
-    cta: 'Get started',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: '$19',
-    period: '/month',
-    popular: true,
-    features: ['Unlimited projects', 'Advanced analytics', 'Priority support', 'Custom workflows'],
-    cta: 'Start free trial',
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    features: ['Everything in Pro', 'Multi-team', 'API access', 'Dedicated success manager'],
-    cta: 'Contact sales',
-  },
-];
-
 const FEATURES_SCROLL = [
   { icon: '◇', title: 'Fast', text: 'Lightning performance' },
   { icon: '◆', title: 'Secure', text: 'Enterprise-grade security' },
@@ -66,6 +82,18 @@ const TESTIMONIALS_SCROLL = [
   { quote: 'Best investment we made this year.', author: 'Sarah L., PM' },
   { quote: 'Support team is outstanding.', author: 'Alex K., Dev Lead' },
 ];
+
+const CUSTOM_PLAN: DisplayPlan = {
+  id: 'custom',
+  name: 'Custom',
+  price: 'Custom',
+  period: '',
+  currency: 'INR',
+  features: ['Everything in Pro', 'Multi-team', 'API access', 'Dedicated success manager'],
+  cta: 'Contact sales',
+  paymentSlug: null,
+  popular: false,
+};
 
 function useHorizontalWheel(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
@@ -83,8 +111,70 @@ function useHorizontalWheel(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
+function PlanFeatures({ planId, features }: { planId: string; features: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [showArrow, setShowArrow] = useState(false);
+
+  const updateArrowVisibility = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const hasMore = el.scrollHeight > el.clientHeight + 2;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
+    setShowArrow(hasMore && !atBottom);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    updateArrowVisibility();
+    const ro = new ResizeObserver(updateArrowVisibility);
+    ro.observe(el);
+    el.addEventListener('scroll', updateArrowVisibility);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener('scroll', updateArrowVisibility);
+    };
+  }, [features.length, updateArrowVisibility]);
+
+  return (
+    <div className="crystal-package-features-wrapper">
+      <div className="crystal-package-features" ref={containerRef}>
+        <ul className="list-unstyled small text-start mb-0">
+          {features.map((name, idx) => (
+            <li key={`${planId}-${idx}`} className="mb-1">✓ {name}</li>
+          ))}
+        </ul>
+      </div>
+      {showArrow && (
+        <button
+          type="button"
+          className="crystal-features-scroll-down"
+          onClick={(e) => {
+            e.stopPropagation();
+            containerRef.current?.scrollBy({ top: 80, behavior: 'smooth' });
+          }}
+          aria-label="Scroll features down"
+        >
+          <span className="crystal-chevron-down" aria-hidden>▼</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+const PACKAGES_AUTOPLAY_MS = 3000;
+const PACKAGES_LOOP_BREAKPOINT = 992;
+const FEATURES_AUTOPLAY_MS = 3000;
+const TESTIMONIALS_AUTOPLAY_MS = 3000;
+
 export default function HomePage() {
-  const [selectedPackageId, setSelectedPackageId] = useState<string>('pro');
+  const [plans, setPlans] = useState<DisplayPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [packagesScrollMode, setPackagesScrollMode] = useState(false);
+  const packagesAutoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const packagesPausedRef = useRef(false);
   const featuresScrollRef = useRef<HTMLDivElement>(null);
   const testimonialsScrollRef = useRef<HTMLDivElement>(null);
   const packagesScrollRef = useRef<HTMLDivElement>(null);
@@ -94,12 +184,195 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const check = () => setPackagesScrollMode(window.innerWidth < PACKAGES_LOOP_BREAKPOINT);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPlanList()
+      .then((data) => {
+        if (cancelled) return;
+        const mapped = data.map((p, i) => mapPlanToDisplay(p, i));
+        setPlans([...mapped, CUSTOM_PLAN]);
+        if (mapped.length > 0 && !selectedPackageId) setSelectedPackageId(mapped[0].id);
+      })
+      .catch((err) => {
+        if (!cancelled) setPlansError(err instanceof Error ? err.message : 'Failed to load plans');
+      })
+      .finally(() => {
+        if (!cancelled) setPlansLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     const saved = sessionStorage.getItem('crystalReturnScroll');
     if (saved !== null) {
       sessionStorage.removeItem('crystalReturnScroll');
       const y = parseInt(saved, 10);
       requestAnimationFrame(() => window.scrollTo(0, y));
     }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPackageId) return;
+    const container = packagesScrollRef.current;
+    if (!container) return;
+    const selectedEl = container.querySelector(`[data-plan-id="${selectedPackageId}"]`);
+    if (selectedEl) {
+      selectedEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [selectedPackageId]);
+
+  const [footerVisible, setFooterVisible] = useState(false);
+  useEffect(() => {
+    const footer = document.getElementById('crystal-footer');
+    if (!footer) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const e = entries[0];
+        if (e) setFooterVisible(e.isIntersecting);
+      },
+      { threshold: 0.1, rootMargin: '0px' }
+    );
+    io.observe(footer);
+    return () => io.disconnect();
+  }, []);
+
+  const scrollDown = () => {
+    window.scrollTo({ top: window.scrollY + window.innerHeight * 0.85, behavior: 'smooth' });
+  };
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /* Packages carousel: auto-scroll, loop back to start when at end (only in horizontal scroll mode) */
+  useEffect(() => {
+    const el = packagesScrollRef.current;
+    if (!el || !packagesScrollMode || plans.length === 0) return;
+
+    const step = () => {
+      const firstCard = el.querySelector('.crystal-package-card') as HTMLElement | null;
+      const gap = 24;
+      const cardWidth = firstCard ? firstCard.offsetWidth + gap : 304;
+      el.scrollBy({ left: cardWidth, behavior: 'smooth' });
+    };
+
+    const handleScroll = () => {
+      const max = el.scrollWidth - el.clientWidth - 2;
+      if (max > 0 && el.scrollLeft >= max) el.scrollLeft = 0;
+    };
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+
+    const startAutoplay = () => {
+      if (packagesAutoplayRef.current) return;
+      packagesAutoplayRef.current = setInterval(step, PACKAGES_AUTOPLAY_MS);
+    };
+    const stopAutoplay = () => {
+      if (packagesAutoplayRef.current) {
+        clearInterval(packagesAutoplayRef.current);
+        packagesAutoplayRef.current = null;
+      }
+    };
+
+    startAutoplay();
+
+    const onEnter = () => {
+      packagesPausedRef.current = true;
+      stopAutoplay();
+    };
+    const onLeave = () => {
+      packagesPausedRef.current = false;
+      startAutoplay();
+    };
+    el.addEventListener('mouseenter', onEnter);
+    el.addEventListener('mouseleave', onLeave);
+
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      el.removeEventListener('mouseenter', onEnter);
+      el.removeEventListener('mouseleave', onLeave);
+      stopAutoplay();
+    };
+  }, [packagesScrollMode, plans.length]);
+
+  const packagesToRender = plans;
+
+  const featuresAutoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const testimonialsAutoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* Features carousel: auto-scroll, loop back to start when at end */
+  useEffect(() => {
+    const el = featuresScrollRef.current;
+    if (!el) return;
+    const gap = 16;
+    const step = () => {
+      const card = el.querySelector('.crystal-scroll-card') as HTMLElement | null;
+      const w = (card?.offsetWidth ?? 200) + gap;
+      el.scrollBy({ left: w, behavior: 'smooth' });
+    };
+    const handleScroll = () => {
+      const max = el.scrollWidth - el.clientWidth - 2;
+      if (max > 0 && el.scrollLeft >= max) el.scrollLeft = 0;
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    const start = () => {
+      featuresAutoplayRef.current = setInterval(step, FEATURES_AUTOPLAY_MS);
+    };
+    const stop = () => {
+      if (featuresAutoplayRef.current) {
+        clearInterval(featuresAutoplayRef.current);
+        featuresAutoplayRef.current = null;
+      }
+    };
+    start();
+    el.addEventListener('mouseenter', stop);
+    el.addEventListener('mouseleave', start);
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      el.removeEventListener('mouseenter', stop);
+      el.removeEventListener('mouseleave', start);
+      stop();
+    };
+  }, []);
+
+  /* Testimonials carousel: auto-scroll, loop back to start when at end */
+  useEffect(() => {
+    const el = testimonialsScrollRef.current;
+    if (!el) return;
+    const gap = 16;
+    const step = () => {
+      const card = el.querySelector('.crystal-testimonial') as HTMLElement | null;
+      const w = (card?.offsetWidth ?? 280) + gap;
+      el.scrollBy({ left: w, behavior: 'smooth' });
+    };
+    const handleScroll = () => {
+      const max = el.scrollWidth - el.clientWidth - 2;
+      if (max > 0 && el.scrollLeft >= max) el.scrollLeft = 0;
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    const start = () => {
+      testimonialsAutoplayRef.current = setInterval(step, TESTIMONIALS_AUTOPLAY_MS);
+    };
+    const stop = () => {
+      if (testimonialsAutoplayRef.current) {
+        clearInterval(testimonialsAutoplayRef.current);
+        testimonialsAutoplayRef.current = null;
+      }
+    };
+    start();
+    el.addEventListener('mouseenter', stop);
+    el.addEventListener('mouseleave', start);
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      el.removeEventListener('mouseenter', stop);
+      el.removeEventListener('mouseleave', start);
+      stop();
+    };
   }, []);
 
   return (
@@ -131,7 +404,7 @@ export default function HomePage() {
         </Container>
       </section>
 
-      {/* Horizontal scroll: Features */}
+      {/* Horizontal scroll: Features (auto-scroll, loops back to start) */}
       <section className="crystal-scroll-section crystal-scroll-features">
         <div ref={featuresScrollRef} className="crystal-scroll-inner">
           {FEATURES_SCROLL.map((f, i) => (
@@ -169,12 +442,12 @@ export default function HomePage() {
         </Container>
       </section>
 
-      {/* Horizontal scroll: Testimonials */}
+      {/* Horizontal scroll: Testimonials (auto-scroll, loops back to start) */}
       <section className="crystal-scroll-section crystal-scroll-testimonials">
         <div ref={testimonialsScrollRef} className="crystal-scroll-inner">
           {TESTIMONIALS_SCROLL.map((t, i) => (
             <Card key={i} className="crystal-scroll-card crystal-testimonial flex-shrink-0">
-              <Card.Body>
+              <Card.Body className="text-center">
                 <blockquote className="mb-2">"{t.quote}"</blockquote>
                 <footer className="text-muted small">— {t.author}</footer>
               </Card.Body>
@@ -190,58 +463,89 @@ export default function HomePage() {
           <p className="text-center text-muted mb-4">
             Choose the plan that fits. Upgrade or downgrade anytime.
           </p>
-          {/* Horizontal scroll on small, grid on large */}
-          <div ref={packagesScrollRef} className="crystal-packages-scroll">
-            <div className="crystal-packages-inner">
-              {PACKAGES.map((pkg) => {
-                const isSelected = selectedPackageId === pkg.id;
-                return (
-                  <Card
-                    key={pkg.id}
-                    className={`crystal-package-card flex-shrink-0 ${pkg.popular ? 'border-primary' : ''} ${isSelected ? 'crystal-package-card--selected' : ''}`}
-                    onClick={() => setSelectedPackageId(pkg.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && setSelectedPackageId(pkg.id)}
-                  >
-                    {pkg.popular && (
-                      <div className="crystal-package-badge bg-primary text-white small py-1">Popular</div>
-                    )}
-                    <Card.Body className="text-center">
-                      <Card.Title className="h5">{pkg.name}</Card.Title>
-                      <div className="mb-3">
-                        <span className="display-6 fw-bold">{pkg.price}</span>
-                        <span className="text-muted">{pkg.period}</span>
-                      </div>
-                      <ul className="list-unstyled small text-start mb-3">
-                        {pkg.features.map((f) => (
-                          <li key={f} className="mb-1">✓ {f}</li>
-                        ))}
-                      </ul>
-                      {(pkg.id === 'starter' || pkg.id === 'pro') ? (
-                        <Button
-                          variant={isSelected || pkg.popular ? 'primary' : 'outline-primary'}
-                          className="w-100"
-                          onClick={() => {
-                        sessionStorage.setItem('crystalReturnScroll', String(window.scrollY));
-                        navigate(`/${pkg.id}`);
-                      }}
-                        >
-                          {pkg.cta}
-                        </Button>
-                      ) : (
-                        <Button variant={isSelected || pkg.popular ? 'primary' : 'outline-primary'} className="w-100">
-                          {pkg.cta}
-                        </Button>
-                      )}
-                    </Card.Body>
-                  </Card>
-                );
-              })}
+          {plansError && (
+            <Alert variant="warning" className="mb-4">
+              {plansError}
+            </Alert>
+          )}
+          {plansLoading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" role="status" />
+              <p className="mt-2 text-muted small">Loading plans...</p>
             </div>
-          </div>
+          ) : (
+            <div
+              ref={packagesScrollRef}
+              className="crystal-packages-scroll"
+              role="region"
+              aria-label="Payment plans carousel"
+            >
+              <div className="crystal-packages-inner">
+                {packagesToRender.map((pkg) => {
+                  const isSelected = selectedPackageId === pkg.id;
+                  return (
+                    <Card
+                      key={pkg.id}
+                      data-plan-id={pkg.id}
+                      className={`crystal-package-card flex-shrink-0 ${pkg.popular ? 'border-primary' : ''} ${isSelected ? 'crystal-package-card--selected' : ''}`}
+                      onClick={() => setSelectedPackageId(pkg.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && setSelectedPackageId(pkg.id)}
+                    >
+                      {pkg.popular && (
+                        <div className="crystal-package-badge bg-primary text-white small py-1">Popular</div>
+                      )}
+                      <Card.Body className="text-center">
+                        <Card.Title className="h5">{pkg.name}</Card.Title>
+                        <div className="mb-3">
+                          <span className="display-6 fw-bold">{pkg.price}</span>
+                          <span className="text-muted">{pkg.period}</span>
+                        </div>
+                        {pkg.features.length > 0 && (
+                          <PlanFeatures planId={pkg.id} features={pkg.features} />
+                        )}
+                        {pkg.paymentSlug ? (
+                          <Button
+                            variant={isSelected || pkg.popular ? 'primary' : 'outline-primary'}
+                            className="w-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sessionStorage.setItem('crystalReturnScroll', String(window.scrollY));
+                              navigate(`/${pkg.paymentSlug}`, {
+                                state: {
+                                  planDetails: { name: pkg.name, price: pkg.price, period: pkg.period, currency: pkg.currency },
+                                  planId: Number(pkg.id),
+                                },
+                              });
+                            }}
+                          >
+                            {pkg.cta}
+                          </Button>
+                        ) : (
+                          <Button variant={isSelected || pkg.popular ? 'primary' : 'outline-primary'} className="w-100" onClick={(e) => e.stopPropagation()}>
+                            {pkg.cta}
+                          </Button>
+                        )}
+                      </Card.Body>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </Container>
       </section>
+
+      {/* Floating scroll button – down until footer visible, then up */}
+      <button
+        type="button"
+        className={`crystal-scroll-down-btn ${footerVisible ? 'crystal-scroll-down-btn--up' : ''}`}
+        onClick={footerVisible ? scrollToTop : scrollDown}
+        aria-label={footerVisible ? 'Scroll to top' : 'Scroll down'}
+      >
+        <span className="crystal-scroll-down-arrow" aria-hidden>{footerVisible ? '↑' : '↓'}</span>
+      </button>
 
       {/* Contacts */}
       <section id="contacts" className="crystal-section crystal-contacts py-5 bg-light crystal-section-bg">

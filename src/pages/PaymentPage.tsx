@@ -1,38 +1,165 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Container, Row, Col, Card, Form, Button } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../components';
+import { createOrder, verifyPayment } from '../api';
+import type { VerifyPaymentRequest } from '../api';
 import './PaymentPage.css';
 
-const PLANS: Record<string, { name: string; price: string; period: string }> = {
-  starter: {
-    name: 'Starter',
-    price: '$9',
-    period: '/month',
-  },
-  pro: {
-    name: 'Pro',
-    price: '$19',
-    period: '/month',
-  },
+const FALLBACK_PLANS: Record<string, { name: string; price: string; period: string; currency: string }> = {
+  starter: { name: 'Starter', price: '₹499', period: ' / 28 days', currency: 'INR' },
+  pro: { name: 'Pro', price: '₹999', period: ' / 28 days', currency: 'INR' },
 };
+
+/** Map plan slug to backend plan_id (adjust if your API uses different ids) */
+const PLAN_SLUG_TO_ID: Record<string, number> = {
+  starter: 1,
+  pro: 2,
+};
+
+const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
+
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
+      resolve();
+      return;
+    }
+    const existing = document.querySelector(`script[src="${RAZORPAY_SCRIPT}"]`);
+    if (existing) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = RAZORPAY_SCRIPT;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Razorpay'));
+    document.body.appendChild(script);
+  });
+}
 
 type PaymentPageProps = {
   plan: 'starter' | 'pro';
 };
 
 export default function PaymentPage({ plan }: PaymentPageProps) {
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  const location = useLocation();
+  const stateDetails = (location.state as { planDetails?: { name: string; price: string; period: string; currency: string }; planId?: number } | null)?.planDetails;
+  const statePlanId = (location.state as { planId?: number } | null)?.planId;
+  const details = stateDetails ?? FALLBACK_PLANS[plan];
 
-  const details = PLANS[plan];
+  const [email, setEmail] = useState('');
+  const [businessSlug, setBusinessSlug] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const planId = statePlanId ?? PLAN_SLUG_TO_ID[plan] ?? 1;
+
+  useEffect(() => {
+    const scrollToTop = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    scrollToTop();
+    const id = requestAnimationFrame(() => {
+      scrollToTop();
+      requestAnimationFrame(scrollToTop);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [plan]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const emailVal = email.trim();
+    const slug = businessSlug.trim();
+    if (!emailVal) {
+      setError('Please enter your email.');
+      return;
+    }
+    if (!slug) {
+      setError('Please enter your business slug.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const orderData = await createOrder(emailVal, slug, planId);
+      const keyId = orderData.key_id;
+      if (!orderData.order_id || !keyId) {
+        setError('Invalid response from server.');
+        setLoading(false);
+        return;
+      }
+
+      await loadRazorpayScript();
+      const Razorpay = (window as unknown as { Razorpay: new (o: RazorpayOptions) => RazorpayInstance }).Razorpay;
+
+      const rzp = new Razorpay({
+        key: keyId,
+        order_id: orderData.order_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: details?.name ?? 'Crystal',
+        description: `Payment for ${details?.name ?? plan}`,
+        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+          const payload: VerifyPaymentRequest = {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            email: emailVal,
+            business_slug: slug,
+            plan_id: planId,
+          };
+          try {
+            await verifyPayment(payload);
+            setSuccess(true);
+            setLoading(false);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Payment verification failed.');
+            setLoading(false);
+          }
+        },
+      });
+
+      rzp.on('payment.failed', () => {
+        setError('Payment failed or was cancelled.');
+        setLoading(false);
+      });
+
+      rzp.open();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start payment.');
+      setLoading(false);
+    }
+  };
+
   if (!details) {
     return (
       <PageContainer>
         <p className="text-muted">Invalid plan.</p>
-        <Link to="/myapp">Back to home</Link>
+        <Link to="/crystal">Back to home</Link>
       </PageContainer>
+    );
+  }
+
+  if (success) {
+    return (
+      <main className="payment-page payment-page--success">
+        <div className="payment-page__success-wrap">
+          <div className="payment-page__success-card">
+            <div className="payment-page__success-icon" aria-hidden>✓</div>
+            <h2 className="payment-page__success-title">Payment successful</h2>
+            <p className="payment-page__success-text">Your subscription is active.</p>
+            <Link to="/crystal" className="payment-page__success-link">
+              ← Back to home
+            </Link>
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -56,46 +183,59 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
                   </span>
                 </div>
 
-                <Form>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Business slug (name of the webpage)</Form.Label>
-                    <Form.Control type="text" placeholder="my-business" />
-                  </Form.Group>
+                {error && (
+                  <Alert variant="danger" dismissible onClose={() => setError(null)}>
+                    {error}
+                  </Alert>
+                )}
+
+                <Form onSubmit={handleSubmit}>
                   <Form.Group className="mb-3">
                     <Form.Label>Email</Form.Label>
-                    <Form.Control type="email" placeholder="you@example.com" required />
+                    <Form.Control
+                      type="email"
+                      placeholder="test@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      required
+                    />
                   </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Card number</Form.Label>
-                    <Form.Control type="text" placeholder="4242 4242 4242 4242" maxLength={19} />
-                  </Form.Group>
-                  <Row>
-                    <Col md={6}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Expiry</Form.Label>
-                        <Form.Control type="text" placeholder="MM/YY" maxLength={5} />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>CVV</Form.Label>
-                        <Form.Control type="text" placeholder="123" maxLength={4} />
-                      </Form.Group>
-                    </Col>
-                  </Row>
                   <Form.Group className="mb-4">
-                    <Form.Label>Name on card</Form.Label>
-                    <Form.Control type="text" placeholder="Full name" />
+                    <Form.Label>Business slug</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="my-gym"
+                      value={businessSlug}
+                      onChange={(e) => setBusinessSlug(e.target.value)}
+                      disabled={loading}
+                    />
+                    <Form.Text className="text-muted">
+                      The identifier for your business (e.g. my-gym).
+                    </Form.Text>
                   </Form.Group>
-                  <Button type="submit" variant="primary" size="lg" className="w-100 payment-page__submit">
-                    Pay {details.price}{details.period}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-100 payment-page__submit"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Opening payment…
+                      </>
+                    ) : (
+                      <>Pay {details.price}{details.period}</>
+                    )}
                   </Button>
                 </Form>
               </Card.Body>
             </Card>
 
             <p className="text-center">
-              <Link to="/myapp" className="text-muted">
+              <Link to="/crystal" className="text-muted">
                 ← Back to packages
               </Link>
             </p>
@@ -104,4 +244,19 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
       </Container>
     </main>
   );
+}
+
+interface RazorpayOptions {
+  key: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  name?: string;
+  description?: string;
+  handler: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: () => void) => void;
 }

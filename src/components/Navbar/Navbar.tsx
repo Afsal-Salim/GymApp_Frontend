@@ -19,7 +19,7 @@ export default function Navbar() {
   return (
     <BSNavbar expand="lg" className="crystal-navbar" sticky="top" expanded={expanded} onToggle={setExpanded}>
       <Container>
-        <BSNavbar.Brand as={Link} to="/myapp" className="crystal-brand d-flex align-items-center gap-2" onClick={closeMenu}>
+        <BSNavbar.Brand as={Link} to="/crystal" className="crystal-brand d-flex align-items-center gap-2" onClick={closeMenu}>
           <img src={logo} alt="Crystal" width="36" height="36" className="crystal-logo" />
           <span>Crystal</span>
         </BSNavbar.Brand>

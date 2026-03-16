@@ -8,6 +8,40 @@ html {
   overflow-x: hidden;
 }
 
+/* Floating scroll-down button – no scrollbar needed to go down */
+.crystal-scroll-down-btn {
+  position: fixed;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  right: max(1.5rem, env(safe-area-inset-right));
+  z-index: 50;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.crystal-scroll-down-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(14, 165, 233, 0.6);
+}
+
+.crystal-scroll-down-btn:active {
+  transform: translateY(0);
+}
+
+.crystal-scroll-down-arrow {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
 /* Hero section – full-height with background image */
 .crystal-hero {
   position: relative;
@@ -81,6 +115,7 @@ html {
 
 .crystal-scroll-inner {
   display: flex;
+  justify-content: center;
   gap: 1rem;
   overflow-x: auto;
   overflow-y: hidden;
@@ -104,6 +139,17 @@ html {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+/* Features scroll: centre icon, title, text */
+.crystal-scroll-features .crystal-scroll-card .card-body {
+  text-align: center !important;
+}
+
+.crystal-scroll-features .crystal-scroll-card .card-title,
+.crystal-scroll-features .crystal-scroll-card .card-text {
+  text-align: center !important;
+  width: 100%;
+}
+
 .crystal-scroll-icon {
   font-size: 1.5rem;
   color: #0ea5e9;
@@ -114,9 +160,26 @@ html {
   max-width: 320px;
 }
 
-.crystal-testimonial blockquote {
+.crystal-scroll-testimonials .crystal-testimonial .card-body {
+  text-align: center !important;
+}
+
+.crystal-scroll-testimonials .crystal-testimonial blockquote {
   font-style: italic;
   color: #334155;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  padding-inline-start: 0;
+  border: none;
+  border-inline-start: none;
+  text-align: center !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.crystal-scroll-testimonials .crystal-testimonial footer {
+  text-align: center !important;
+  width: 100%;
 }
 
 /* Section titles */
@@ -160,6 +223,12 @@ html {
   -ms-overflow-style: none;
 }
 
+@media (max-width: 991px) {
+  .crystal-packages-inner {
+    padding-right: max(45vw, 1.5rem);
+  }
+}
+
 .crystal-packages-scroll::-webkit-scrollbar {
   display: none;
 }
@@ -172,6 +241,8 @@ html {
   align-items: stretch;
   padding-top: 1.5rem;
   padding-bottom: 1.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 @media (min-width: 992px) {
@@ -193,14 +264,24 @@ html {
 .crystal-package-card {
   scroll-snap-align: start;
   min-width: 280px;
+  min-height: 380px;
   border-radius: 16px !important;
   position: relative;
   cursor: pointer;
   transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.2s;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Selected package is bigger; left/right are smaller */
+.crystal-package-card .card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* All cards same base size; only selected is bigger */
 .crystal-package-card:not(.crystal-package-card--selected) {
   transform: scale(0.94);
 }
@@ -230,12 +311,82 @@ html {
   font-weight: 600;
 }
 
+.crystal-package-features-wrapper {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.crystal-package-features {
+  height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.crystal-package-features::-webkit-scrollbar {
+  display: none;
+}
+
+.crystal-package-features ul {
+  padding-bottom: 2rem;
+}
+
+.crystal-features-scroll-down {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, transparent, rgba(14, 165, 233, 0.25));
+  color: #0ea5e9;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.crystal-features-scroll-down:hover {
+  background: linear-gradient(180deg, transparent, rgba(14, 165, 233, 0.4));
+}
+
+.crystal-features-scroll-down .crystal-chevron-down {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1;
+  transform: scaleY(0.6);
+}
+
 .crystal-section {
   border-top: 1px solid #e2e8f0;
 }
 
 .crystal-packages {
   overflow: visible;
+}
+
+.crystal-contacts .row {
+  align-items: stretch;
+}
+
+.crystal-contacts [class*="Col"] {
+  display: flex;
+}
+
+.crystal-contacts [class*="Col"] > div {
+  flex: 1;
+  width: 100%;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .crystal-contacts .bg-white {
@@ -298,16 +449,60 @@ html {
     font-size: 1.5rem;
   }
 
+  /* Packages: mobile – one card prominent, proper padding and size */
+  .crystal-packages-scroll {
+    padding: 1.5rem 0;
+    margin: 0;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .crystal-packages-inner {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    /* Extra right padding so Enterprise (last) card isn’t cut off when selected */
+    padding-right: max(45vw, 2rem, env(safe-area-inset-right));
+    gap: 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
   .crystal-package-card {
-    min-width: 260px;
+    min-width: min(260px, calc(100vw - 3rem));
+    max-width: min(300px, calc(100vw - 2rem));
+    flex: 0 0 auto;
+    transform: scale(0.94);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
 
   .crystal-package-card--selected {
-    transform: scale(1.02);
+    transform: scale(1.06);
+    box-shadow: 0 12px 24px rgba(14, 165, 233, 0.2), 0 0 0 2px rgba(14, 165, 233, 0.4);
+    z-index: 2;
   }
 
   .crystal-package-card:not(.crystal-package-card--selected) {
-    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  .crystal-package-card .card-body {
+    padding: 1rem 1rem 1.25rem;
+  }
+
+  .crystal-package-card .card-title {
+    font-size: 1.1rem;
+  }
+
+  .crystal-package-card .display-6 {
+    font-size: 1.5rem !important;
+  }
+
+  .crystal-package-card .list-unstyled li {
+    font-size: 0.875rem;
+  }
+
+  .crystal-package-card .btn {
+    min-height: 48px;
+    font-size: 0.95rem;
   }
 
   .crystal-stat {
