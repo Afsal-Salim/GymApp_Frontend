@@ -1,0 +1,35 @@
+.payment-page {
+  padding: 2rem 0 3rem;
+}
+
+.payment-page__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.25rem;
+}
+
+.payment-page__subtitle {
+  font-size: 1rem;
+}
+
+.payment-page__card {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.payment-page__submit {
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.75rem;
+}
+
+@media (max-width: 767px) {
+  .payment-page {
+    padding: 1.5rem 0 2rem;
+  }
+
+  .payment-page__title {
+    font-size: 1.5rem;
+  }
+}
