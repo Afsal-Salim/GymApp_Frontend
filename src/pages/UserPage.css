@@ -5,7 +5,7 @@
 .user-page {
   padding: 1.5rem 0 3rem;
   min-height: 60vh;
-  background: #e5e7eb;
+  background: #fff;
 }
 
 .user-page__container {
@@ -14,6 +14,7 @@
 
 .user-page__row {
   align-items: flex-start;
+  background-color: #fff;
 }
 
 .user-page__main {
@@ -158,7 +159,8 @@
 /* ----- Tabs ----- */
 .user-page__tabs {
   border-bottom: 1px solid #e2e8f0;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.25rem;
+  margin-top: 0.25rem;
   background: #fff;
   padding: 0 0.5rem 0 0;
   border-radius: 12px 12px 0 0;
@@ -352,7 +354,7 @@
 /* ----- Business grid ----- */
 .user-page__business-grid {
   margin-top: 0;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 /* ----- Empty state ----- */
@@ -662,7 +664,7 @@
 }
 
 .user-page__detail-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.75rem;
   background: #fff;
   border-radius: 10px;
   padding: 1.25rem 1.5rem;

@@ -284,7 +284,7 @@ export default function UserPage() {
                       <p className="user-page__empty-hint">Your connected businesses will appear here.</p>
                     </div>
                   ) : (
-                    <Row xs={1} md={2} className="g-3 user-page__business-grid">
+                    <Row xs={1} md={2} className="g-2 user-page__business-grid">
                       {businesses.map((b, index) => (
                         <Col key={(b as { id?: string }).id ?? b.slug ?? `business-${index}`}>
                           <BusinessCard b={b} onOpen={openBusinessDetail} isActive={isBusinessActive} />
