@@ -1,0 +1,75 @@
+.plans-page__main {
+  padding: 2.5rem 0 4rem;
+  min-height: 60vh;
+}
+
+.plans-page__header {
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.plans-page__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.plans-page__subtitle {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.plans-page__loading {
+  color: #64748b;
+}
+
+.plans-page__card {
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.plans-page__card:hover {
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+.plans-page__card--popular {
+  border-color: #0ea5e9;
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);
+}
+
+.plans-page__card {
+  position: relative;
+}
+
+.plans-page__badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0 16px 0 12px;
+}
+
+.plans-page__price {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.plans-page__features {
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.plans-page__features li {
+  padding: 0.2rem 0;
+}

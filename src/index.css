@@ -140,3 +140,10 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Required form field labels: red asterisk */
+.form-label.required::after,
+label.required::after {
+  content: ' *';
+  color: #dc3545;
+}

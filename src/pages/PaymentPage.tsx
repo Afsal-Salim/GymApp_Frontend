@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../components';
-import { createOrder, verifyPayment } from '../api';
+import { createOrder, verifyPayment, getAccessToken, getUserInfo, getBusinessList } from '../api';
 import type { VerifyPaymentRequest } from '../api';
+import { useToast } from '../contexts/ToastContext';
 import './PaymentPage.css';
 
 const FALLBACK_PLANS: Record<string, { name: string; price: string; period: string; currency: string }> = {
@@ -54,8 +55,22 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { showToast } = useToast();
 
   const planId = statePlanId ?? PLAN_SLUG_TO_ID[plan] ?? 1;
+
+  useEffect(() => {
+    if (getAccessToken()) {
+      const user = getUserInfo();
+      if (user.email) setEmail(user.email);
+      getBusinessList()
+        .then((list) => {
+          const first = list?.[0];
+          if (first?.slug) setBusinessSlug(first.slug);
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     const scrollToTop = () => {
@@ -90,7 +105,9 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
       const orderData = await createOrder(emailVal, slug, planId);
       const keyId = orderData.key_id;
       if (!orderData.order_id || !keyId) {
-        setError('Invalid response from server.');
+        const msg = 'Invalid response from server.';
+        setError(msg);
+        showToast(msg);
         setLoading(false);
         return;
       }
@@ -119,20 +136,26 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
             setSuccess(true);
             setLoading(false);
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Payment verification failed.');
+            const msg = err instanceof Error ? err.message : 'Payment verification failed.';
+            setError(msg);
+            showToast(msg);
             setLoading(false);
           }
         },
       });
 
       rzp.on('payment.failed', () => {
-        setError('Payment failed or was cancelled.');
+        const msg = 'Payment failed or was cancelled.';
+        setError(msg);
+        showToast(msg);
         setLoading(false);
       });
 
       rzp.open();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start payment.');
+      const msg = err instanceof Error ? err.message : 'Could not start payment.';
+      setError(msg);
+      showToast(msg);
       setLoading(false);
     }
   };
@@ -191,7 +214,7 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
 
                 <Form onSubmit={handleSubmit}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Email</Form.Label>
+                    <Form.Label className="required">Email</Form.Label>
                     <Form.Control
                       type="email"
                       placeholder="test@example.com"
@@ -202,7 +225,7 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
                     />
                   </Form.Group>
                   <Form.Group className="mb-4">
-                    <Form.Label>Business slug</Form.Label>
+                    <Form.Label className="required">Business slug</Form.Label>
                     <Form.Control
                       type="text"
                       placeholder="my-gym"

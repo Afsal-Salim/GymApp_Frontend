@@ -1,0 +1,135 @@
+/* Toaster: bottom-right, styled cards, slide in from top on show */
+
+.app-toast-container {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  right: max(1rem, env(safe-area-inset-right));
+  left: auto;
+  top: auto;
+}
+
+.app-toast {
+  min-width: 280px;
+  max-width: 380px;
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: app-toast-slide-from-top 0.35s ease-out;
+}
+
+@keyframes app-toast-slide-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-toast__header {
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 0.9rem;
+  background: transparent;
+}
+
+.app-toast__icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.app-toast__body {
+  padding: 1rem 1rem 1.25rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+/* Variants */
+.app-toast--success {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #065f46;
+}
+
+.app-toast--success .app-toast__icon {
+  background: #059669;
+}
+
+.app-toast--success .app-toast__header {
+  color: #047857;
+}
+
+.app-toast--success .app-toast__body {
+  color: #064e3b;
+}
+
+.app-toast--danger {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #991b1b;
+}
+
+.app-toast--danger .app-toast__icon {
+  background: #dc2626;
+}
+
+.app-toast--danger .app-toast__header {
+  color: #b91c1c;
+}
+
+.app-toast--danger .app-toast__body {
+  color: #7f1d1d;
+}
+
+.app-toast--warning {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  color: #92400e;
+}
+
+.app-toast--warning .app-toast__icon {
+  background: #d97706;
+}
+
+.app-toast--warning .app-toast__header {
+  color: #b45309;
+}
+
+.app-toast--warning .app-toast__body {
+  color: #78350f;
+}
+
+.app-toast--info {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1e40af;
+}
+
+.app-toast--info .app-toast__icon {
+  background: #2563eb;
+}
+
+.app-toast--info .app-toast__header {
+  color: #1d4ed8;
+}
+
+.app-toast--info .app-toast__body {
+  color: #1e3a8a;
+}
+
+/* Close button contrast */
+.app-toast .btn-close {
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
+.app-toast .btn-close:hover {
+  opacity: 1;
+}
+
+.app-toast--danger .btn-close {
+  filter: invert(1);
+}

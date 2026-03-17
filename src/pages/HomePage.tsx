@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
 import { getPlanList, type PlanListItem } from '../api';
 import './HomePage.css';
@@ -182,6 +182,18 @@ export default function HomePage() {
   useHorizontalWheel(testimonialsScrollRef);
   useHorizontalWheel(packagesScrollRef);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  /* Scroll to section when landing with a hash (e.g. from footer on UserPage) */
+  useEffect(() => {
+    const hash = location.hash?.replace(/^#/, '');
+    if (!hash) return;
+    const id = setTimeout(() => {
+      const el = document.getElementById(hash);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    return () => clearTimeout(id);
+  }, [location.pathname, location.hash]);
 
   useEffect(() => {
     const check = () => setPackagesScrollMode(window.innerWidth < PACKAGES_LOOP_BREAKPOINT);
@@ -534,6 +546,11 @@ export default function HomePage() {
               </div>
             </div>
           )}
+          <p className="text-center mt-4 mb-0">
+            <Link to="/plans" className="crystal-packages-seemore">
+              See more →
+            </Link>
+          </p>
         </Container>
       </section>
 

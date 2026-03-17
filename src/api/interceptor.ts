@@ -1,3 +1,8 @@
+/**
+ * Axios instance for authenticated requests.
+ * Uses access token from localStorage (set on login) as Bearer token.
+ * On 401, retries once after refreshing the access token using the refresh token from localStorage.
+ */
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, REFRESH_ENDPOINT } from './config';
 import {
@@ -53,23 +58,21 @@ privateApi.interceptors.response.use(
     try {
       const { data } = await axios.post(
         `${API_BASE_URL}${REFRESH_ENDPOINT}`,
-        { refresh_token: refreshToken },
+        { refresh: refreshToken },
         { headers: { 'Content-Type': 'application/json' } }
       );
 
       const newAccessToken =
-        data.access_token ?? data.accessToken ?? data.token;
+        data.access ?? data.access_token ?? data.accessToken ?? data.token;
       if (!newAccessToken) {
         clearTokens();
         return Promise.reject(error);
       }
 
       setAccessToken(newAccessToken);
-      if (data.refresh_token ?? data.refreshToken) {
-        setTokens(
-          newAccessToken,
-          data.refresh_token ?? data.refreshToken
-        );
+      const newRefresh = data.refresh ?? data.refresh_token ?? data.refreshToken;
+      if (newRefresh) {
+        setTokens(newAccessToken, newRefresh);
       }
 
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;

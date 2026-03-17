@@ -1,0 +1,62 @@
+.crystal-business-page__main {
+  padding: 2.5rem 0 4rem;
+  min-height: 60vh;
+}
+
+.crystal-business-page__content {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.crystal-business-page__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+  font-family: ui-monospace, monospace;
+}
+
+.crystal-business-page__lead {
+  font-size: 1.1rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.crystal-business-page__lead strong {
+  color: #0ea5e9;
+}
+
+.crystal-business-page__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #64748b;
+}
+
+.crystal-business-page__error {
+  margin: 0;
+}
+
+.crystal-business-page__status {
+  display: flex;
+  justify-content: center;
+}
+
+.crystal-business-page__badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.crystal-business-page__subscription {
+  border-radius: 12px;
+  text-align: left;
+}
+
+.crystal-business-page__subscription .card-body {
+  padding: 1rem 1.25rem;
+}

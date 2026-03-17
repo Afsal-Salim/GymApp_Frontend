@@ -371,6 +371,17 @@ html {
   overflow: visible;
 }
 
+.crystal-packages-seemore {
+  font-weight: 600;
+  color: #0ea5e9;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.crystal-packages-seemore:hover {
+  color: #0284c7;
+}
+
 .crystal-contacts .row {
   align-items: stretch;
 }

@@ -3,10 +3,54 @@
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
+  position: relative;
+}
+
+/* Top loading bar on route change */
+.main-layout__route-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0ea5e9, #06b6d4);
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: 9999;
+  transition: transform 0.15s ease-out;
+  pointer-events: none;
+}
+
+.main-layout__route-loader--active {
+  transform: scaleX(1);
+  animation: main-layout-loader-shrink 0.4s ease-in 0.15s forwards;
+}
+
+@keyframes main-layout-loader-shrink {
+  to {
+    transform-origin: right;
+    transform: scaleX(0);
+  }
 }
 
 .main-layout__content {
   flex: 1;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  min-height: 0;
+}
+
+/* Smooth page transition */
+.main-layout__page {
+  animation: main-layout-page-in 0.3s ease-out;
+  min-height: 100%;
+}
+
+@keyframes main-layout-page-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
