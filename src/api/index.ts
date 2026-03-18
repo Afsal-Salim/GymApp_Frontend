@@ -9,5 +9,5 @@ export {
   type VerifyPaymentRequest,
   type VerifyPaymentResponse,
 } from './payments';
-export { sendOtp, verifyOtp, signup, login, getProfile, forgotPasswordRequest, verifyResetOtp, resetPassword, type SignupRequest, type SignupResponse, type LoginRequest, type LoginResponse, type UserProfile } from './auth';
+export { sendOtp, verifyOtp, signup, login, loginWithGoogle, getProfile, forgotPasswordRequest, verifyResetOtp, resetPassword, type SignupRequest, type SignupResponse, type LoginRequest, type LoginResponse, type UserProfile } from './auth';
 export { getBusinessDetail, getBusinessList, getBusinessListPaginated, getActiveSubscription, DUMMY_BUSINESS_SLUG, type BusinessDetail, type BusinessListItem, type BusinessSubscription, type ActiveSubscriptionResponse, type BusinessListPaginatedResponse, type BusinessListMeta } from './businesses';

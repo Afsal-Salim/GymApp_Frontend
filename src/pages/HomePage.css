@@ -51,7 +51,7 @@ html {
   justify-content: center;
   color: #f8fafc;
   background: linear-gradient(160deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.82) 50%, rgba(14, 165, 233, 0.75) 100%),
-    url('/images/hero-bg.jpg') center center / cover no-repeat;
+    url('https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1600&q=80') center center / cover no-repeat;
   background-attachment: scroll;
 }
 
@@ -74,6 +74,37 @@ html {
 .crystal-hero-tagline {
   color: #e2e8f0 !important;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.2);
+}
+
+.crystal-hero-points {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.crystal-hero-point {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  font-size: 0.875rem;
+  backdrop-filter: blur(8px);
+}
+
+.crystal-hero-point-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  line-height: 1;
 }
 
 .crystal-cta {
@@ -101,6 +132,7 @@ html {
   padding: 0.6rem 1.5rem;
   border-radius: 50px;
   font-weight: 600;
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 /* Horizontal scroll sections */
@@ -187,6 +219,30 @@ html {
   color: #0f172a;
 }
 
+/* Action statement – above tutorial */
+.crystal-action-statement {
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-top: 1px solid #e2e8f0;
+}
+
+.crystal-action-title {
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.crystal-action-lead {
+  font-size: 1.1rem;
+  max-width: 36em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.crystal-section-kicker {
+  letter-spacing: 0.14em;
+  color: #0ea5e9 !important;
+}
+
 .crystal-stat {
   background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
   min-width: 100px;
@@ -207,6 +263,153 @@ html {
 .crystal-section-bg .container {
   position: relative;
   z-index: 1;
+}
+
+/* Value section – how a website helps your gym */
+.crystal-value .crystal-section-title {
+  color: var(--bs-body-color);
+}
+
+.crystal-value-points {
+  gap: 0.75rem;
+}
+
+.crystal-value-badge {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  background: rgba(14, 165, 233, 0.12);
+  color: #0ea5e9;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Pricing trust line */
+.crystal-pricing-trust {
+  font-size: 0.95rem;
+  color: var(--bs-secondary-color);
+}
+
+.crystal-trust-badge {
+  display: inline-block;
+  font-weight: 600;
+  color: #0ea5e9;
+}
+
+.crystal-trust-item {
+  margin: 0 0.15rem;
+}
+
+.crystal-trust-sep {
+  margin: 0 0.35rem;
+  opacity: 0.6;
+}
+
+/* Contact section – equal-height cards, aligned content */
+.crystal-contacts-row {
+  align-items: stretch;
+}
+
+.crystal-contact-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 140px;
+  transition: box-shadow 0.2s;
+}
+
+.crystal-contact-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+}
+
+.crystal-contact-type {
+  flex-shrink: 0;
+}
+
+.crystal-contact-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 2.5rem;
+}
+
+/* WhatsApp – logo-only button (simple icon) */
+.crystal-whatsapp-logo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #25d366;
+  color: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 10px rgba(37, 211, 102, 0.4);
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.crystal-whatsapp-logo-btn:hover {
+  background: #20bd5a;
+  color: #fff;
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.5);
+}
+
+.crystal-whatsapp-logo {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+/* Tutorial section */
+.crystal-tutorial {
+  overflow: hidden;
+}
+
+.crystal-how-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.crystal-how-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.crystal-how-step {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.crystal-video-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.crystal-video-frame {
+  position: relative;
+  padding-top: 56.25%;
+  background: #0f172a;
+}
+
+.crystal-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 /* Packages – extra padding so selected (scaled) card isn’t cut off */
@@ -382,31 +585,6 @@ html {
   color: #0284c7;
 }
 
-.crystal-contacts .row {
-  align-items: stretch;
-}
-
-.crystal-contacts [class*="Col"] {
-  display: flex;
-}
-
-.crystal-contacts [class*="Col"] > div {
-  flex: 1;
-  width: 100%;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.crystal-contacts .bg-white {
-  transition: box-shadow 0.2s;
-}
-
-.crystal-contacts .bg-white:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
-}
 
 /* ---------- Mobile friendly ---------- */
 @media (max-width: 767px) {

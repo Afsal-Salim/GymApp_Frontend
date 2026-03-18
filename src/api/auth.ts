@@ -5,6 +5,7 @@ const SEND_OTP_URL = '/auth/send-otp/';
 const VERIFY_OTP_URL = '/auth/verify-otp/';
 const SIGNUP_URL = '/auth/signup/';
 const LOGIN_URL = '/auth/login/';
+const GOOGLE_AUTH_URL = '/auth/google/';
 const ME_URL = '/auth/me/';
 const FORGOT_PASSWORD_URL = '/auth/forgot-password/';
 const VERIFY_RESET_OTP_URL = '/auth/verify-reset-otp/';
@@ -122,6 +123,20 @@ export async function login(email: string, password: string): Promise<LoginRespo
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { message?: string }).message ?? 'Login failed');
+  }
+  return res.json();
+}
+
+/** Sign in or sign up with Google. Body: { id_token }. Returns same shape as login (access, refresh, customer). */
+export async function loginWithGoogle(idToken: string): Promise<LoginResponse> {
+  const res = await fetch(`${API_BASE_URL}${GOOGLE_AUTH_URL}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_token: idToken }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? 'Google sign-in failed');
   }
   return res.json();
 }

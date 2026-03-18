@@ -1,13 +1,23 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
 import { MainLayout } from './layouts';
 import { ProtectedRoute } from './components';
 import { HomePage, PaymentPage, LoginPage, ForgotPasswordPage, SignupPage, UserPage, CrystalBusinessPage, PlansPage } from './pages';
 import './App.css';
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   return (
     <ToastProvider>
+      <ScrollToTop />
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/crystal" element={<HomePage />} />
