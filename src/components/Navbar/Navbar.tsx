@@ -118,27 +118,29 @@ export default function Navbar() {
     </BSNavbar>
 
       <Modal show={profileModalShow} onHide={closeProfileModal} centered className="crystal-nav-profile-modal">
-        <Modal.Header closeButton>
-          <Modal.Title>Account</Modal.Title>
+        <Modal.Header closeButton className="crystal-account-modal__header">
+          <Modal.Title className="crystal-account-modal__title">Account</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="d-flex flex-column align-items-center py-4">
-          <div className="crystal-nav-profile-modal__avatar mb-3">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="crystal-nav-profile-modal__img" />
-            ) : (
-              <span className="crystal-nav-profile-modal__letter" aria-hidden>{initial}</span>
-            )}
+        <Modal.Body className="crystal-account-modal__body">
+          <div className="crystal-account-modal__avatar-wrap">
+            <div className="crystal-nav-profile-modal__avatar">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="crystal-nav-profile-modal__img" />
+              ) : (
+                <span className="crystal-nav-profile-modal__letter" aria-hidden>{initial}</span>
+              )}
+            </div>
           </div>
-          <p className="mb-1 fw-semibold text-dark">{userInfo.username || userInfo.email || '—'}</p>
-          {userInfo.email && userInfo.username && (
-            <p className="small text-muted mb-0">{userInfo.email}</p>
+          <p className="crystal-account-modal__name">{userInfo.username || userInfo.email || '—'}</p>
+          {userInfo.email && (
+            <p className="crystal-account-modal__email">{userInfo.email}</p>
           )}
         </Modal.Body>
-        <Modal.Footer className="flex-column gap-2">
-          <Button variant="primary" className="w-100" onClick={goToProfile}>
+        <Modal.Footer className="crystal-account-modal__footer">
+          <Button className="crystal-account-modal__btn crystal-account-modal__btn--profile w-100" onClick={goToProfile}>
             Profile
           </Button>
-          <Button variant="outline-danger" className="w-100" onClick={handleLogout}>
+          <Button variant="link" className="crystal-account-modal__btn crystal-account-modal__btn--logout w-100" onClick={handleLogout}>
             Log out
           </Button>
         </Modal.Footer>

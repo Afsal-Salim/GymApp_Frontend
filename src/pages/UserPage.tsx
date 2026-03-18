@@ -236,7 +236,16 @@ export default function UserPage() {
                         </>
                       )}
                     </div>
-                    <Button variant="outline-secondary" size="sm" className="user-page__btn-edit-profile" disabled aria-label="Edit profile (not available)">Edit Profile</Button>
+                    <div className="user-page__profile-actions d-flex gap-2 align-items-center flex-wrap">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm user-page__btn-create-website"
+                        onClick={() => navigate(PLANS_PAGE_PATH)}
+                      >
+                        Create website
+                      </button>
+                      <Button variant="outline-secondary" size="sm" className="user-page__btn-edit-profile" disabled aria-label="Edit profile (not available)">Edit Profile</Button>
+                    </div>
                   </div>
                 </Card.Body>
               </Card>

@@ -238,6 +238,22 @@ html {
   margin-right: auto;
 }
 
+.crystal-action-btns {
+  gap: 0.75rem;
+}
+
+.crystal-action-preview-btn {
+  border-color: #0ea5e9 !important;
+  color: #0ea5e9 !important;
+  background: transparent !important;
+}
+
+.crystal-action-preview-btn:hover {
+  background: rgba(14, 165, 233, 0.1) !important;
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+}
+
 .crystal-section-kicker {
   letter-spacing: 0.14em;
   color: #0ea5e9 !important;

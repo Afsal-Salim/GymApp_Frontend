@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
-import { getPlanList, type PlanListItem } from '../api';
+import { getPlanList, DUMMY_BUSINESS_SLUG, type PlanListItem } from '../api';
 import './HomePage.css';
 
 function WhatsAppLogoIcon({ className }: { className?: string }) {
@@ -245,9 +245,14 @@ export default function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  /* Scroll to section when landing with a hash (e.g. from footer on UserPage) */
+  /* Scroll to section when user clicks an in-page link with hash (not on initial open). */
+  const isInitialLoadRef = useRef(true);
   useEffect(() => {
     const hash = location.hash?.replace(/^#/, '');
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      return;
+    }
     if (!hash) return;
     const id = setTimeout(() => {
       const el = document.getElementById(hash);
@@ -281,10 +286,13 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  /* Always open homepage from the top; clear any saved scroll position. */
+  /* Always open homepage from the top; clear any saved scroll position and hash. */
   useEffect(() => {
     sessionStorage.removeItem('crystalReturnScroll');
     window.scrollTo(0, 0);
+    if (location.hash && (location.pathname === '/crystal' || location.pathname === '/')) {
+      window.history.replaceState(null, '', location.pathname + location.search);
+    }
   }, []);
 
   const isInitialPackageSelection = useRef(true);
@@ -534,9 +542,17 @@ export default function HomePage() {
               <p className="crystal-action-lead lead text-muted mb-4">
                 No coding. Just add your details and go live. Start in minutes.
               </p>
-              <Link to="/login" className="btn btn-primary btn-lg crystal-cta">
-                Create your website now
-              </Link>
+              <div className="d-flex flex-wrap gap-2 justify-content-center crystal-action-btns">
+                <Link to="/login" className="btn btn-primary btn-lg crystal-cta">
+                  Create your website now
+                </Link>
+                <Link
+                  to={`/crystal/${DUMMY_BUSINESS_SLUG}/`}
+                  className="btn btn-outline-primary btn-lg crystal-cta-outline crystal-action-preview-btn"
+                >
+                  Preview
+                </Link>
+              </div>
             </Col>
           </Row>
         </Container>
