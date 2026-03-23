@@ -8,6 +8,81 @@ html {
   overflow-x: hidden;
 }
 
+/* —— Scroll-triggered section reveals —— */
+.crystal-home [data-crystal-reveal] {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.crystal-home [data-crystal-reveal].crystal-reveal-visible {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* —— Hero stagger (load) —— */
+@keyframes crystal-home-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.crystal-hero .crystal-hero-seq {
+  opacity: 0;
+  animation: crystal-home-fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.crystal-hero .crystal-hero-seq--1 {
+  animation-delay: 0.05s;
+}
+.crystal-hero .crystal-hero-seq--2 {
+  animation-delay: 0.14s;
+}
+.crystal-hero .crystal-hero-seq--3 {
+  animation-delay: 0.24s;
+}
+.crystal-hero .crystal-hero-seq--4 {
+  animation-delay: 0.34s;
+}
+.crystal-hero .crystal-hero-seq--5 {
+  animation-delay: 0.44s;
+}
+
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point {
+  opacity: 0;
+  animation: crystal-home-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point:nth-child(1) {
+  animation-delay: 0.52s;
+}
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point:nth-child(2) {
+  animation-delay: 0.6s;
+}
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point:nth-child(3) {
+  animation-delay: 0.68s;
+}
+
+@keyframes crystal-home-float-btn-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Floating scroll-down button – no scrollbar needed to go down */
 .crystal-scroll-down-btn {
   position: fixed;
@@ -26,6 +101,7 @@ html {
   justify-content: center;
   box-shadow: 0 4px 20px rgba(14, 165, 233, 0.5);
   transition: transform 0.2s, box-shadow 0.2s;
+  animation: crystal-home-float-btn-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.85s both;
 }
 
 .crystal-scroll-down-btn:hover {
@@ -37,9 +113,39 @@ html {
   transform: translateY(0);
 }
 
-.crystal-scroll-down-arrow {
-  font-size: 1.5rem;
-  line-height: 1;
+.crystal-scroll-down-btn__chevron {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: block;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.crystal-scroll-down-btn--up .crystal-scroll-down-btn__chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-scroll-down-btn__chevron {
+    transition: none;
+  }
+
+  .crystal-home [data-crystal-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+
+  .crystal-hero .crystal-hero-seq,
+  .crystal-hero .crystal-hero-seq--5 .crystal-hero-point {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .crystal-scroll-down-btn {
+    animation: none;
+  }
 }
 
 /* Hero section – full-height with background image */
@@ -169,6 +275,24 @@ html {
   border-radius: 12px !important;
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease;
+}
+
+.crystal-scroll-inner .crystal-scroll-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-scroll-inner .crystal-scroll-card {
+    transition: none;
+  }
+
+  .crystal-scroll-inner .crystal-scroll-card:hover {
+    transform: none;
+  }
 }
 
 /* Features scroll: centre icon, title, text */
@@ -298,6 +422,26 @@ html {
   border-radius: 50px;
   font-size: 0.9rem;
   font-weight: 500;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.crystal-value-badge:hover {
+  transform: translateY(-2px);
+  background: rgba(14, 165, 233, 0.2);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-value-badge {
+    transition: none;
+  }
+
+  .crystal-value-badge:hover {
+    transform: none;
+  }
 }
 
 /* Pricing trust line */
@@ -392,6 +536,26 @@ html {
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease,
+    border-color 0.2s ease;
+}
+
+.crystal-how-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.12);
+  border-color: color-mix(in srgb, #0ea5e9 35%, #e2e8f0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-how-card {
+    transition: none;
+  }
+
+  .crystal-how-card:hover {
+    transform: none;
+  }
 }
 
 .crystal-how-step {
@@ -412,6 +576,24 @@ html {
   border-radius: 18px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s ease;
+}
+
+.crystal-video-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 20px 40px rgba(14, 165, 233, 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-video-card {
+    transition: none;
+  }
+
+  .crystal-video-card:hover {
+    transform: none;
+  }
 }
 
 .crystal-video-frame {

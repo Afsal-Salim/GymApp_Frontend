@@ -1,0 +1,20 @@
+.payment-login-modal .modal-content {
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+}
+
+.payment-login-modal__title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.payment-login-modal__text {
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.payment-login-modal__footer .btn {
+  border-radius: 10px;
+  font-weight: 600;
+}

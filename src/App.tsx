@@ -3,7 +3,17 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
 import { MainLayout } from './layouts';
 import { ProtectedRoute } from './components';
-import { HomePage, PaymentPage, LoginPage, ForgotPasswordPage, SignupPage, UserPage, CrystalBusinessPage, PlansPage } from './pages';
+import {
+  HomePage,
+  PaymentPage,
+  LoginPage,
+  ForgotPasswordPage,
+  SignupPage,
+  UserPage,
+  CreateWebsitePage,
+  CrystalBusinessPage,
+  PlansPage,
+} from './pages';
 import './App.css';
 
 function ScrollToTop() {
@@ -29,6 +39,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route element={<ProtectedRoute />}>
+            <Route path="/user/create-website" element={<CreateWebsitePage />} />
             <Route path="/user" element={<UserPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/crystal" replace />} />

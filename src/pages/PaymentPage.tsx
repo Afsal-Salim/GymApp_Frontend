@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
-import { PageContainer } from '../components';
+import { PageContainer, PaymentLoginRequiredModal } from '../components';
+import type { CheckoutRedirect } from '../components';
 import { createOrder, verifyPayment, getAccessToken, getUserInfo, getBusinessList } from '../api';
 import type { VerifyPaymentRequest } from '../api';
 import { useToast } from '../contexts/ToastContext';
@@ -55,9 +56,18 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(() => !getAccessToken());
   const { showToast } = useToast();
 
   const planId = statePlanId ?? PLAN_SLUG_TO_ID[plan] ?? 1;
+
+  const checkoutRedirect = useMemo(
+    (): CheckoutRedirect => ({
+      pathname: location.pathname,
+      state: location.state as CheckoutRedirect['state'],
+    }),
+    [location.pathname, location.state]
+  );
 
   useEffect(() => {
     if (getAccessToken()) {
@@ -89,6 +99,11 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!getAccessToken()) {
+      setLoginModalOpen(true);
+      showToast('Please log in to continue to checkout.');
+      return;
+    }
     const emailVal = email.trim();
     const slug = businessSlug.trim();
     if (!emailVal) {
@@ -187,6 +202,7 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
   }
 
   return (
+    <>
     <main className="payment-page">
       <Container>
         <Row className="justify-content-center">
@@ -266,6 +282,12 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
         </Row>
       </Container>
     </main>
+    <PaymentLoginRequiredModal
+      show={loginModalOpen}
+      onHide={() => setLoginModalOpen(false)}
+      checkout={checkoutRedirect}
+    />
+    </>
   );
 }
 

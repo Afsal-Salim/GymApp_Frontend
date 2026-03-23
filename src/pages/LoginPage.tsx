@@ -24,7 +24,15 @@ declare global {
 const LOGIN_PANEL_IMAGE =
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80';
 
-type LocationState = { email?: string; message?: string; from?: { pathname: string } } | null;
+type LoginReturnTarget = {
+  pathname: string;
+  state?: {
+    planDetails?: { name: string; price: string; period: string; currency: string };
+    planId?: number;
+  };
+};
+
+type LocationState = { email?: string; message?: string; from?: LoginReturnTarget } | null;
 
 function GoogleIcon() {
   return (
@@ -77,8 +85,14 @@ export default function LoginPage() {
     };
   }, []);
 
-  const redirectPathRef = useRef((state.from?.pathname) ?? '/user');
-  redirectPathRef.current = (state.from?.pathname) ?? '/user';
+  const redirectTargetRef = useRef<LoginReturnTarget>({
+    pathname: state.from?.pathname ?? '/user',
+    state: state.from?.state,
+  });
+  redirectTargetRef.current = {
+    pathname: state.from?.pathname ?? '/user',
+    state: state.from?.state,
+  };
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !googleReady || !window.google || !googleButtonRef.current) return;
@@ -110,7 +124,10 @@ export default function LoginPage() {
           getProfile()
             .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
             .catch(() => {});
-          navigate(redirectPathRef.current, { replace: true });
+          navigate(redirectTargetRef.current.pathname, {
+            replace: true,
+            state: redirectTargetRef.current.state,
+          });
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Google sign-in failed';
           setError(msg);
@@ -178,7 +195,7 @@ export default function LoginPage() {
       getProfile()
         .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
         .catch(() => {});
-      navigate((state.from?.pathname) ?? '/user', { replace: true });
+      navigate(state.from?.pathname ?? '/user', { replace: true, state: state.from?.state });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setError(msg);

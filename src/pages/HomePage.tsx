@@ -1,16 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
-import { getPlanList, DUMMY_BUSINESS_SLUG, type PlanListItem } from '../api';
+import { getPlanList, getAccessToken, DUMMY_BUSINESS_SLUG, type PlanListItem } from '../api';
+import { PaymentLoginRequiredModal, WhatsAppLogoIcon } from '../components';
+import type { CheckoutRedirect } from '../components';
 import './HomePage.css';
-
-function WhatsAppLogoIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden>
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-    </svg>
-  );
-}
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: '₹',
@@ -56,9 +50,9 @@ function mapPlanToDisplay(apiPlan: PlanListItem, index: number): DisplayPlan {
 }
 
 const HERO_BADGE = 'Website builder';
-const HERO_TITLE = 'Hey, Want to built your own website?';
+const HERO_TITLE = 'Create Your Gym Website in Minutes';
 const HERO_TAGLINE =
-  'Create your gym website in minutes—no coding, just launch.';
+  'No Coding Required. Get more members, manage bookings, and grow your gym online.';
 const HERO_POINTS = [
     'Enter your gym details in minutes',
     'Preview your site before publishing',
@@ -156,6 +150,27 @@ function getYoutubeEmbedUrl(rawUrl: string): string {
 
 const TUTORIAL_EMBED_URL = getYoutubeEmbedUrl(TUTORIAL_VIDEO_URL);
 
+function useCrystalHomeReveal(rootRef: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const els = root.querySelectorAll('[data-crystal-reveal]');
+    if (els.length === 0) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('crystal-reveal-visible');
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [rootRef]);
+}
+
 function useHorizontalWheel(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const el = ref.current;
@@ -239,6 +254,8 @@ export default function HomePage() {
   const featuresScrollRef = useRef<HTMLDivElement>(null);
   const testimonialsScrollRef = useRef<HTMLDivElement>(null);
   const packagesScrollRef = useRef<HTMLDivElement>(null);
+  const homeMainRef = useRef<HTMLElement>(null);
+  useCrystalHomeReveal(homeMainRef);
   useHorizontalWheel(featuresScrollRef);
   useHorizontalWheel(testimonialsScrollRef);
   useHorizontalWheel(packagesScrollRef);
@@ -312,6 +329,8 @@ export default function HomePage() {
   }, [selectedPackageId]);
 
   const [footerVisible, setFooterVisible] = useState(false);
+  const [paymentLoginModalShow, setPaymentLoginModalShow] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<CheckoutRedirect | null>(null);
   useEffect(() => {
     const footer = document.getElementById('crystal-footer');
     if (!footer) return;
@@ -325,6 +344,22 @@ export default function HomePage() {
     io.observe(footer);
     return () => io.disconnect();
   }, []);
+
+  const goToCheckout = (pkg: DisplayPlan) => {
+    if (!pkg.paymentSlug) return;
+    const pathname = `/${pkg.paymentSlug}`;
+    const navState = {
+      planDetails: { name: pkg.name, price: pkg.price, period: pkg.period, currency: pkg.currency },
+      planId: Number(pkg.id),
+    };
+    if (!getAccessToken()) {
+      setPendingCheckout({ pathname, state: navState });
+      setPaymentLoginModalShow(true);
+      return;
+    }
+    sessionStorage.setItem('crystalReturnScroll', String(window.scrollY));
+    navigate(pathname, { state: navState });
+  };
 
   const scrollDown = () => {
     window.scrollTo({ top: window.scrollY + window.innerHeight * 0.85, behavior: 'smooth' });
@@ -460,22 +495,23 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className="crystal-home">
+    <>
+    <main ref={homeMainRef} className="crystal-home">
       {/* Hero section */}
       <section id="home" className="crystal-hero">
         <Container>
           <Row className="justify-content-center align-items-center text-center">
             <Col xs={12} lg={10} xl={8} className="py-5 py-lg-0">
-              <p className="crystal-hero-subtitle text-uppercase small fw-semibold mb-2 mb-md-3">
+              <p className="crystal-hero-subtitle crystal-hero-seq crystal-hero-seq--1 text-uppercase small fw-semibold mb-2 mb-md-3">
                 {HERO_BADGE}
               </p>
-              <h1 className="crystal-hero-title display-4 fw-bold mb-3">
+              <h1 className="crystal-hero-title crystal-hero-seq crystal-hero-seq--2 display-4 fw-bold mb-3">
                 {HERO_TITLE}
               </h1>
-              <p className="crystal-hero-tagline lead mb-4 mx-auto">
+              <p className="crystal-hero-tagline crystal-hero-seq crystal-hero-seq--3 lead mb-4 mx-auto">
                 {HERO_TAGLINE}
               </p>
-              <div className="d-flex flex-wrap gap-2 justify-content-center">
+              <div className="crystal-hero-seq crystal-hero-seq--4 d-flex flex-wrap gap-2 justify-content-center">
                 <Button href="#packages" variant="primary" size="lg" className="crystal-cta">
                   View pricing
                 </Button>
@@ -483,7 +519,7 @@ export default function HomePage() {
                   Watch tutorial
                 </Button>
               </div>
-              <div className="crystal-hero-points mt-4">
+              <div className="crystal-hero-points crystal-hero-seq crystal-hero-seq--5 mt-4">
                 {HERO_POINTS.map((point) => (
                   <span key={point} className="crystal-hero-point">
                     <span className="crystal-hero-point-icon" aria-hidden>✓</span>
@@ -498,12 +534,12 @@ export default function HomePage() {
 
       {/* Why a website helps your gym – right below hero */}
       <section id="value" className="crystal-section crystal-value py-5 crystal-section-bg">
-        <Container>
+        <Container data-crystal-reveal>
           <Row className="justify-content-center">
             <Col lg={8} className="text-center">
               <p className="crystal-section-kicker text-primary fw-semibold text-uppercase small mb-2">Grow your gym</p>
               <h2 className="crystal-section-title display-6 fw-bold mb-3">
-                Get more gym members with your own professional website
+              Turn visitors into paying gym members with your own website.
               </h2>
               <p className="text-muted mb-4">
                 A dedicated website builds trust, shows your classes and timings, and helps new members find you. Stand out with a polished online presence—no tech skills needed.
@@ -519,7 +555,7 @@ export default function HomePage() {
       </section>
 
       {/* Horizontal scroll: Features (auto-scroll, loops back to start) */}
-      <section className="crystal-scroll-section crystal-scroll-features">
+      <section className="crystal-scroll-section crystal-scroll-features" data-crystal-reveal>
         <div ref={featuresScrollRef} className="crystal-scroll-inner">
           {FEATURES_SCROLL.map((f, i) => (
             <Card key={i} className="crystal-scroll-card flex-shrink-0">
@@ -535,10 +571,10 @@ export default function HomePage() {
 
       {/* Action statement – above tutorial */}
       <section className="crystal-section crystal-action-statement py-5">
-        <Container>
+        <Container data-crystal-reveal>
           <Row className="justify-content-center text-center">
             <Col lg={8}>
-              <h2 className="crystal-action-title display-5 fw-bold mb-3">Create your website now</h2>
+              <h2 className="crystal-action-title display-5 fw-bold mb-3">Build your gym website today.</h2>
               <p className="crystal-action-lead lead text-muted mb-4">
                 No coding. Just add your details and go live. Start in minutes.
               </p>
@@ -560,7 +596,7 @@ export default function HomePage() {
 
       {/* Tutorial */}
       <section id="tutorial" className="crystal-section crystal-tutorial py-5 crystal-section-bg">
-        <Container>
+        <Container data-crystal-reveal>
           <Row className="g-4 align-items-center">
             <Col lg={6}>
               <p className="crystal-section-kicker text-primary fw-semibold text-uppercase small mb-2">
@@ -610,7 +646,7 @@ export default function HomePage() {
 
       {/* About */}
       <section id="about" className="crystal-section crystal-about py-5 crystal-section-bg">
-        <Container>
+        <Container data-crystal-reveal>
           <Row className="justify-content-center">
             <Col lg={8} className="text-center">
               <h2 className="crystal-section-title display-6 fw-bold mb-2">{ABOUT.title}</h2>
@@ -632,7 +668,7 @@ export default function HomePage() {
       </section>
 
       {/* Horizontal scroll: Testimonials (auto-scroll, loops back to start) */}
-      <section className="crystal-scroll-section crystal-scroll-testimonials">
+      <section className="crystal-scroll-section crystal-scroll-testimonials" data-crystal-reveal>
         <div ref={testimonialsScrollRef} className="crystal-scroll-inner">
           {TESTIMONIALS_SCROLL.map((t, i) => (
             <Card key={i} className="crystal-scroll-card crystal-testimonial flex-shrink-0">
@@ -647,7 +683,7 @@ export default function HomePage() {
 
       {/* Packages */}
       <section id="packages" className="crystal-section crystal-packages py-5">
-        <Container>
+        <Container data-crystal-reveal>
           <h2 className="crystal-section-title text-center display-6 fw-bold mb-2">Pricing</h2>
           <p className="text-center text-muted mb-4">
             Get now for just the price that fits your launch. Upgrade or downgrade anytime.
@@ -710,13 +746,7 @@ export default function HomePage() {
                             className="w-100"
                             onClick={(e) => {
                               e.stopPropagation();
-                              sessionStorage.setItem('crystalReturnScroll', String(window.scrollY));
-                              navigate(`/${pkg.paymentSlug}`, {
-                                state: {
-                                  planDetails: { name: pkg.name, price: pkg.price, period: pkg.period, currency: pkg.currency },
-                                  planId: Number(pkg.id),
-                                },
-                              });
+                              goToCheckout(pkg);
                             }}
                           >
                             {pkg.cta}
@@ -748,12 +778,26 @@ export default function HomePage() {
         onClick={footerVisible ? scrollToTop : scrollDown}
         aria-label={footerVisible ? 'Scroll to top' : 'Scroll down'}
       >
-        <span className="crystal-scroll-down-arrow" aria-hidden>{footerVisible ? '↑' : '↓'}</span>
+        <svg
+          className="crystal-scroll-down-btn__chevron"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden
+        >
+          <path
+            d="M7 10l5 5 5-5"
+            stroke="currentColor"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {/* Contacts */}
       <section id="contacts" className="crystal-section crystal-contacts py-5 bg-light crystal-section-bg">
-        <Container>
+        <Container data-crystal-reveal>
           <h2 className="crystal-section-title text-center display-6 fw-bold mb-2">{CONTACTS.title}</h2>
           {CONTACTS.subtitle && (
             <p className="text-center text-muted mb-4">{CONTACTS.subtitle}</p>
@@ -787,5 +831,14 @@ export default function HomePage() {
         </Container>
       </section>
     </main>
+    <PaymentLoginRequiredModal
+      show={paymentLoginModalShow}
+      onHide={() => {
+        setPaymentLoginModalShow(false);
+        setPendingCheckout(null);
+      }}
+      checkout={pendingCheckout}
+    />
+    </>
   );
 }

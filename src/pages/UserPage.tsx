@@ -240,7 +240,7 @@ export default function UserPage() {
                       <button
                         type="button"
                         className="btn btn-primary btn-sm user-page__btn-create-website"
-                        onClick={() => navigate(PLANS_PAGE_PATH)}
+                        onClick={() => navigate('/user/create-website')}
                       >
                         Create website
                       </button>

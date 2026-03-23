@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
-import { PageContainer } from '../components';
+import { PageContainer, PaymentLoginRequiredModal } from '../components';
+import type { CheckoutRedirect } from '../components';
+import { getAccessToken } from '../api';
 import { getPlanList, type PlanListItem } from '../api';
 import './PlansPage.css';
 
@@ -68,6 +70,8 @@ export default function PlansPage() {
   const [plans, setPlans] = useState<DisplayPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [paymentLoginModalShow, setPaymentLoginModalShow] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<CheckoutRedirect | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,16 +90,29 @@ export default function PlansPage() {
 
   const handleSelectPlan = (pkg: DisplayPlan) => {
     if (!pkg.paymentSlug) return;
-    navigate(`/${pkg.paymentSlug}`, {
-      state: {
-        planDetails: { name: pkg.name, price: pkg.price, period: pkg.period, currency: pkg.currency },
-        planId: Number(pkg.id),
-      },
-    });
+    const pathname = `/${pkg.paymentSlug}`;
+    const navState = {
+      planDetails: { name: pkg.name, price: pkg.price, period: pkg.period, currency: pkg.currency },
+      planId: Number(pkg.id),
+    };
+    if (!getAccessToken()) {
+      setPendingCheckout({ pathname, state: navState });
+      setPaymentLoginModalShow(true);
+      return;
+    }
+    navigate(pathname, { state: navState });
   };
 
   return (
     <PageContainer className="plans-page">
+      <PaymentLoginRequiredModal
+        show={paymentLoginModalShow}
+        onHide={() => {
+          setPaymentLoginModalShow(false);
+          setPendingCheckout(null);
+        }}
+        checkout={pendingCheckout}
+      />
       <main className="plans-page__main">
         <Container>
           <header className="plans-page__header text-center mb-5">

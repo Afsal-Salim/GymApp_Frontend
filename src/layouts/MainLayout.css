@@ -46,6 +46,40 @@
   min-height: 100%;
 }
 
+/* Public gym client page: fill column so no white band above/below outlet */
+.main-layout__page:has(.crystal-business-page--client) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.main-layout__page:has(.crystal-business-page--client) .crystal-business-page--client {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.main-layout__page:has(.crystal-business-page--client) .crystal-business-page__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.main-layout__page:has(.crystal-business-page--client) .crystal-business-page__content--wide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.main-layout__page:has(.crystal-business-page--client) .crystal-client-viewport {
+  flex: 1;
+  min-height: 0;
+}
+
 @keyframes main-layout-page-in {
   from {
     opacity: 0;

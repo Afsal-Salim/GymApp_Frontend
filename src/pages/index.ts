@@ -4,6 +4,7 @@ export { default as LoginPage } from './LoginPage';
 export { default as ForgotPasswordPage } from './ForgotPasswordPage';
 export { default as SignupPage } from './SignupPage';
 export { default as UserPage } from './UserPage';
+export { default as CreateWebsitePage } from './CreateWebsitePage';
 export { default as Welcome } from './Welcome';
 export { default as CrystalBusinessPage } from './CrystalBusinessPage';
 export { default as PlansPage } from './PlansPage';
