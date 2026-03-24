@@ -40,6 +40,7 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/user/create-website" element={<CreateWebsitePage />} />
+            <Route path="/user/business/:slug/edit" element={<CreateWebsitePage />} />
             <Route path="/user" element={<UserPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/crystal" replace />} />

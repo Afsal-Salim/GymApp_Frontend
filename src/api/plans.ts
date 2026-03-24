@@ -1,4 +1,5 @@
-import { API_BASE_URL } from './config';
+import { getAxiosErrorMessage } from './http/axiosErrorMessage';
+import { publicApi } from './http/publicApi';
 
 export type PlanFeature = {
   id: number;
@@ -31,14 +32,16 @@ type PlanListApiResponse = {
 };
 
 export async function getPlanList(): Promise<PlanListItem[]> {
-  const res = await fetch(`${API_BASE_URL}/plans/plan_list/`);
-  if (!res.ok) throw new Error('Failed to fetch plans');
-  const data: PlanListApiResponse | PlanListItem[] = await res.json();
-  if (Array.isArray((data as PlanListApiResponse).results)) {
-    return (data as PlanListApiResponse).results;
+  try {
+    const { data } = await publicApi.get<PlanListApiResponse | PlanListItem[]>('/plans/plan_list/');
+    if (Array.isArray((data as PlanListApiResponse).results)) {
+      return (data as PlanListApiResponse).results ?? [];
+    }
+    if (Array.isArray(data)) {
+      return data as PlanListItem[];
+    }
+    return [];
+  } catch (e) {
+    throw new Error(getAxiosErrorMessage(e, 'Failed to fetch plans'));
   }
-  if (Array.isArray(data)) {
-    return data as PlanListItem[];
-  }
-  return [];
 }

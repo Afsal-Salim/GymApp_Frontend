@@ -1,5 +1,8 @@
-import { API_BASE_URL } from './config';
+import axios from 'axios';
+import type { CrystalWebsiteSetupPayload } from '../pages/crystal/gymClientSiteContent';
 import { privateApi } from './interceptor';
+import { getAxiosErrorMessage } from './http/axiosErrorMessage';
+import { publicApi } from './http/publicApi';
 
 const BASE = '/businesses';
 
@@ -25,6 +28,10 @@ export type BusinessDetail = {
   description?: string;
   phone?: string;
   address?: string;
+  /** Maps link (e.g. Google Maps) when the API stores it separately from address. */
+  location_map_url?: string;
+  /** When the API exposes it, toggles listing / operational state (separate from subscription). */
+  is_active?: boolean;
   subscriptions?: BusinessSubscription[];
   created_at?: string;
   updated_at?: string;
@@ -102,6 +109,8 @@ export type PublicBusinessDetail = {
   description?: string;
   phone?: string;
   address?: string;
+  /** Google Maps (or other) directions URL for the public client page. */
+  location_map_url?: string;
   /** Public logo URL when the backend provides one; otherwise the client uses a bundled fallback. */
   logo_url?: string;
   created_at: string;
@@ -120,16 +129,16 @@ export class PublicBusinessNotFoundError extends Error {
 
 /** Load basic business profile for the public client site. No owner or subscription fields. */
 export async function getPublicBusinessBySlug(slug: string): Promise<PublicBusinessDetail> {
-  const res = await fetch(`${API_BASE_URL}${BASE}/public/${encodeURIComponent(slug)}/`);
-  if (res.status === 404) {
-    const body = (await res.json().catch(() => ({}))) as { detail?: string };
-    throw new PublicBusinessNotFoundError(slug, typeof body.detail === 'string' ? body.detail : undefined);
+  try {
+    const { data } = await publicApi.get<PublicBusinessDetail>(`${BASE}/public/${encodeURIComponent(slug)}/`);
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      const body = e.response?.data as { detail?: string } | undefined;
+      throw new PublicBusinessNotFoundError(slug, typeof body?.detail === 'string' ? body.detail : undefined);
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load business'));
   }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { detail?: string }).detail ?? 'Failed to load business');
-  }
-  return res.json() as Promise<PublicBusinessDetail>;
 }
 
 /** Response from GET /businesses/:slug/active-subscription/ (no auth). */
@@ -146,12 +155,14 @@ export type ActiveSubscriptionResponse = {
 
 /** Check if a business has an active subscription. Public endpoint, no auth. */
 export async function getActiveSubscription(slug: string): Promise<ActiveSubscriptionResponse> {
-  const res = await fetch(`${API_BASE_URL}${BASE}/${encodeURIComponent(slug)}/active-subscription/`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { detail?: string }).detail ?? 'Failed to check subscription');
+  try {
+    const { data } = await publicApi.get<ActiveSubscriptionResponse>(
+      `${BASE}/${encodeURIComponent(slug)}/active-subscription/`
+    );
+    return data;
+  } catch (e) {
+    throw new Error(getAxiosErrorMessage(e, 'Failed to check subscription'));
   }
-  return res.json();
 }
 
 /** Response from GET /businesses/check-slug/?slug= (public, no auth). */
@@ -167,22 +178,18 @@ export type PublicCheckSlugResponse = {
  */
 export async function getPublicCheckSlug(slug: string): Promise<PublicCheckSlugResponse> {
   const normalized = slug.trim().toLowerCase();
-  const url = `${API_BASE_URL}${BASE}/check-slug/?slug=${encodeURIComponent(normalized)}`;
-  const res = await fetch(url);
-  if (res.status === 400) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
-    const msg = body.error ?? body.detail ?? 'Invalid slug';
-    throw new Error(msg);
+  try {
+    const { data } = await publicApi.get<PublicCheckSlugResponse>(`${BASE}/check-slug/`, {
+      params: { slug: normalized },
+    });
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 400) {
+      const body = e.response?.data as { error?: string; detail?: string } | undefined;
+      throw new Error(body?.error ?? body?.detail ?? 'Invalid slug');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Slug check failed'));
   }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      (err as { error?: string }).error ??
-        (err as { detail?: string }).detail ??
-        `Slug check failed (${res.status})`
-    );
-  }
-  return res.json() as Promise<PublicCheckSlugResponse>;
 }
 
 /**
@@ -236,7 +243,55 @@ export async function checkBusinessSlugAvailability(slug: string): Promise<{
   }
 }
 
-/** Optional: persist setup wizard payload. Backend should accept the same shape as the session draft. */
-export async function submitWebsiteSetupDraft(payload: unknown): Promise<void> {
-  await privateApi.post(`${BASE}/website-setup/`, payload);
+export type { CrystalWebsiteSetupPayload };
+
+/**
+ * Save the full Crystal website builder payload for the logged-in user.
+ *
+ * **POST** `/api/businesses/website-setup/` (see `VITE_API_BASE_URL`) — **Authorization: Bearer** required.
+ * Request JSON body: {@link CrystalWebsiteSetupPayload}.
+ */
+export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload): Promise<void> {
+  try {
+    await privateApi.post(`${BASE}/website-setup/`, payload);
+  } catch (e) {
+    throw new Error(getAxiosErrorMessage(e, 'Failed to save website setup'));
+  }
+}
+
+/** Partial update for a business owned by the current user. */
+export type PatchBusinessRequest = {
+  name?: string;
+  slug?: string;
+  description?: string;
+  phone?: string;
+  address?: string;
+  location_map_url?: string;
+  logo_url?: string;
+  /** If the API supports toggling listing/subscription state separately from subscriptions */
+  is_active?: boolean;
+};
+
+/**
+ * **PATCH** `/api/businesses/<slug>/` — core profile fields (name, slug rename, contact, etc.).
+ */
+export async function patchBusiness(businessSlug: string, body: PatchBusinessRequest): Promise<void> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    await privateApi.patch(`${BASE}/${encodeURIComponent(key)}/`, body);
+  } catch (e) {
+    throw new Error(getAxiosErrorMessage(e, 'Failed to update business'));
+  }
+}
+
+/**
+ * **PATCH** `/api/businesses/website-setup/` — same body as POST; updates existing Crystal setup (slug in payload identifies the business).
+ */
+export async function patchWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload): Promise<void> {
+  try {
+    await privateApi.patch(`${BASE}/website-setup/`, payload);
+  } catch (e) {
+    throw new Error(getAxiosErrorMessage(e, 'Failed to update website setup'));
+  }
 }

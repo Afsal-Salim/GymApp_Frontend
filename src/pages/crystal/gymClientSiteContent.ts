@@ -44,6 +44,19 @@ export type GymClientDiscountOffer = {
   periodLabel?: string;
 };
 
+/** True when an offer has any user-visible content (empty rows / placeholders are excluded). */
+export function isGymClientDiscountOfferFilled(o: GymClientDiscountOffer): boolean {
+  if (o.title.trim()) return true;
+  if (o.subtitle?.trim()) return true;
+  if (o.percentOff > 0) return true;
+  const sale = o.salePriceLabel.trim();
+  if (sale && sale !== '—') return true;
+  const orig = o.originalPriceLabel.trim();
+  if (orig && orig !== '—') return true;
+  if (o.periodLabel?.trim()) return true;
+  return false;
+}
+
 export type GymClientDetailRow = {
   id: string;
   label: string;
@@ -86,8 +99,9 @@ export type GymClientSiteContent = {
   };
   nav: {
     items: GymClientNavItem[];
-    ctaLabel: string;
-    ctaHref: string;
+    /** Omitted when the site hides the primary CTA (nav + hero). */
+    ctaLabel?: string;
+    ctaHref?: string;
   };
   footer: {
     brandTitle: string;
@@ -110,8 +124,8 @@ export type GymClientSiteContent = {
     subtitle: string;
     /** Ghost button next to primary (nav CTA) */
     ctaSecondary?: GymClientHeroCta;
-    /** Right side of hero info bar; omit to hide */
-    ratingLine?: string;
+    /** 0–5 score; hero bar shows “Rated …/5 by members”. Omit to hide that segment. */
+    memberRating?: number;
   };
   description: {
     sectionTitle: string;
@@ -146,11 +160,34 @@ export type GymClientSiteContent = {
     items: GymClientContactItem[];
     /** Thought-bubble next to floating WhatsApp; empty string hides the bubble */
     whatsappFabHint: string;
+    /** Google Maps (or other) URL; shown next to address with a map pin on the public page. */
+    locationMapUrl?: string;
   };
   details: {
     sectionTitle: string;
     rows: GymClientDetailRow[];
   };
+};
+
+/**
+ * Body for **POST** `{API_BASE}/businesses/website-setup/` (authenticated).
+ * Sent when the user clicks “Save & continue to plans” on the Crystal website builder.
+ *
+ * - `slug`: chosen public path (`/crystal/{slug}/`).
+ * - `theme`: CSS variables for the live client (`--gym-client-accent`, `--gym-client-dark`, `--gym-client-text`).
+ * - `content`: full public page model (same shape as preview). Image fields may be `https://` or `data:image/...` until the backend persists uploads.
+ * - **Location / maps:** `content.contacts.locationMapUrl` — optional string, full `https://…` maps link (e.g. Google Maps share URL).
+ *   Also persist on the business record as `location_map_url` if your API supports it.
+ * - **Discounts:** `content.discountOffers.offers` may be `[]` when there are no deals; the client page hides the deals section.
+ */
+export type CrystalWebsiteSetupPayload = {
+  slug: string;
+  theme: {
+    accentHex: string;
+    darkHex: string;
+    textHex: string;
+  };
+  content: GymClientSiteContent;
 };
 
 const DEFAULT_HERO_BG =
@@ -195,7 +232,7 @@ export const GYM_CLIENT_SITE_DEFAULTS: GymClientSiteContent = {
     taglineItems: ['Personal training', 'Modern equipment', 'Open 6am – 10pm'],
     subtitle: 'Strength, conditioning, and community under one roof.',
     ctaSecondary: { label: 'Book free trial', href: '#contact' },
-    ratingLine: 'Rated 4.9/5 by members',
+    memberRating: 4.9,
   },
   description: {
     sectionTitle: 'Achieve your fitness goals',
@@ -461,6 +498,11 @@ export function resolveGymClientSiteContent(business: PublicBusinessDetail): Gym
     });
   }
 
+  const mapFromApi = business.location_map_url?.trim();
+  if (mapFromApi && isValidHttpLocationUrl(mapFromApi)) {
+    c.contacts.locationMapUrl = normalizeLocationMapUrl(mapFromApi);
+  }
+
   if (business.slug) {
     c.details.rows = upsertDetail(c.details.rows, {
       id: 'slug',
@@ -479,13 +521,153 @@ export function resolveGymClientSiteContent(business: PublicBusinessDetail): Gym
   return c;
 }
 
-export function gymVideoUrlToEmbedSrc(url: string): string {
-  const u = url.trim();
+/** Normalize pasted maps links (add https when missing). */
+export function normalizeLocationMapUrl(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  const href =
+    t.startsWith('http://') || t.startsWith('https://') ? t : t.startsWith('//') ? `https:${t}` : `https://${t}`;
+  try {
+    return new URL(href).href;
+  } catch {
+    return t;
+  }
+}
+
+export function isValidHttpLocationUrl(raw: string): boolean {
+  const t = raw.trim();
+  if (!t) return false;
+  try {
+    const href =
+      t.startsWith('http://') || t.startsWith('https://') ? t : t.startsWith('//') ? `https:${t}` : `https://${t}`;
+    const u = new URL(href);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export function clampMemberRating(n: number): number {
+  return Math.min(5, Math.max(0, n));
+}
+
+/** Hero bar copy from a 0–5 score (one decimal when needed). */
+export function formatHeroMemberRating(n: number): string {
+  const c = clampMemberRating(n);
+  const rounded = Math.round(c * 10) / 10;
+  const label = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `Rated ${label}/5 by members`;
+}
+
+/**
+ * Best-effort parse from legacy `ratingLine` strings (e.g. “Rated 4.9/5 by members”) or bare numbers.
+ */
+export function parseLegacyRatingToMemberRating(line: string | undefined): number | undefined {
+  if (!line?.trim()) return undefined;
+  const slash = line.match(/(\d+(?:[.,]\d+)?)\s*\/\s*5/i);
+  if (slash) {
+    const n = parseFloat(slash[1].replace(',', '.'));
+    return Number.isFinite(n) ? clampMemberRating(n) : undefined;
+  }
+  const n = parseFloat(line.replace(',', '.'));
+  return Number.isFinite(n) ? clampMemberRating(n) : undefined;
+}
+
+type HeaderWithLegacy = GymClientSiteContent['header'] & { ratingLine?: string };
+
+/** Text for the hero rating segment; supports old drafts that only stored `ratingLine`. */
+export function getHeroRatingDisplayText(header: GymClientSiteContent['header']): string | undefined {
+  const h = header as HeaderWithLegacy;
+  if (typeof h.memberRating === 'number' && Number.isFinite(h.memberRating)) {
+    return formatHeroMemberRating(h.memberRating);
+  }
+  const fromLegacy = parseLegacyRatingToMemberRating(h.ratingLine);
+  if (fromLegacy != null) return formatHeroMemberRating(fromLegacy);
+  const raw = h.ratingLine?.trim();
+  return raw || undefined;
+}
+
+const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
+
+/** Pull an 11-char YouTube video id from common URL shapes (watch, embed, shorts, live, youtu.be). */
+export function extractYoutubeVideoId(raw: string): string {
+  const u = raw.trim();
   if (!u) return '';
-  if (u.includes('youtube.com/embed/')) return u;
-  const watch = u.match(/[?&]v=([\w-]{11})/);
-  if (watch) return `https://www.youtube.com/embed/${watch[1]}`;
-  const short = u.match(/youtu\.be\/([\w-]{11})/);
-  if (short) return `https://www.youtube.com/embed/${short[1]}`;
-  return u;
+  if (YOUTUBE_ID_RE.test(u)) return u;
+
+  const tryHost = (href: string): string => {
+    let parsed: URL;
+    try {
+      parsed = new URL(href);
+    } catch {
+      return '';
+    }
+    const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+
+    if (host === 'youtu.be') {
+      const seg = parsed.pathname.split('/').filter(Boolean)[0];
+      const id = seg?.split('?')[0] ?? '';
+      return YOUTUBE_ID_RE.test(id) ? id : '';
+    }
+
+    if (host === 'youtube.com' || host === 'youtube-nocookie.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+      const v = parsed.searchParams.get('v');
+      if (v && YOUTUBE_ID_RE.test(v)) return v;
+
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      for (let i = 0; i < parts.length; i++) {
+        const seg = parts[i];
+        if (seg === 'embed' || seg === 'shorts' || seg === 'live' || seg === 'v') {
+          const id = parts[i + 1]?.split('?')[0] ?? '';
+          if (YOUTUBE_ID_RE.test(id)) return id;
+        }
+      }
+
+      if (parts[0] === 'watch' && parts[1] && YOUTUBE_ID_RE.test(parts[1])) {
+        return parts[1];
+      }
+    }
+
+    return '';
+  };
+
+  const fromAbsolute = tryHost(u.startsWith('//') ? `https:${u}` : u.startsWith('http') ? u : `https://${u}`);
+  if (fromAbsolute) return fromAbsolute;
+
+  const watch = u.match(/[?&]v=([a-zA-Z0-9_-]{11})(?:&|$|#)/);
+  if (watch) return watch[1];
+  const short = u.match(/youtu\.be\/([a-zA-Z0-9_-]{11})(?:\?|#|$|\/)/);
+  if (short) return short[1];
+  const embedPath = u.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(?:\?|#|$|\/)/i);
+  if (embedPath) return embedPath[1];
+  const shorts = u.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})(?:\?|#|$|\/)/i);
+  if (shorts) return shorts[1];
+
+  return '';
+}
+
+/**
+ * Normalizes a pasted YouTube / embed URL to an iframe-safe `https://www.youtube.com/embed/…` src.
+ * Returns '' when the URL is not a usable YouTube embed (avoids blank iframes from watch links).
+ */
+export function gymVideoUrlToEmbedSrc(url: string): string {
+  const id = extractYoutubeVideoId(url);
+  if (id) return `https://www.youtube.com/embed/${id}`;
+
+  const t = url.trim();
+  if (!t) return '';
+
+  try {
+    const href = t.startsWith('http') ? t : t.startsWith('//') ? `https:${t}` : `https://${t}`;
+    const parsed = new URL(href);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    const path = parsed.pathname.toLowerCase();
+    if (path.includes('/embed/')) {
+      return parsed.protocol === 'https:' ? parsed.href : `https://${parsed.host}${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return '';
 }

@@ -4,8 +4,9 @@
  */
 
 import { postCrystalPublicLead, type CrystalPublicLeadBody } from '../../api/publicCrystalClientLeads';
+import { GYM_CRYSTAL_LEAD_STATS_STORAGE_KEY } from '../../config/storageKeys';
 
-const STORAGE_KEY = 'gymCrystal_leadStats_v1';
+const STORAGE_KEY = GYM_CRYSTAL_LEAD_STATS_STORAGE_KEY;
 const MAX_EVENTS = 100;
 const MAX_JOIN_LEADS = 40;
 const MAX_TRIAL_LEADS = 40;

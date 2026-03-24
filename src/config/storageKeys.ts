@@ -1,0 +1,24 @@
+/**
+ * Central definitions for browser persistence keys.
+ * Keeps layers (auth, marketing, gym client) from colliding and makes audits easier.
+ */
+
+// —— Authenticated session (used by protected API client + interceptor) ——
+export const STORAGE_ACCESS_TOKEN = 'access_token';
+export const STORAGE_REFRESH_TOKEN = 'refresh_token';
+export const STORAGE_USER_EMAIL = 'user_email';
+export const STORAGE_USER_USERNAME = 'user_username';
+
+/** Optional profile image URL for navbar (set after login/profile update). */
+export const STORAGE_USER_AVATAR_URL = 'user_avatar_url';
+
+// —— Crystal gym client: website builder & live preview ——
+/** Live preview draft synced via `localStorage` + `storage` event across tabs. */
+export const CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY = 'crystal_website_preview_v1';
+
+/** Older session-only draft key (Create Website wizard). */
+export const CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY = 'crystal_website_setup_draft_v1';
+
+// —— Anonymous analytics-style persistence ——
+/** Per-slug lead / engagement counters for the public gym page. */
+export const GYM_CRYSTAL_LEAD_STATS_STORAGE_KEY = 'gymCrystal_leadStats_v1';

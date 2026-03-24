@@ -1,4 +1,12 @@
+/**
+ * API surface: **public** vs **protected** HTTP clients, then feature modules.
+ * - `publicApi` — no Bearer token (public pages, auth login/signup, Crystal leads).
+ * - `protectedApi` / `privateApi` — Bearer + refresh (dashboard, payments, owner APIs).
+ */
+export { publicApi } from './http/publicApi';
+export { protectedApi } from './http/protectedApi';
 export { privateApi } from './interceptor';
+export { getAxiosErrorMessage } from './http/axiosErrorMessage';
 export { getAccessToken, getRefreshToken, setTokens, clearTokens, setUserInfo, getUserInfo, type StoredUserInfo } from './tokens';
 export { API_BASE_URL, REFRESH_ENDPOINT } from './config';
 export { getPlanList, type PlanListItem, type PlanFeature, type PlanListMeta } from './plans';
@@ -19,6 +27,10 @@ export {
   checkBusinessSlugAvailability,
   getPublicCheckSlug,
   submitWebsiteSetupDraft,
+  patchBusiness,
+  patchWebsiteSetupDraft,
+  type CrystalWebsiteSetupPayload,
+  type PatchBusinessRequest,
   type PublicCheckSlugResponse,
   DUMMY_BUSINESS_SLUG,
   PublicBusinessNotFoundError,

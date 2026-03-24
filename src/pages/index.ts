@@ -1,11 +1,12 @@
-export { default as HomePage } from './HomePage';
-export { default as PaymentPage } from './PaymentPage';
-export { default as LoginPage } from './LoginPage';
-export { default as ForgotPasswordPage } from './ForgotPasswordPage';
-export { default as SignupPage } from './SignupPage';
-export { default as UserPage } from './UserPage';
-export { default as CreateWebsitePage } from './CreateWebsitePage';
-export { default as Welcome } from './Welcome';
-export { default as CrystalBusinessPage } from './CrystalBusinessPage';
-export { default as PlansPage } from './PlansPage';
-export { PLANS_PAGE_PATH } from './PlansPage';
+/**
+ * Route-level UI grouped by domain. Import from `src/pages` in `App.tsx` only when possible;
+ * cross-page imports should use the same barrel or a path under `pages/<domain>/`.
+ */
+export { LoginPage, SignupPage, ForgotPasswordPage } from './auth';
+export { HomePage } from './home';
+export { PaymentPage } from './payment';
+export { PlansPage, PLANS_PAGE_PATH } from './plans';
+export { UserPage } from './user';
+export { CreateWebsitePage } from './website';
+export { Welcome } from './welcome';
+export { CrystalBusinessPage } from './crystal';

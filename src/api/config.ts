@@ -1,4 +1,5 @@
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api';
-
-export const REFRESH_ENDPOINT = '/auth/refresh/';
+/**
+ * Legacy barrel: HTTP base URL and auth paths for modules that predate `src/config/env`.
+ * Prefer importing from `src/config/env` in new code.
+ */
+export { apiBaseUrl as API_BASE_URL, authRefreshPath as REFRESH_ENDPOINT } from '../config/env';
