@@ -5,6 +5,8 @@ import { PageContainer } from '../../components';
 import { sendOtp, verifyOtp, signup, loginWithGoogle, setTokens, getProfile, setUserInfo } from '../../api';
 import { googleOAuthClientId } from '../../config/env';
 import { useToast } from '../../contexts/ToastContext';
+import PrivacyPolicyArticle from '../legal/PrivacyPolicyArticle';
+import UserContentPolicyArticle from '../legal/UserContentPolicyArticle';
 import './AuthPage.css';
 
 declare global {
@@ -34,11 +36,16 @@ function GoogleIcon() {
   );
 }
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
+  const [initialPolicyAccepted, setInitialPolicyAccepted] = useState(false);
+  const [initialPrivacyAccepted, setInitialPrivacyAccepted] = useState(false);
+  const [preAccountPolicyAccepted, setPreAccountPolicyAccepted] = useState(false);
+  const [preAccountPrivacyAccepted, setPreAccountPrivacyAccepted] = useState(false);
+  const step1PoliciesReady = initialPolicyAccepted && initialPrivacyAccepted;
   const [email, setEmail] = useState('');
   const [otpToken, setOtpToken] = useState<string | null>(null);
   const [otp, setOtp] = useState('');
@@ -66,13 +73,21 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (!googleOAuthClientId || !googleReady || !window.google || !googleButtonRef.current) return;
+    const el = googleButtonRef.current;
+    if (!step1PoliciesReady) {
+      el.innerHTML = '';
+      return;
+    }
     window.google.accounts.id.initialize({
       client_id: googleOAuthClientId,
       callback: async (res) => {
         setError(null);
         setLoading(true);
         try {
-          const data = await loginWithGoogle(res.credential);
+          const data = await loginWithGoogle(res.credential, {
+            user_content_policy_accepted: 1,
+            privacy_policy_accepted: 1,
+          });
           const access = data.access ?? data.access_token ?? data.token;
           const refresh = data.refresh ?? data.refresh_token;
           if (!access) {
@@ -104,14 +119,17 @@ export default function SignupPage() {
         }
       },
     });
-    window.google.accounts.id.renderButton(googleButtonRef.current, {
+    window.google.accounts.id.renderButton(el, {
       type: 'standard',
       theme: 'outline',
       size: 'large',
       text: 'signup_with',
       width: 320,
     });
-  }, [googleReady, navigate, showToast]);
+    return () => {
+      el.innerHTML = '';
+    };
+  }, [googleReady, navigate, showToast, step1PoliciesReady]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +137,14 @@ export default function SignupPage() {
     const emailVal = email.trim();
     if (!emailVal) {
       setError('Please enter your email.');
+      return;
+    }
+    if (!initialPolicyAccepted) {
+      setError('Please confirm you have read the User Content Responsibility policy.');
+      return;
+    }
+    if (!initialPrivacyAccepted) {
+      setError('Please confirm you have read the Privacy Policy.');
       return;
     }
     setLoading(true);
@@ -156,6 +182,8 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await verifyOtp(otpToken, otpVal);
+      setPreAccountPolicyAccepted(false);
+      setPreAccountPrivacyAccepted(false);
       setStep(3);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Invalid or expired OTP';
@@ -196,6 +224,8 @@ export default function SignupPage() {
         username: username.trim(),
         password,
         token: otpToken,
+        user_content_policy_accepted: 1,
+        privacy_policy_accepted: 1,
       });
       navigate('/login', { state: { message: 'Account created. You can log in now.', email: email.trim() } });
     } catch (err) {
@@ -211,12 +241,25 @@ export default function SignupPage() {
     setStep(1);
     setOtpToken(null);
     setOtp('');
+    setPreAccountPolicyAccepted(false);
+    setPreAccountPrivacyAccepted(false);
     setError(null);
   };
 
   const goBackToOtp = () => {
     setStep(2);
+    setPreAccountPolicyAccepted(false);
+    setPreAccountPrivacyAccepted(false);
     setError(null);
+  };
+
+  const continueToAccountDetails = () => {
+    if (!preAccountPolicyAccepted || !preAccountPrivacyAccepted) {
+      setError('Please confirm you have read and agree to both policies above.');
+      return;
+    }
+    setError(null);
+    setStep(4);
   };
 
   return (
@@ -230,12 +273,14 @@ export default function SignupPage() {
               </Link>
               <h1 className="auth-page__title">Sign up</h1>
 
-              <div className="auth-page__steps mb-3">
+              <div className="auth-page__steps mb-3 auth-page__steps--four">
                 <span className={step >= 1 ? 'auth-page__step auth-page__step--active' : 'auth-page__step'}>1</span>
                 <span className="auth-page__step-line" />
                 <span className={step >= 2 ? 'auth-page__step auth-page__step--active' : 'auth-page__step'}>2</span>
                 <span className="auth-page__step-line" />
                 <span className={step >= 3 ? 'auth-page__step auth-page__step--active' : 'auth-page__step'}>3</span>
+                <span className="auth-page__step-line" />
+                <span className={step >= 4 ? 'auth-page__step auth-page__step--active' : 'auth-page__step'}>4</span>
               </div>
 
               {error && (
@@ -247,15 +292,53 @@ export default function SignupPage() {
               {/* Step 1: Verify email (send OTP) or Sign up with Google */}
               {step === 1 && (
                 <>
+                  <Form.Check
+                    type="checkbox"
+                    id="signup-initial-policy"
+                    className="mb-2 auth-page__policy-check"
+                    checked={initialPolicyAccepted}
+                    onChange={(e) => setInitialPolicyAccepted(e.target.checked)}
+                    label={
+                      <span>
+                        I have read the{' '}
+                        <Link to="/legal/user-content" target="_blank" rel="noopener noreferrer">
+                          User Content Responsibility
+                        </Link>{' '}
+                        policy and agree to follow it when using Crystal.
+                      </span>
+                    }
+                  />
+                  <Form.Check
+                    type="checkbox"
+                    id="signup-initial-privacy"
+                    className="mb-3 auth-page__policy-check"
+                    checked={initialPrivacyAccepted}
+                    onChange={(e) => setInitialPrivacyAccepted(e.target.checked)}
+                    label={
+                      <span>
+                        I have read the{' '}
+                        <Link to="/legal/privacy" target="_blank" rel="noopener noreferrer">
+                          Privacy Policy
+                        </Link>
+                        , including that I will not share my end users&apos; personal details with others except as
+                        allowed by law and that policy.
+                      </span>
+                    }
+                  />
                   {googleOAuthClientId ? (
-                    <div className="auth-page__google-wrap mb-3">
+                    <div
+                      className={`auth-page__google-wrap mb-3${!step1PoliciesReady ? ' auth-page__google-wrap--gated' : ''}`}
+                    >
                       <div ref={googleButtonRef} className="auth-page__google-button" />
-                      {loading && (
+                      {!step1PoliciesReady ? (
+                        <p className="small text-muted mb-0 mt-2">Confirm both policies above to sign up with Google.</p>
+                      ) : null}
+                      {loading && step1PoliciesReady ? (
                         <div className="auth-page__google-loading">
                           <Spinner animation="border" size="sm" className="me-2" />
                           Signing up…
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   ) : (
                     <Button
@@ -264,7 +347,7 @@ export default function SignupPage() {
                       size="lg"
                       className="w-100 auth-page__google-btn mb-3"
                       onClick={() => navigate('/login')}
-                      disabled={loading}
+                      disabled={loading || !step1PoliciesReady}
                     >
                       <GoogleIcon />
                       Sign up with Google
@@ -295,7 +378,7 @@ export default function SignupPage() {
                       variant="primary"
                       size="lg"
                       className="w-100 auth-page__submit"
-                      disabled={loading}
+                      disabled={loading || !step1PoliciesReady}
                     >
                       {loading ? <><Spinner animation="border" size="sm" className="me-2" />Sending…</> : 'Send OTP'}
                     </Button>
@@ -339,11 +422,76 @@ export default function SignupPage() {
                 </>
               )}
 
-              {/* Step 3: Username & password */}
+              {/* Step 3: User content policy (before account details) */}
               {step === 3 && (
+                <>
+                  <p className="auth-page__subtitle text-muted mb-3">
+                    Before you create your account, please read and confirm our content and privacy policies. Email{' '}
+                    <strong>{email}</strong> is verified.{' '}
+                    <Button type="button" variant="link" className="p-0 align-baseline auth-page__link" onClick={goBackToOtp}>
+                      Verify again
+                    </Button>
+                  </p>
+                  <div className="auth-page__policy-scroll border rounded p-3 mb-3 bg-light">
+                    <UserContentPolicyArticle className="auth-page__policy-article small" />
+                  </div>
+                  <Form.Check
+                    type="checkbox"
+                    id="signup-pre-account-policy"
+                    className="mb-2 auth-page__policy-check"
+                    checked={preAccountPolicyAccepted}
+                    onChange={(e) => {
+                      setPreAccountPolicyAccepted(e.target.checked);
+                      setError(null);
+                    }}
+                    label="I confirm that I have read and agree to the User Content Responsibility policy above."
+                  />
+                  <h2 className="h6 text-uppercase text-muted mb-2 mt-3">Privacy</h2>
+                  <div className="auth-page__policy-scroll border rounded p-3 mb-3 bg-light">
+                    <PrivacyPolicyArticle className="auth-page__policy-article small" />
+                  </div>
+                  <Form.Check
+                    type="checkbox"
+                    id="signup-pre-account-privacy"
+                    className="mb-3 auth-page__policy-check"
+                    checked={preAccountPrivacyAccepted}
+                    onChange={(e) => {
+                      setPreAccountPrivacyAccepted(e.target.checked);
+                      setError(null);
+                    }}
+                    label="I confirm that I have read and agree to the Privacy Policy above, including that I will not share end-user personal details with unauthorized third parties."
+                  />
+                  <p className="small text-muted mb-3 mb-md-4">
+                    <Link to="/legal/user-content" target="_blank" rel="noopener noreferrer">
+                      Open content policy in a new tab
+                    </Link>
+                    {' · '}
+                    <Link to="/legal/privacy" target="_blank" rel="noopener noreferrer">
+                      Open privacy policy in a new tab
+                    </Link>
+                  </p>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="lg"
+                    className="w-100 auth-page__submit"
+                    disabled={!preAccountPolicyAccepted || !preAccountPrivacyAccepted}
+                    onClick={continueToAccountDetails}
+                  >
+                    Continue to create account
+                  </Button>
+                </>
+              )}
+
+              {/* Step 4: Username & password */}
+              {step === 4 && (
                 <>
                   <p className="auth-page__subtitle text-muted mb-4">
                     Create your username and password. Email <strong>{email}</strong> is verified.{' '}
+                    <Button type="button" variant="link" className="p-0 align-baseline auth-page__link" onClick={() => setStep(3)}>
+                      Back to policy
+                    </Button>
+                    {' · '}
                     <Button type="button" variant="link" className="p-0 align-baseline auth-page__link" onClick={goBackToOtp}>
                       Verify again
                     </Button>

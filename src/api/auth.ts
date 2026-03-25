@@ -55,12 +55,18 @@ export async function verifyOtp(token: string, otp: string): Promise<VerifyOtpRe
   }
 }
 
+/** Policy acknowledgement flags sent to the backend (integer 0 or 1). */
+export type PolicyAcceptanceFlags = {
+  user_content_policy_accepted: 0 | 1;
+  privacy_policy_accepted: 0 | 1;
+};
+
 export type SignupRequest = {
   email: string;
   username: string;
   password: string;
   token: string;
-};
+} & PolicyAcceptanceFlags;
 
 export type SignupResponse = {
   message?: string;
@@ -74,6 +80,8 @@ export async function signup(payload: SignupRequest): Promise<SignupResponse> {
       username: payload.username.trim(),
       password: payload.password,
       token: payload.token,
+      user_content_policy_accepted: payload.user_content_policy_accepted,
+      privacy_policy_accepted: payload.privacy_policy_accepted,
     });
     return data;
   } catch (e) {
@@ -116,10 +124,24 @@ export async function login(email: string, password: string): Promise<LoginRespo
   }
 }
 
-/** Sign in or sign up with Google. Body: { id_token }. Returns same shape as login (access, refresh, customer). */
-export async function loginWithGoogle(idToken: string): Promise<LoginResponse> {
+/**
+ * Sign in or sign up with Google.
+ * Body includes `id_token` and policy flags (0/1). Use `1` for both on the sign-up page when the user has accepted;
+ * sign-in on the login page typically sends `0` for both.
+ */
+export async function loginWithGoogle(
+  idToken: string,
+  policyAcceptance: PolicyAcceptanceFlags = {
+    user_content_policy_accepted: 0,
+    privacy_policy_accepted: 0,
+  }
+): Promise<LoginResponse> {
   try {
-    const { data } = await publicApi.post<LoginResponse>(GOOGLE_AUTH_URL, { id_token: idToken });
+    const { data } = await publicApi.post<LoginResponse>(GOOGLE_AUTH_URL, {
+      id_token: idToken,
+      user_content_policy_accepted: policyAcceptance.user_content_policy_accepted,
+      privacy_policy_accepted: policyAcceptance.privacy_policy_accepted,
+    });
     return data;
   } catch (e) {
     throw new Error(getAxiosErrorMessage(e, 'Google sign-in failed'));

@@ -1,5 +1,8 @@
 import type { BusinessDetail } from '../../../api/businesses';
-import { CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY } from '../../../config/storageKeys';
+import {
+  CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL,
+  CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
+} from '../../../config/storageKeys';
 import { GYM_CLIENT_BRAND_LOGO_SRC } from '../../crystal/gymClientBrandLogo';
 import {
   GYM_CLIENT_SITE_DEFAULTS,
@@ -62,12 +65,14 @@ export function emptyDiscountOfferRow(): DiscountOfferFormRow {
 }
 
 function isDiscountOfferFormRowFilled(row: DiscountOfferFormRow): boolean {
-  if (row.title.trim()) return true;
-  if (row.subtitle.trim()) return true;
   if (row.percentOff > 0) return true;
-  if (row.originalPriceLabel.trim()) return true;
-  if (row.salePriceLabel.trim()) return true;
-  if (row.periodLabel.trim()) return true;
+  const sale = row.salePriceLabel.trim();
+  const orig = row.originalPriceLabel.trim();
+  if (sale && sale !== '—') return true;
+  if (orig && orig !== '—') return true;
+  if (row.subtitle.trim()) return true;
+  const t = row.title.trim();
+  if (t && t.toLowerCase() !== 'offer') return true;
   return false;
 }
 
@@ -352,6 +357,15 @@ export function writeCrystalWebsitePreviewToStorage(payload: CrystalWebsiteDraft
         /* ignore */
       }
     }
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel(CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL);
+        bc.postMessage({ type: 'crystal-preview-draft' });
+        bc.close();
+      } catch {
+        /* ignore */
+      }
+    }
     return true;
   } catch {
     return false;
@@ -361,6 +375,19 @@ export function writeCrystalWebsitePreviewToStorage(payload: CrystalWebsiteDraft
 function parseDiscount(s: string): number | undefined {
   const n = parseInt(s, 10);
   return Number.isFinite(n) && n > 0 && n <= 100 ? n : undefined;
+}
+
+export function isMembershipPackageFormRowFilled(row: MembershipPackageFormRow): boolean {
+  const nameOk = row.name.trim() && row.name.trim() !== 'Plan';
+  const priceOk = row.priceLabel.trim() && row.priceLabel.trim() !== '—';
+  const origOk = row.originalPriceLabel.trim() && row.originalPriceLabel.trim() !== '—';
+  const discOk = Boolean(parseDiscount(row.discountPercent));
+  const ctaOk = Boolean(row.ctaLabel.trim());
+  const featOk = row.featuresCsv
+    .split(',')
+    .map((x) => x.trim())
+    .some(Boolean);
+  return nameOk || priceOk || origOk || discOk || ctaOk || featOk;
 }
 
 function parseMemberRatingFormField(s: string): number | undefined {
@@ -487,7 +514,8 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
 
   base.packages.sectionTitle = form.packagesSectionTitle.trim();
   base.packages.sectionSubtitle = form.packagesSectionSubtitle.trim() || undefined;
-  base.packages.items = form.membershipPackages.map((row, i) =>
+  const filledPackageRows = form.membershipPackages.filter(isMembershipPackageFormRowFilled);
+  base.packages.items = filledPackageRows.map((row, i) =>
     buildPackage(
       `pkg-${i + 1}`,
       row.name,
@@ -503,9 +531,10 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
 
   base.trainers.sectionTitle = form.trainersSectionTitle.trim();
   base.trainers.sectionSubtitle = form.trainersSectionSubtitle.trim() || undefined;
-  base.trainers.items = form.coaches.map((row, i) => ({
+  const filledCoachRows = form.coaches.filter((row) => row.name.trim());
+  base.trainers.items = filledCoachRows.map((row, i) => ({
     id: `tr-${i + 1}`,
-    name: row.name.trim() || 'Coach',
+    name: row.name.trim(),
     role: row.role.trim() || undefined,
     shortBio: row.shortBio.trim() || undefined,
     photoUrl: row.photoUrl.trim() || null,
@@ -640,13 +669,13 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     videoCaption: c.video.caption ?? '',
     discountSectionTitle: c.discountOffers.sectionTitle,
     discountSectionSubtitle: c.discountOffers.sectionSubtitle ?? '',
-    discountOffers: offerRows.length > 0 ? offerRows : [emptyDiscountOfferRow()],
+    discountOffers: offerRows.length > 0 ? offerRows : [],
     packagesSectionTitle: c.packages.sectionTitle,
     packagesSectionSubtitle: c.packages.sectionSubtitle ?? '',
-    membershipPackages: pkgRows.length > 0 ? pkgRows : [emptyMembershipPackageRow()],
+    membershipPackages: pkgRows.length > 0 ? pkgRows : [],
     trainersSectionTitle: c.trainers.sectionTitle,
     trainersSectionSubtitle: c.trainers.sectionSubtitle ?? '',
-    coaches: coachRows.length > 0 ? coachRows : [emptyCoachRow()],
+    coaches: coachRows.length > 0 ? coachRows : [],
     contactEmail: contactValue(c.contacts.items, 'email'),
     contactPhone: contactValue(c.contacts.items, 'phone'),
     contactAddress: contactValue(c.contacts.items, 'address'),

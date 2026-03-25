@@ -13,6 +13,8 @@ import {
   CreateWebsitePage,
   CrystalBusinessPage,
   PlansPage,
+  UserContentPolicyPage,
+  PrivacyPolicyPage,
 } from './pages';
 import './App.css';
 
@@ -38,6 +40,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/legal/user-content" element={<UserContentPolicyPage />} />
+          <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/user/create-website" element={<CreateWebsitePage />} />
             <Route path="/user/business/:slug/edit" element={<CreateWebsitePage />} />

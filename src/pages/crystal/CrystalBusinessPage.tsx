@@ -17,9 +17,11 @@ import {
   getHeroRatingDisplayText,
   gymVideoUrlToEmbedSrc,
   isGymClientDiscountOfferFilled,
+  isGymClientPackageItemFilled,
   type GymClientAboutFeature,
   type GymClientSiteContent,
 } from './gymClientSiteContent';
+import { CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL } from '../../config/storageKeys';
 import {
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
   GYM_CLIENT_DEFAULT_TEXT_HEX,
@@ -222,11 +224,13 @@ function GymClientNavBar({
   content,
   showTrainers,
   showDeals,
+  showPackages,
   onOpenJoinLead,
 }: {
   content: GymClientSiteContent;
   showTrainers: boolean;
   showDeals: boolean;
+  showPackages: boolean;
   /** When set and nav CTA targets #contact, open join lead modal instead of jumping. */
   onOpenJoinLead?: () => void;
 }) {
@@ -258,7 +262,9 @@ function GymClientNavBar({
             {content.nav.items
               .filter(
                 (item) =>
-                  (showTrainers || item.id !== 'trainers') && (showDeals || item.id !== 'offers')
+                  (showTrainers || item.id !== 'trainers') &&
+                  (showDeals || item.id !== 'offers') &&
+                  (showPackages || item.id !== 'pricing')
               )
               .map((item) => (
                 <Nav.Link key={item.id} href={item.href} className="crystal-client-nav__link" onClick={() => setOpen(false)}>
@@ -291,10 +297,12 @@ function GymClientFooter({
   content,
   showTrainers,
   showDeals,
+  showPackages,
 }: {
   content: GymClientSiteContent;
   showTrainers: boolean;
   showDeals: boolean;
+  showPackages: boolean;
 }) {
   return (
     <footer id="crystal-footer" className="crystal-client-footer">
@@ -319,7 +327,10 @@ function GymClientFooter({
               <ul className="crystal-client-footer__links list-unstyled d-flex flex-wrap justify-content-center gap-3 mb-0 small">
                 {content.footer.links
                   .filter(
-                    (l) => (showTrainers || l.href !== '#trainers') && (showDeals || l.href !== '#deals')
+                    (l) =>
+                      (showTrainers || l.href !== '#trainers') &&
+                      (showDeals || l.href !== '#deals') &&
+                      (showPackages || l.href !== '#pricing')
                   )
                   .map((l) => (
                     <li key={l.label}>
@@ -405,11 +416,14 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
   const trainersList = content.trainers.items.filter((t) => t.name.trim());
   const visibleDiscountOffers = content.discountOffers.offers.filter(isGymClientDiscountOfferFilled);
   const showDeals = visibleDiscountOffers.length > 0;
+  const visiblePackages = content.packages.items.filter(isGymClientPackageItemFilled);
+  const showPackages = visiblePackages.length > 0;
 
-  const heroTagline =
-    content.header.taglineItems.length > 0
-      ? content.header.taglineItems.join(' • ')
-      : content.header.subtitle;
+  const heroTaglineLine = content.header.taglineItems
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(' • ');
+  const heroSubtitleText = content.header.subtitle?.trim() ?? '';
   const heroAddress = content.contacts.items.find((c) => c.id === 'address' && c.value.trim())?.value.trim();
   const heroRating = getHeroRatingDisplayText(content.header);
   const showHeroInfoBar = Boolean(heroAddress || heroRating);
@@ -428,6 +442,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         content={content}
         showTrainers={trainersList.length > 0}
         showDeals={showDeals}
+        showPackages={showPackages}
         onOpenJoinLead={joinLeadFromContactCta ? openJoinLeadModal : undefined}
       />
 
@@ -443,9 +458,20 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
             <h1 className="crystal-client__hero-title mb-0" data-reveal>
               {content.header.title}
             </h1>
-            <p className="crystal-client__hero-tagline mb-0" data-reveal>
-              {heroTagline}
-            </p>
+            {heroTaglineLine ? (
+              <p className="crystal-client__hero-tagline mb-0" data-reveal>
+                {heroTaglineLine}
+              </p>
+            ) : heroSubtitleText ? (
+              <p className="crystal-client__hero-tagline mb-0" data-reveal>
+                {heroSubtitleText}
+              </p>
+            ) : null}
+            {heroTaglineLine && heroSubtitleText ? (
+              <p className="crystal-client__hero-subtitle-para mb-0" data-reveal>
+                {heroSubtitleText}
+              </p>
+            ) : null}
             <div className="crystal-client__hero-ctas mt-3" data-reveal>
               {content.nav.ctaLabel && content.nav.ctaHref ?
                 joinLeadFromContactCta ?
@@ -654,8 +680,11 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         </section>
       : null}
 
-      <GymClientMidCtaStrip businessSlug={businessSlug} variant="membership" href="#pricing" brandLogoSrc={content.logo.src} />
+      {showPackages ? (
+        <GymClientMidCtaStrip businessSlug={businessSlug} variant="membership" href="#pricing" brandLogoSrc={content.logo.src} />
+      ) : null}
 
+      {showPackages ? (
       <section className="crystal-client__section crystal-client__section--packages" id="pricing" aria-labelledby="crystal-client-packages">
         <Container>
           <h2 id="crystal-client-packages" className="crystal-client__section-title" data-reveal>
@@ -667,7 +696,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
             </p>
           ) : null}
           <Row className="g-4 justify-content-center mt-1">
-            {content.packages.items.map((pkg, idx) => (
+            {visiblePackages.map((pkg, idx) => (
               <Col key={pkg.id} xs={12} md={6} lg={4}>
                 <Card
                   className={`crystal-client__package h-100 border-0 shadow-sm ${pkg.highlighted ? 'crystal-client__package--highlight' : ''}`}
@@ -708,6 +737,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
           </Row>
         </Container>
       </section>
+      ) : null}
 
       <GymClientMidCtaStrip
         businessSlug={businessSlug}
@@ -840,7 +870,12 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         </section>
       )}
 
-      <GymClientFooter content={content} showTrainers={trainersList.length > 0} showDeals={showDeals} />
+      <GymClientFooter
+        content={content}
+        showTrainers={trainersList.length > 0}
+        showDeals={showDeals}
+        showPackages={showPackages}
+      />
 
       <GymClientJoinLeadModal
         show={joinLeadModalOpen}
@@ -1062,12 +1097,25 @@ export default function CrystalBusinessPage() {
 
   useEffect(() => {
     if (slug !== 'preview') return;
+    const bump = () => setPreviewStorageRev((n) => n + 1);
     const onStorage = (e: StorageEvent) => {
       if (e.key != null && e.key !== CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY) return;
-      setPreviewStorageRev((n) => n + 1);
+      bump();
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel(CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL);
+        bc.onmessage = () => bump();
+      } catch {
+        bc = null;
+      }
+    }
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      bc?.close();
+    };
   }, [slug]);
 
   if (slug === 'preview' && !previewDraft?.content) {

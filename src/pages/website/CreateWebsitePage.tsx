@@ -48,6 +48,14 @@ import {
   type MembershipPackageFormRow,
 } from './setup/createWebsiteFormState';
 import {
+  clampPercentOff,
+  formatDerivedPrice,
+  parseLoosePrice,
+  parsePercentInputString,
+  percentFromOriginalAndSale,
+  saleFromOriginalAndPercent,
+} from './setup/createWebsiteDiscountCalc';
+import {
   GYM_CLIENT_SITE_DEFAULTS,
   isValidHttpLocationUrl,
   normalizeLocationMapUrl,
@@ -576,6 +584,61 @@ export default function CreateWebsitePage() {
     });
   }, []);
 
+  const handleDiscountPercentChange = useCallback((index: number, raw: string) => {
+    const pct = clampPercentOff(Number(raw));
+    setForm((f) => {
+      const row = f.discountOffers[index];
+      if (!row) return f;
+      const next = { ...row, percentOff: pct };
+      const orig = parseLoosePrice(next.originalPriceLabel).value;
+      if (orig != null && orig > 0) {
+        next.salePriceLabel = formatDerivedPrice(saleFromOriginalAndPercent(orig, pct), next.originalPriceLabel);
+      }
+      const list = [...f.discountOffers];
+      list[index] = next;
+      return { ...f, discountOffers: list };
+    });
+  }, []);
+
+  const handleDiscountOriginalChange = useCallback((index: number, value: string) => {
+    setForm((f) => {
+      const row = f.discountOffers[index];
+      if (!row) return f;
+      const next = { ...row, originalPriceLabel: value };
+      const orig = parseLoosePrice(value).value;
+      const saleNum = parseLoosePrice(next.salePriceLabel).value;
+      if (orig != null && orig > 0) {
+        if (next.percentOff > 0) {
+          next.salePriceLabel = formatDerivedPrice(
+            saleFromOriginalAndPercent(orig, next.percentOff),
+            value
+          );
+        } else if (saleNum != null) {
+          next.percentOff = percentFromOriginalAndSale(orig, saleNum);
+        }
+      }
+      const list = [...f.discountOffers];
+      list[index] = next;
+      return { ...f, discountOffers: list };
+    });
+  }, []);
+
+  const handleDiscountSaleChange = useCallback((index: number, value: string) => {
+    setForm((f) => {
+      const row = f.discountOffers[index];
+      if (!row) return f;
+      const next = { ...row, salePriceLabel: value };
+      const orig = parseLoosePrice(next.originalPriceLabel).value;
+      const saleNum = parseLoosePrice(value).value;
+      if (orig != null && orig > 0 && saleNum != null) {
+        next.percentOff = percentFromOriginalAndSale(orig, saleNum);
+      }
+      const list = [...f.discountOffers];
+      list[index] = next;
+      return { ...f, discountOffers: list };
+    });
+  }, []);
+
   const addDiscountOffer = useCallback(() => {
     setForm((f) =>
       f.discountOffers.length >= CREATE_WEBSITE_MAX_OFFERS ?
@@ -585,9 +648,7 @@ export default function CreateWebsitePage() {
   }, []);
 
   const removeDiscountOffer = useCallback((index: number) => {
-    setForm((f) =>
-      f.discountOffers.length <= 1 ? f : { ...f, discountOffers: f.discountOffers.filter((_, i) => i !== index) }
-    );
+    setForm((f) => ({ ...f, discountOffers: f.discountOffers.filter((_, i) => i !== index) }));
   }, []);
 
   const patchMembershipPackage = useCallback((index: number, patch: Partial<MembershipPackageFormRow>) => {
@@ -595,6 +656,61 @@ export default function CreateWebsitePage() {
       const next = [...f.membershipPackages];
       next[index] = { ...next[index], ...patch };
       return { ...f, membershipPackages: next };
+    });
+  }, []);
+
+  const handlePackageDiscountPercentChange = useCallback((index: number, raw: string) => {
+    setForm((f) => {
+      const row = f.membershipPackages[index];
+      if (!row) return f;
+      const next = { ...row, discountPercent: raw };
+      const pct = parsePercentInputString(raw);
+      const orig = parseLoosePrice(next.originalPriceLabel).value;
+      if (orig != null && orig > 0 && pct > 0) {
+        next.priceLabel = formatDerivedPrice(saleFromOriginalAndPercent(orig, pct), next.originalPriceLabel);
+      }
+      const list = [...f.membershipPackages];
+      list[index] = next;
+      return { ...f, membershipPackages: list };
+    });
+  }, []);
+
+  const handlePackageOriginalPriceChange = useCallback((index: number, value: string) => {
+    setForm((f) => {
+      const row = f.membershipPackages[index];
+      if (!row) return f;
+      const next = { ...row, originalPriceLabel: value };
+      const orig = parseLoosePrice(value).value;
+      const priceNum = parseLoosePrice(next.priceLabel).value;
+      const pct = parsePercentInputString(next.discountPercent);
+      if (orig != null && orig > 0) {
+        if (pct > 0) {
+          next.priceLabel = formatDerivedPrice(saleFromOriginalAndPercent(orig, pct), value);
+        } else if (priceNum != null) {
+          const p = percentFromOriginalAndSale(orig, priceNum);
+          next.discountPercent = p > 0 && p <= 100 ? String(Math.round(p)) : '';
+        }
+      }
+      const list = [...f.membershipPackages];
+      list[index] = next;
+      return { ...f, membershipPackages: list };
+    });
+  }, []);
+
+  const handlePackagePriceChange = useCallback((index: number, value: string) => {
+    setForm((f) => {
+      const row = f.membershipPackages[index];
+      if (!row) return f;
+      const next = { ...row, priceLabel: value };
+      const orig = parseLoosePrice(next.originalPriceLabel).value;
+      const priceNum = parseLoosePrice(value).value;
+      if (orig != null && orig > 0 && priceNum != null) {
+        const p = percentFromOriginalAndSale(orig, priceNum);
+        next.discountPercent = p > 0 && p <= 100 ? String(Math.round(p)) : '';
+      }
+      const list = [...f.membershipPackages];
+      list[index] = next;
+      return { ...f, membershipPackages: list };
     });
   }, []);
 
@@ -607,11 +723,7 @@ export default function CreateWebsitePage() {
   }, []);
 
   const removeMembershipPackage = useCallback((index: number) => {
-    setForm((f) =>
-      f.membershipPackages.length <= 1 ?
-        f
-      : { ...f, membershipPackages: f.membershipPackages.filter((_, i) => i !== index) }
-    );
+    setForm((f) => ({ ...f, membershipPackages: f.membershipPackages.filter((_, i) => i !== index) }));
   }, []);
 
   const patchCoach = useCallback((index: number, patch: Partial<CoachFormRow>) => {
@@ -629,7 +741,7 @@ export default function CreateWebsitePage() {
   }, []);
 
   const removeCoach = useCallback((index: number) => {
-    setForm((f) => (f.coaches.length <= 1 ? f : { ...f, coaches: f.coaches.filter((_, i) => i !== index) }));
+    setForm((f) => ({ ...f, coaches: f.coaches.filter((_, i) => i !== index) }));
   }, []);
 
   const [editReady, setEditReady] = useState(!isEditMode);
@@ -672,9 +784,8 @@ export default function CreateWebsitePage() {
     if (draft) setForm(draftPayloadToFormState(draft));
   }, [location.state, isEditMode]);
 
-  /** Another tab updated preview (Preview site); keep this tab’s form in sync. */
+  /** Another tab updated the preview draft; keep this tab’s form in sync. */
   useEffect(() => {
-    if (isEditMode) return;
     const onStorage = (e: StorageEvent) => {
       if (e.key !== CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY || e.newValue == null) return;
       const draft = parseCrystalWebsiteDraftJson(e.newValue);
@@ -682,18 +793,17 @@ export default function CreateWebsitePage() {
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [isEditMode]);
+  }, []);
 
-  /** Live-sync preview draft so a `/crystal/preview` tab in another window updates after you type (via `storage` event). */
+  /** Live-sync preview draft to localStorage so `/crystal/preview` updates (debounced; runs in create and edit). */
   useEffect(() => {
-    if (isEditMode) return;
     const slugForPreview = form.slug.trim().toLowerCase() || 'preview';
     const t = window.setTimeout(() => {
       const draft = mapFormToWebsiteDraft({ ...form, slug: slugForPreview });
       writeCrystalWebsitePreviewToStorage(draft);
     }, PREVIEW_LIVE_SYNC_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
-  }, [form, isEditMode]);
+  }, [form]);
 
   const debouncedSlug = useDebounced(form.slug.trim().toLowerCase(), 450);
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
@@ -871,6 +981,18 @@ export default function CreateWebsitePage() {
                 {isEditMode ?
                   'Update your public Crystal page and business profile. Saving sends PATCH requests to the server.'
                 : 'These fields match what the public Crystal client page uses (content, layout, and theme colors).'}
+              </p>
+              <p className="create-website__content-policy-hint small text-muted mb-0 mt-2">
+                You are responsible for having the rights to all images, videos, and text you publish. Do not use
+                copyrighted or unlicensed material. Do not share end-user personal data improperly. See{' '}
+                <Link to="/legal/user-content" target="_blank" rel="noopener noreferrer">
+                  User Content Responsibility
+                </Link>
+                {' and '}
+                <Link to="/legal/privacy" target="_blank" rel="noopener noreferrer">
+                  Privacy Policy
+                </Link>
+                .
               </p>
             </div>
             <Link to="/user" className="btn btn-outline-secondary btn-sm">
@@ -1241,12 +1363,7 @@ export default function CreateWebsitePage() {
                         <Card key={index} body className="mb-3 bg-light">
                           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <p className="small fw-semibold mb-0">Offer {index + 1}</p>
-                            {form.discountOffers.length > 1 ?
-                              <RemoveRowTrashButton
-                                ariaLabel="Remove offer"
-                                onClick={() => removeDiscountOffer(index)}
-                              />
-                            : null}
+                            <RemoveRowTrashButton ariaLabel="Remove offer" onClick={() => removeDiscountOffer(index)} />
                           </div>
                           <Row className="g-2">
                             <Col md={6}>
@@ -1269,22 +1386,23 @@ export default function CreateWebsitePage() {
                                 type="number"
                                 min={0}
                                 max={100}
-                                value={row.percentOff}
-                                onChange={(e) => patchDiscountOffer(index, { percentOff: Number(e.target.value) })}
+                                step={0.1}
+                                value={Number.isFinite(row.percentOff) ? row.percentOff : 0}
+                                onChange={(e) => handleDiscountPercentChange(index, e.target.value)}
                               />
                             </Col>
                             <Col md={3}>
                               <Form.Label className="small">Original price</Form.Label>
                               <Form.Control
                                 value={row.originalPriceLabel}
-                                onChange={(e) => patchDiscountOffer(index, { originalPriceLabel: e.target.value })}
+                                onChange={(e) => handleDiscountOriginalChange(index, e.target.value)}
                               />
                             </Col>
                             <Col md={3}>
                               <Form.Label className="small">Sale price</Form.Label>
                               <Form.Control
                                 value={row.salePriceLabel}
-                                onChange={(e) => patchDiscountOffer(index, { salePriceLabel: e.target.value })}
+                                onChange={(e) => handleDiscountSaleChange(index, e.target.value)}
                               />
                             </Col>
                             <Col md={3}>
@@ -1327,12 +1445,7 @@ export default function CreateWebsitePage() {
                         <Card key={index} body className="mb-3 bg-light">
                           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <p className="small fw-semibold mb-0">Package {index + 1}</p>
-                            {form.membershipPackages.length > 1 ?
-                              <RemoveRowTrashButton
-                                ariaLabel="Remove package"
-                                onClick={() => removeMembershipPackage(index)}
-                              />
-                            : null}
+                            <RemoveRowTrashButton ariaLabel="Remove package" onClick={() => removeMembershipPackage(index)} />
                           </div>
                           <Row className="g-2">
                             <Col md={4}>
@@ -1346,7 +1459,7 @@ export default function CreateWebsitePage() {
                               <Form.Label className="small">Price</Form.Label>
                               <Form.Control
                                 value={row.priceLabel}
-                                onChange={(e) => patchMembershipPackage(index, { priceLabel: e.target.value })}
+                                onChange={(e) => handlePackagePriceChange(index, e.target.value)}
                               />
                             </Col>
                             <Col md={4}>
@@ -1360,14 +1473,18 @@ export default function CreateWebsitePage() {
                               <Form.Label className="small">Original price (optional)</Form.Label>
                               <Form.Control
                                 value={row.originalPriceLabel}
-                                onChange={(e) => patchMembershipPackage(index, { originalPriceLabel: e.target.value })}
+                                onChange={(e) => handlePackageOriginalPriceChange(index, e.target.value)}
                               />
                             </Col>
                             <Col md={4}>
                               <Form.Label className="small">Discount % (optional)</Form.Label>
                               <Form.Control
-                                value={row.discountPercent}
-                                onChange={(e) => patchMembershipPackage(index, { discountPercent: e.target.value })}
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.1}
+                                value={row.discountPercent === '' ? '' : row.discountPercent}
+                                onChange={(e) => handlePackageDiscountPercentChange(index, e.target.value)}
                               />
                             </Col>
                             <Col md={4} className="d-flex align-items-end">
@@ -1425,9 +1542,7 @@ export default function CreateWebsitePage() {
                         <Card key={index} body className="mb-3 bg-light">
                           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <p className="small fw-semibold mb-0">Coach {index + 1}</p>
-                            {form.coaches.length > 1 ?
-                              <RemoveRowTrashButton ariaLabel="Remove coach" onClick={() => removeCoach(index)} />
-                            : null}
+                            <RemoveRowTrashButton ariaLabel="Remove coach" onClick={() => removeCoach(index)} />
                           </div>
                           <Row className="g-2">
                             <Col md={6}>

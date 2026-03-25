@@ -10,3 +10,4 @@ export { UserPage } from './user';
 export { CreateWebsitePage } from './website';
 export { Welcome } from './welcome';
 export { CrystalBusinessPage } from './crystal';
+export { UserContentPolicyPage, PrivacyPolicyPage } from './legal';

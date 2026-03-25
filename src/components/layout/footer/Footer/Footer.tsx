@@ -16,9 +16,9 @@ const FOOTER_LINKS = {
     { label: 'Careers', hash: null as string | null },
   ],
   legal: [
-    { label: 'Privacy', hash: null as string | null },
-    { label: 'Terms', hash: null as string | null },
-  ],
+    { label: 'Privacy', path: '/legal/privacy' },
+    { label: 'Terms', path: '/legal/user-content' },
+  ] as { label: string; path?: string }[],
 };
 
 function footerHref(hash: string | null): string {
@@ -81,9 +81,11 @@ export default function Footer() {
           <Col xs={12} sm={4} md={2} lg={2}>
             <h6 className="crystal-footer__heading">Legal</h6>
             <ul className="crystal-footer__list">
-              {FOOTER_LINKS.legal.map(({ label, hash }) => (
+              {FOOTER_LINKS.legal.map(({ label, path }) => (
                 <li key={label}>
-                  <a href={footerHref(hash)}>{label}</a>
+                  {path ?
+                    <Link to={path}>{label}</Link>
+                  : <a href="#">{label}</a>}
                 </li>
               ))}
             </ul>

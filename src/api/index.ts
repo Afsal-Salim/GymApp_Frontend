@@ -17,7 +17,23 @@ export {
   type VerifyPaymentRequest,
   type VerifyPaymentResponse,
 } from './payments';
-export { sendOtp, verifyOtp, signup, login, loginWithGoogle, getProfile, forgotPasswordRequest, verifyResetOtp, resetPassword, type SignupRequest, type SignupResponse, type LoginRequest, type LoginResponse, type UserProfile } from './auth';
+export {
+  sendOtp,
+  verifyOtp,
+  signup,
+  login,
+  loginWithGoogle,
+  getProfile,
+  forgotPasswordRequest,
+  verifyResetOtp,
+  resetPassword,
+  type SignupRequest,
+  type SignupResponse,
+  type LoginRequest,
+  type LoginResponse,
+  type UserProfile,
+  type PolicyAcceptanceFlags,
+} from './auth';
 export {
   getBusinessDetail,
   getBusinessList,

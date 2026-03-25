@@ -16,6 +16,12 @@ export const STORAGE_USER_AVATAR_URL = 'user_avatar_url';
 /** Live preview draft synced via `localStorage` + `storage` event across tabs. */
 export const CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY = 'crystal_website_preview_v1';
 
+/**
+ * Same-origin broadcast when the preview draft is written. The `storage` event does not fire in the
+ * tab that called `localStorage.setItem`, so preview tabs use this (and `storage`) to stay live.
+ */
+export const CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL = 'crystal_website_preview_broadcast_v1';
+
 /** Older session-only draft key (Create Website wizard). */
 export const CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY = 'crystal_website_setup_draft_v1';
 

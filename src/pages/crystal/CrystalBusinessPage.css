@@ -445,6 +445,24 @@
   }
 }
 
+.crystal-client__hero-subtitle-para {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(0.95rem, 2.1vw, 1.08rem);
+  line-height: 1.65;
+  max-width: 40rem;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 0.65rem !important;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.4);
+}
+
+@media (min-width: 992px) {
+  .crystal-client__hero-subtitle-para {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 .crystal-client__hero-ctas {
   display: flex;
   flex-wrap: wrap;

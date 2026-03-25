@@ -44,17 +44,29 @@ export type GymClientDiscountOffer = {
   periodLabel?: string;
 };
 
-/** True when an offer has any user-visible content (empty rows / placeholders are excluded). */
+/** True when an offer has real content (0% + default title “Offer” + placeholder prices alone does not count). */
 export function isGymClientDiscountOfferFilled(o: GymClientDiscountOffer): boolean {
-  if (o.title.trim()) return true;
-  if (o.subtitle?.trim()) return true;
   if (o.percentOff > 0) return true;
   const sale = o.salePriceLabel.trim();
-  if (sale && sale !== '—') return true;
   const orig = o.originalPriceLabel.trim();
+  if (sale && sale !== '—') return true;
   if (orig && orig !== '—') return true;
-  if (o.periodLabel?.trim()) return true;
+  if (o.subtitle?.trim()) return true;
+  const t = o.title.trim();
+  if (t && t.toLowerCase() !== 'offer') return true;
   return false;
+}
+
+/** True when a membership card is more than empty placeholders from the builder (`Plan` / `—`). */
+export function isGymClientPackageItemFilled(p: GymClientPackageItem): boolean {
+  const nameOk = p.name.trim() && p.name.trim() !== 'Plan';
+  const priceOk = p.priceLabel.trim() && p.priceLabel.trim() !== '—';
+  const orig = p.originalPriceLabel?.trim();
+  const origOk = Boolean(orig && orig !== '—');
+  const discOk = p.discountPercent != null && p.discountPercent > 0;
+  const ctaOk = Boolean(p.ctaLabel?.trim());
+  const featOk = p.features.some((f) => f.trim() && f !== '—');
+  return nameOk || priceOk || origOk || discOk || ctaOk || featOk;
 }
 
 export type GymClientDetailRow = {
@@ -119,8 +131,9 @@ export type GymClientSiteContent = {
     titlePrefix: string;
     /** Gym / business name — shown in large type with accent brackets */
     title: string;
-    /** Shown as “A • B • C” under the title; if empty, `subtitle` is used instead */
+    /** Shown as “A • B • C” under the title; if empty, `subtitle` is shown in this line instead */
     taglineItems: string[];
+    /** Longer paragraph under the tagline line when tagline items exist; otherwise fills the tagline line */
     subtitle: string;
     /** Ghost button next to primary (nav CTA) */
     ctaSecondary?: GymClientHeroCta;
