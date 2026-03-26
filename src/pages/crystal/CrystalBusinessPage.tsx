@@ -507,9 +507,6 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
                         className="crystal-client__hero-maps-link"
                       >
                         <span className="crystal-client__hero-maps-link-text">{heroAddress}</span>
-                        <span className="crystal-client__maps-pin-wrap" aria-hidden>
-                          <GymClientMapsPinIcon className="crystal-client__maps-pin-icon" />
-                        </span>
                         <span className="visually-hidden">Open in Maps</span>
                       </a>
                     : <span>{heroAddress}</span>}

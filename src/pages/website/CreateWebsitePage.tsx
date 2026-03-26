@@ -19,7 +19,6 @@ import {
   checkBusinessSlugAvailability,
   getBusinessDetail,
   patchBusiness,
-  patchWebsiteSetupDraft,
   submitWebsiteSetupDraft,
 } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
@@ -33,6 +32,7 @@ import {
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
   createWebsiteFormFromBusinessDetail,
   draftPayloadToFormState,
+  GYM_CLIENT_DEFAULT_TEXT_HEX,
   emptyCoachRow,
   emptyDiscountOfferRow,
   emptyMembershipPackageRow,
@@ -884,29 +884,34 @@ export default function CreateWebsitePage() {
       setSaving(true);
       try {
         const logoTrim = form.logoUrl.trim();
-        const logoUrlPatch =
+        const logoUrlForApi =
           !logoTrim || isDataImageUrl(logoTrim) ?
-            undefined
+            ''
           : (() => {
               try {
                 const u = new URL(logoTrim);
-                return u.protocol === 'http:' || u.protocol === 'https:' ? logoTrim : undefined;
+                return u.protocol === 'http:' || u.protocol === 'https:' ? logoTrim : '';
               } catch {
-                return undefined;
+                return '';
               }
             })();
         const mapNorm = mapRaw && isValidHttpLocationUrl(mapRaw) ? normalizeLocationMapUrl(mapRaw) : '';
         await patchBusiness(baseline, {
-          name: form.gymName.trim() || undefined,
-          ...(slug !== baseline ? { slug } : {}),
-          description: form.businessDescription.trim() || undefined,
-          phone: form.contactPhone.trim() || undefined,
-          address: form.contactAddress.trim() || undefined,
-          ...(mapNorm ? { location_map_url: mapNorm } : {}),
+          name: form.gymName.trim(),
+          slug,
+          description: form.businessDescription.trim(),
+          phone: form.contactPhone.trim(),
+          address: form.contactAddress.trim(),
+          location_map_url: mapNorm,
           is_active: editBusinessActive,
-          ...(logoUrlPatch !== undefined ? { logo_url: logoUrlPatch } : {}),
+          logo_url: logoUrlForApi,
+          website_theme: {
+            accentHex: draft.theme.accentHex.trim() || '#ea580c',
+            darkHex: draft.theme.darkHex.trim() || '#0c0a09',
+            textHex: draft.theme.textHex.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
+          },
+          website_content: draft.content,
         });
-        await patchWebsiteSetupDraft(draft);
       } catch (err) {
         showToast(err instanceof Error ? err.message : 'Could not save changes. Try again.');
         return;
@@ -1673,8 +1678,9 @@ export default function CreateWebsitePage() {
                     {isEditMode ?
                       <>
                         <strong>Preview site</strong> opens a local draft without writing to the server.{' '}
-                        <strong>Save changes</strong> updates the business (<code>PATCH …/businesses/&lt;slug&gt;/</code>) and
-                        Crystal setup (<code>PATCH …/businesses/website-setup/</code>).
+                        <strong>Save changes</strong> sends a merge to{' '}
+                        <code>PATCH …/businesses/&lt;slug&gt;/</code> (profile fields plus{' '}
+                        <code>website_theme</code> and <code>website_content</code>).
                       </>
                     : <>
                         <strong>Preview site</strong> opens your draft without saving to the server.{' '}

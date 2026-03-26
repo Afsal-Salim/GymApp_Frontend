@@ -199,27 +199,6 @@ export type CreateWebsiteFormState = {
   footerFinePrint: string;
 };
 
-/** Map an owned business from GET `/businesses/<slug>/` into the website builder form (edit flow). */
-export function createWebsiteFormFromBusinessDetail(detail: BusinessDetail): CreateWebsiteFormState {
-  const base = initCreateWebsiteForm();
-  const logoUrl =
-    typeof (detail as { logo_url?: unknown }).logo_url === 'string' ?
-      (detail as { logo_url: string }).logo_url
-    : base.logoUrl;
-  const mapUrl =
-    typeof detail.location_map_url === 'string' ? detail.location_map_url.trim() : '';
-  return {
-    ...base,
-    slug: detail.slug?.trim().toLowerCase() ?? '',
-    gymName: detail.name?.trim() || base.gymName,
-    businessDescription: detail.description?.trim() || base.businessDescription,
-    contactPhone: detail.phone?.trim() ?? '',
-    contactAddress: detail.address?.trim() ?? '',
-    contactLocationMapUrl: mapUrl,
-    logoUrl,
-  };
-}
-
 export function initCreateWebsiteForm(): CreateWebsiteFormState {
   const d = GYM_CLIENT_SITE_DEFAULTS;
   const ti = d.header.taglineItems;
@@ -686,5 +665,73 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     parking: parkingRow === '—' ? '' : parkingRow,
     footerTagline: c.footer.tagline,
     footerFinePrint: c.footer.finePrint ?? '',
+  };
+}
+
+/** Normalize theme from GET (camelCase or snake_case keys). */
+function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPayload['theme'] | undefined {
+  const wt = detail.website_theme;
+  if (!wt || typeof wt !== 'object') return undefined;
+  const o = wt as Record<string, unknown>;
+  const accent = o.accentHex ?? o.accent_hex;
+  const dark = o.darkHex ?? o.dark_hex;
+  const text = o.textHex ?? o.text_hex;
+  if (typeof accent !== 'string' && typeof dark !== 'string' && typeof text !== 'string') return undefined;
+  return {
+    accentHex: typeof accent === 'string' ? accent : '#ea580c',
+    darkHex: typeof dark === 'string' ? dark : '#0c0a09',
+    textHex: typeof text === 'string' ? text : GYM_CLIENT_DEFAULT_TEXT_HEX,
+  };
+}
+
+/**
+ * Map an owned business from GET `/businesses/<slug>/` into the website builder form (edit flow).
+ * Uses `website_theme` + `website_content` when the API returns them so colors and layout match saved data.
+ */
+export function createWebsiteFormFromBusinessDetail(detail: BusinessDetail): CreateWebsiteFormState {
+  const slug = detail.slug?.trim().toLowerCase() ?? '';
+  const mapUrl = typeof detail.location_map_url === 'string' ? detail.location_map_url.trim() : '';
+  const logoUrl =
+    typeof (detail as { logo_url?: unknown }).logo_url === 'string' ?
+      (detail as { logo_url: string }).logo_url.trim()
+    : '';
+
+  const theme = themeFromBusinessDetail(detail);
+  const wcRaw = detail.website_content;
+  const wc = wcRaw && typeof wcRaw === 'object' ? (wcRaw as GymClientSiteContent) : undefined;
+
+  if (wc && slug) {
+    const themeResolved: CrystalWebsiteSetupPayload['theme'] =
+      theme ?? { accentHex: '#ea580c', darkHex: '#0c0a09', textHex: GYM_CLIENT_DEFAULT_TEXT_HEX };
+    const fromDraft = draftPayloadToFormState({ slug, theme: themeResolved, content: wc });
+    return {
+      ...fromDraft,
+      slug,
+      gymName: detail.name?.trim() || fromDraft.gymName,
+      businessDescription: detail.description?.trim() || fromDraft.businessDescription,
+      contactPhone: detail.phone?.trim() ?? fromDraft.contactPhone,
+      contactAddress: detail.address?.trim() ?? fromDraft.contactAddress,
+      contactLocationMapUrl: mapUrl || fromDraft.contactLocationMapUrl,
+      logoUrl: logoUrl || fromDraft.logoUrl,
+    };
+  }
+
+  const base = initCreateWebsiteForm();
+  return {
+    ...base,
+    slug,
+    gymName: detail.name?.trim() || base.gymName,
+    businessDescription: detail.description?.trim() || base.businessDescription,
+    contactPhone: detail.phone?.trim() ?? '',
+    contactAddress: detail.address?.trim() ?? '',
+    contactLocationMapUrl: mapUrl,
+    logoUrl: logoUrl || base.logoUrl,
+    ...(theme ?
+      {
+        accentColor: theme.accentHex,
+        darkColor: theme.darkHex,
+        textColor: theme.textHex,
+      }
+    : {}),
   };
 }

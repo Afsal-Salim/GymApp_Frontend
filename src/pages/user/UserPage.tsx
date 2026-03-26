@@ -188,7 +188,7 @@ export default function UserPage() {
           navigate(`/crystal/${slug}/`);
         } else {
           closeModal();
-          navigate(PLANS_PAGE_PATH);
+          navigate(`${PLANS_PAGE_PATH}/${encodeURIComponent(slug)}`);
           showToast('No active subscription. Choose a plan to continue.');
         }
       })

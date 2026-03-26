@@ -71,8 +71,9 @@ type PaymentPageProps = {
 
 export default function PaymentPage({ plan }: PaymentPageProps) {
   const location = useLocation();
-  const stateDetails = (location.state as { planDetails?: { name: string; price: string; period: string; currency: string }; planId?: number } | null)?.planDetails;
+  const stateDetails = (location.state as { planDetails?: { name: string; price: string; period: string; currency: string }; planId?: number; businessSlug?: string } | null)?.planDetails;
   const statePlanId = (location.state as { planId?: number } | null)?.planId;
+  const stateBusinessSlug = (location.state as { businessSlug?: string } | null)?.businessSlug?.trim().replace(/^\/+/, '');
   const details = stateDetails ?? FALLBACK_PLANS[plan];
 
   const [email, setEmail] = useState('');
@@ -121,17 +122,22 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
   );
 
   useEffect(() => {
+    if (stateBusinessSlug) {
+      setBusinessSlug(stateBusinessSlug);
+    }
     if (getAccessToken()) {
       const user = getUserInfo();
       if (user.email) setEmail(user.email);
-      getBusinessList()
-        .then((list) => {
-          const first = list?.[0];
-          if (first?.slug) setBusinessSlug(first.slug);
-        })
-        .catch(() => {});
+      if (!stateBusinessSlug) {
+        getBusinessList()
+          .then((list) => {
+            const first = list?.[0];
+            if (first?.slug) setBusinessSlug(first.slug);
+          })
+          .catch(() => {});
+      }
     }
-  }, []);
+  }, [stateBusinessSlug]);
 
   useEffect(() => {
     const scrollToTop = () => {

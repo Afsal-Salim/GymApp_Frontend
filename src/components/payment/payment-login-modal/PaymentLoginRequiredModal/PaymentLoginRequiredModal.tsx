@@ -7,6 +7,7 @@ export type CheckoutRedirect = {
   state?: {
     planDetails?: { name: string; price: string; period: string; currency: string };
     planId?: number;
+    businessSlug?: string;
   };
 };
 

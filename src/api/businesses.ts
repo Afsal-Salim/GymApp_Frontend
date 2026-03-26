@@ -30,6 +30,10 @@ export type BusinessDetail = {
   address?: string;
   /** Maps link (e.g. Google Maps) when the API stores it separately from address. */
   location_map_url?: string;
+  /** Crystal theme from GET (same shape as PATCH `website_theme`; may use accent_hex / dark_hex / text_hex). */
+  website_theme?: CrystalWebsiteSetupPayload['theme'] | Record<string, unknown>;
+  /** Crystal page JSON from GET (same shape as PATCH `website_content`). */
+  website_content?: CrystalWebsiteSetupPayload['content'] | Record<string, unknown>;
   /** When the API exposes it, toggles listing / operational state (separate from subscription). */
   is_active?: boolean;
   subscriptions?: BusinessSubscription[];
@@ -259,7 +263,10 @@ export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayloa
   }
 }
 
-/** Partial update for a business owned by the current user. */
+/**
+ * Partial update for a business owned by the current user.
+ * JSON merge: omit keys you do not want to change.
+ */
 export type PatchBusinessRequest = {
   name?: string;
   slug?: string;
@@ -270,16 +277,22 @@ export type PatchBusinessRequest = {
   logo_url?: string;
   /** If the API supports toggling listing/subscription state separately from subscriptions */
   is_active?: boolean;
+  /** Crystal theme JSON (accent / dark / text hex), same shape as website-setup `theme`. */
+  website_theme?: CrystalWebsiteSetupPayload['theme'];
+  /** Crystal public page model, same shape as website-setup `content`. */
+  website_content?: CrystalWebsiteSetupPayload['content'];
 };
 
 /**
- * **PATCH** `/api/businesses/<slug>/` — core profile fields (name, slug rename, contact, etc.).
+ * **PATCH** `/api/businesses/<slug>/` — Bearer required; must own the business.
+ * Body: any subset of editable fields (merge). Returns the full business (e.g. incl. `subscriptions`) on **200**.
  */
-export async function patchBusiness(businessSlug: string, body: PatchBusinessRequest): Promise<void> {
+export async function patchBusiness(businessSlug: string, body: PatchBusinessRequest): Promise<BusinessDetail> {
   const key = businessSlug.trim();
   if (!key) throw new Error('Business slug is required.');
   try {
-    await privateApi.patch(`${BASE}/${encodeURIComponent(key)}/`, body);
+    const { data } = await privateApi.patch<BusinessDetail>(`${BASE}/${encodeURIComponent(key)}/`, body);
+    return data;
   } catch (e) {
     throw new Error(getAxiosErrorMessage(e, 'Failed to update business'));
   }

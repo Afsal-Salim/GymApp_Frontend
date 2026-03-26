@@ -41,11 +41,12 @@ type Step = 1 | 2 | 3 | 4;
 export default function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
-  const [initialPolicyAccepted, setInitialPolicyAccepted] = useState(false);
-  const [initialPrivacyAccepted, setInitialPrivacyAccepted] = useState(false);
+  /** Policy checkboxes on step 1 apply only to Google sign-up (email flow confirms policies on step 3). */
+  const [googlePolicyAccepted, setGooglePolicyAccepted] = useState(false);
+  const [googlePrivacyAccepted, setGooglePrivacyAccepted] = useState(false);
   const [preAccountPolicyAccepted, setPreAccountPolicyAccepted] = useState(false);
   const [preAccountPrivacyAccepted, setPreAccountPrivacyAccepted] = useState(false);
-  const step1PoliciesReady = initialPolicyAccepted && initialPrivacyAccepted;
+  const googleSignupPoliciesReady = googlePolicyAccepted && googlePrivacyAccepted;
   const [email, setEmail] = useState('');
   const [otpToken, setOtpToken] = useState<string | null>(null);
   const [otp, setOtp] = useState('');
@@ -74,7 +75,7 @@ export default function SignupPage() {
   useEffect(() => {
     if (!googleOAuthClientId || !googleReady || !window.google || !googleButtonRef.current) return;
     const el = googleButtonRef.current;
-    if (!step1PoliciesReady) {
+    if (!googleSignupPoliciesReady) {
       el.innerHTML = '';
       return;
     }
@@ -129,7 +130,7 @@ export default function SignupPage() {
     return () => {
       el.innerHTML = '';
     };
-  }, [googleReady, navigate, showToast, step1PoliciesReady]);
+  }, [googleReady, navigate, showToast, googleSignupPoliciesReady]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,14 +138,6 @@ export default function SignupPage() {
     const emailVal = email.trim();
     if (!emailVal) {
       setError('Please enter your email.');
-      return;
-    }
-    if (!initialPolicyAccepted) {
-      setError('Please confirm you have read the User Content Responsibility policy.');
-      return;
-    }
-    if (!initialPrivacyAccepted) {
-      setError('Please confirm you have read the Privacy Policy.');
       return;
     }
     setLoading(true);
@@ -215,6 +208,10 @@ export default function SignupPage() {
     }
     if (!otpToken) {
       setError('Session expired. Please complete email verification again.');
+      return;
+    }
+    if (!preAccountPolicyAccepted || !preAccountPrivacyAccepted) {
+      setError('Please go back and confirm both policies before creating your account.');
       return;
     }
     setLoading(true);
@@ -289,77 +286,12 @@ export default function SignupPage() {
                 </Alert>
               )}
 
-              {/* Step 1: Verify email (send OTP) or Sign up with Google */}
+              {/* Step 1: Email OTP (policies confirmed on step 3) or Google (policies required here only) */}
               {step === 1 && (
                 <>
-                  <Form.Check
-                    type="checkbox"
-                    id="signup-initial-policy"
-                    className="mb-2 auth-page__policy-check"
-                    checked={initialPolicyAccepted}
-                    onChange={(e) => setInitialPolicyAccepted(e.target.checked)}
-                    label={
-                      <span>
-                        I have read the{' '}
-                        <Link to="/legal/user-content" target="_blank" rel="noopener noreferrer">
-                          User Content Responsibility
-                        </Link>{' '}
-                        policy and agree to follow it when using Crystal.
-                      </span>
-                    }
-                  />
-                  <Form.Check
-                    type="checkbox"
-                    id="signup-initial-privacy"
-                    className="mb-3 auth-page__policy-check"
-                    checked={initialPrivacyAccepted}
-                    onChange={(e) => setInitialPrivacyAccepted(e.target.checked)}
-                    label={
-                      <span>
-                        I have read the{' '}
-                        <Link to="/legal/privacy" target="_blank" rel="noopener noreferrer">
-                          Privacy Policy
-                        </Link>
-                        , including that I will not share my end users&apos; personal details with others except as
-                        allowed by law and that policy.
-                      </span>
-                    }
-                  />
-                  {googleOAuthClientId ? (
-                    <div
-                      className={`auth-page__google-wrap mb-3${!step1PoliciesReady ? ' auth-page__google-wrap--gated' : ''}`}
-                    >
-                      <div ref={googleButtonRef} className="auth-page__google-button" />
-                      {!step1PoliciesReady ? (
-                        <p className="small text-muted mb-0 mt-2">Confirm both policies above to sign up with Google.</p>
-                      ) : null}
-                      {loading && step1PoliciesReady ? (
-                        <div className="auth-page__google-loading">
-                          <Spinner animation="border" size="sm" className="me-2" />
-                          Signing up…
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline-secondary"
-                      size="lg"
-                      className="w-100 auth-page__google-btn mb-3"
-                      onClick={() => navigate('/login')}
-                      disabled={loading || !step1PoliciesReady}
-                    >
-                      <GoogleIcon />
-                      Sign up with Google
-                    </Button>
-                  )}
-                  <div className="auth-page__or mb-3">
-                      <span className="auth-page__or-line" />
-                      <span className="auth-page__or-text">OR</span>
-                      <span className="auth-page__or-line" />
-                    </div>
                   <p className="auth-page__subtitle text-muted mb-4">
-                    Enter your email. We&apos;ll send you a verification code.
+                    Enter your email. We&apos;ll send you a verification code. You&apos;ll confirm our policies after you
+                    verify your email.
                   </p>
                   <Form onSubmit={handleSendOtp}>
                     <Form.Group className="mb-4">
@@ -378,11 +310,84 @@ export default function SignupPage() {
                       variant="primary"
                       size="lg"
                       className="w-100 auth-page__submit"
-                      disabled={loading || !step1PoliciesReady}
+                      disabled={loading}
                     >
                       {loading ? <><Spinner animation="border" size="sm" className="me-2" />Sending…</> : 'Send OTP'}
                     </Button>
                   </Form>
+                  {googleOAuthClientId ? (
+                    <>
+                      <div className="auth-page__or my-4">
+                        <span className="auth-page__or-line" />
+                        <span className="auth-page__or-text">OR</span>
+                        <span className="auth-page__or-line" />
+                      </div>
+                      <p className="small text-muted mb-2 fw-semibold">Sign up with Google</p>
+                      <p className="small text-muted mb-3">
+                        The checkboxes below are only required for Google sign-up. Email sign-up confirms policies on step
+                        3.
+                      </p>
+                      <Form.Check
+                        type="checkbox"
+                        id="signup-google-policy"
+                        className="mb-2 auth-page__policy-check"
+                        checked={googlePolicyAccepted}
+                        onChange={(e) => setGooglePolicyAccepted(e.target.checked)}
+                        label={
+                          <span>
+                            I have read the{' '}
+                            <Link to="/legal/user-content" target="_blank" rel="noopener noreferrer">
+                              User Content Responsibility
+                            </Link>{' '}
+                            policy and agree to follow it when using Crystal.
+                          </span>
+                        }
+                      />
+                      <Form.Check
+                        type="checkbox"
+                        id="signup-google-privacy"
+                        className="mb-3 auth-page__policy-check"
+                        checked={googlePrivacyAccepted}
+                        onChange={(e) => setGooglePrivacyAccepted(e.target.checked)}
+                        label={
+                          <span>
+                            I have read the{' '}
+                            <Link to="/legal/privacy" target="_blank" rel="noopener noreferrer">
+                              Privacy Policy
+                            </Link>
+                            , including that I will not share my end users&apos; personal details with others except as
+                            allowed by law and that policy.
+                          </span>
+                        }
+                      />
+                      <div
+                        className={`auth-page__google-wrap mb-3${!googleSignupPoliciesReady ? ' auth-page__google-wrap--gated' : ''}`}
+                      >
+                        <div ref={googleButtonRef} className="auth-page__google-button" />
+                        {!googleSignupPoliciesReady ? (
+                          <p className="small text-muted mb-0 mt-2">Confirm both policies above to sign up with Google.</p>
+                        ) : null}
+                        {loading && googleSignupPoliciesReady ? (
+                          <div className="auth-page__google-loading">
+                            <Spinner animation="border" size="sm" className="me-2" />
+                            Signing up…
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline-secondary"
+                      size="lg"
+                      className="w-100 auth-page__google-btn mt-4"
+                      onClick={() => navigate('/login')}
+                      disabled={loading}
+                    >
+                      <GoogleIcon />
+                      Sign up with Google
+                    </Button>
+                  )}
                 </>
               )}
 

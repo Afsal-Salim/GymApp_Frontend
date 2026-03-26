@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
-import { getPlanList, getAccessToken, DUMMY_BUSINESS_SLUG, type PlanListItem } from '../../api';
+import { getPlanList, DUMMY_BUSINESS_SLUG, type PlanListItem } from '../../api';
 import { homepageTutorialVideoUrl, whatsappDefaultMessage, whatsappPhone } from '../../config/env';
-import { PaymentLoginRequiredModal, WhatsAppLogoIcon } from '../../components';
-import type { CheckoutRedirect } from '../../components';
+import { WhatsAppLogoIcon } from '../../components';
 import './HomePage.css';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -245,7 +244,6 @@ export default function HomePage() {
   const [plans, setPlans] = useState<DisplayPlan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState<string | null>(null);
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [packagesScrollMode, setPackagesScrollMode] = useState(false);
   const packagesAutoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const packagesPausedRef = useRef(false);
@@ -257,7 +255,6 @@ export default function HomePage() {
   useHorizontalWheel(featuresScrollRef);
   useHorizontalWheel(testimonialsScrollRef);
   useHorizontalWheel(packagesScrollRef);
-  const navigate = useNavigate();
   const location = useLocation();
 
   /* Scroll to section when user clicks an in-page link with hash (not on initial open). */
@@ -290,7 +287,6 @@ export default function HomePage() {
         if (cancelled) return;
         const mapped = data.map((p, i) => mapPlanToDisplay(p, i));
         setPlans([...mapped, CUSTOM_PLAN]);
-        if (mapped.length > 0 && !selectedPackageId) setSelectedPackageId(mapped[0].id);
       })
       .catch((err) => {
         if (!cancelled) setPlansError(err instanceof Error ? err.message : 'Failed to load plans');
@@ -310,25 +306,7 @@ export default function HomePage() {
     }
   }, []);
 
-  const isInitialPackageSelection = useRef(true);
-  useEffect(() => {
-    if (!selectedPackageId) return;
-    const container = packagesScrollRef.current;
-    if (!container) return;
-    /* Only scroll to the selected plan when the user clicks a card, not on initial load. */
-    if (isInitialPackageSelection.current) {
-      isInitialPackageSelection.current = false;
-      return;
-    }
-    const selectedEl = container.querySelector(`[data-plan-id="${selectedPackageId}"]`);
-    if (selectedEl) {
-      selectedEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-  }, [selectedPackageId]);
-
   const [footerVisible, setFooterVisible] = useState(false);
-  const [paymentLoginModalShow, setPaymentLoginModalShow] = useState(false);
-  const [pendingCheckout, setPendingCheckout] = useState<CheckoutRedirect | null>(null);
   useEffect(() => {
     const footer = document.getElementById('crystal-footer');
     if (!footer) return;
@@ -342,22 +320,6 @@ export default function HomePage() {
     io.observe(footer);
     return () => io.disconnect();
   }, []);
-
-  const goToCheckout = (pkg: DisplayPlan) => {
-    if (!pkg.paymentSlug) return;
-    const pathname = `/${pkg.paymentSlug}`;
-    const navState = {
-      planDetails: { name: pkg.name, price: pkg.price, period: pkg.period, currency: pkg.currency },
-      planId: Number(pkg.id),
-    };
-    if (!getAccessToken()) {
-      setPendingCheckout({ pathname, state: navState });
-      setPaymentLoginModalShow(true);
-      return;
-    }
-    sessionStorage.setItem('crystalReturnScroll', String(window.scrollY));
-    navigate(pathname, { state: navState });
-  };
 
   const scrollDown = () => {
     window.scrollTo({ top: window.scrollY + window.innerHeight * 0.85, behavior: 'smooth' });
@@ -714,50 +676,27 @@ export default function HomePage() {
               aria-label="Payment plans carousel"
             >
               <div className="crystal-packages-inner">
-                {packagesToRender.map((pkg) => {
-                  const isSelected = selectedPackageId === pkg.id;
-                  return (
-                    <Card
-                      key={pkg.id}
-                      data-plan-id={pkg.id}
-                      className={`crystal-package-card flex-shrink-0 ${pkg.popular ? 'border-primary' : ''} ${isSelected ? 'crystal-package-card--selected' : ''}`}
-                      onClick={() => setSelectedPackageId(pkg.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && setSelectedPackageId(pkg.id)}
-                    >
-                      {pkg.popular && (
-                        <div className="crystal-package-badge bg-primary text-white small py-1">Popular</div>
+                {packagesToRender.map((pkg) => (
+                  <Card
+                    key={pkg.id}
+                    data-plan-id={pkg.id}
+                    className={`crystal-package-card flex-shrink-0 ${pkg.popular ? 'border-primary' : ''}`}
+                  >
+                    {pkg.popular && (
+                      <div className="crystal-package-badge bg-primary text-white small py-1">Popular</div>
+                    )}
+                    <Card.Body className="text-center">
+                      <Card.Title className="h5">{pkg.name}</Card.Title>
+                      <div className="mb-3">
+                        <span className="display-6 fw-bold">{pkg.price}</span>
+                        <span className="text-muted">{pkg.period}</span>
+                      </div>
+                      {pkg.features.length > 0 && (
+                        <PlanFeatures planId={pkg.id} features={pkg.features} />
                       )}
-                      <Card.Body className="text-center">
-                        <Card.Title className="h5">{pkg.name}</Card.Title>
-                        <div className="mb-3">
-                          <span className="display-6 fw-bold">{pkg.price}</span>
-                          <span className="text-muted">{pkg.period}</span>
-                        </div>
-                        {pkg.features.length > 0 && (
-                          <PlanFeatures planId={pkg.id} features={pkg.features} />
-                        )}
-                        {pkg.paymentSlug ? (
-                          <Button
-                            variant={isSelected || pkg.popular ? 'primary' : 'outline-primary'}
-                            className="w-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              goToCheckout(pkg);
-                            }}
-                          >
-                            {pkg.cta}
-                          </Button>
-                        ) : (
-                          <Button variant={isSelected || pkg.popular ? 'primary' : 'outline-primary'} className="w-100" onClick={(e) => e.stopPropagation()}>
-                            {pkg.cta}
-                          </Button>
-                        )}
-                      </Card.Body>
-                    </Card>
-                  );
-                })}
+                    </Card.Body>
+                  </Card>
+                ))}
               </div>
             </div>
           )}
@@ -829,14 +768,6 @@ export default function HomePage() {
         </Container>
       </section>
     </main>
-    <PaymentLoginRequiredModal
-      show={paymentLoginModalShow}
-      onHide={() => {
-        setPaymentLoginModalShow(false);
-        setPendingCheckout(null);
-      }}
-      checkout={pendingCheckout}
-    />
     </>
   );
 }

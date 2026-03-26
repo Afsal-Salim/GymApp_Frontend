@@ -35,6 +35,7 @@ function App() {
           <Route path="/crystal" element={<HomePage />} />
           <Route path="/crystal/:slug/*" element={<CrystalBusinessPage />} />
           <Route path="/plans" element={<PlansPage />} />
+          <Route path="/plans/:businessSlug" element={<PlansPage />} />
           <Route path="/starter" element={<PaymentPage plan="starter" />} />
           <Route path="/pro" element={<PaymentPage plan="pro" />} />
           <Route path="/login" element={<LoginPage />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
 import { PageContainer, PaymentLoginRequiredModal } from '../../components';
 import type { CheckoutRedirect } from '../../components';
@@ -64,8 +64,16 @@ const CUSTOM_PLAN: DisplayPlan = {
   popular: false,
 };
 
+function normalizePlansBusinessSlug(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const t = raw.trim().replace(/^\/+/, '');
+  return t || undefined;
+}
+
 export default function PlansPage() {
   const navigate = useNavigate();
+  const { businessSlug: businessSlugParam } = useParams<{ businessSlug?: string }>();
+  const plansBusinessSlug = normalizePlansBusinessSlug(businessSlugParam);
   const [plans, setPlans] = useState<DisplayPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +101,7 @@ export default function PlansPage() {
     const navState = {
       planDetails: { name: pkg.name, price: pkg.price, period: pkg.period, currency: pkg.currency },
       planId: Number(pkg.id),
+      ...(plansBusinessSlug ? { businessSlug: plansBusinessSlug } : {}),
     };
     if (!getAccessToken()) {
       setPendingCheckout({ pathname, state: navState });
