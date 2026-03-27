@@ -472,9 +472,9 @@ export default function HomePage() {
                 {HERO_TAGLINE}
               </p>
               <div className="crystal-hero-seq crystal-hero-seq--4 d-flex flex-wrap gap-2 justify-content-center">
-                <Button href="#packages" variant="primary" size="lg" className="crystal-cta">
-                  View pricing
-                </Button>
+                <Link to="/preview?from=marketing" className="btn btn-primary btn-lg crystal-cta">
+                  Preview
+                </Link>
                 <Button href="#tutorial" variant="outline-light" size="lg" className="crystal-cta-outline">
                   Watch tutorial
                 </Button>
