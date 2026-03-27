@@ -117,6 +117,8 @@ export type PublicBusinessDetail = {
   location_map_url?: string;
   /** Public logo URL when the backend provides one; otherwise the client uses a bundled fallback. */
   logo_url?: string;
+  /** When the API returns it, Crystal theme for the public page (accent / dark / text / light hex). */
+  website_theme?: CrystalWebsiteSetupPayload['theme'] | Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };

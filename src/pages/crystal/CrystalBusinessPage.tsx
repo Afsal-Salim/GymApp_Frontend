@@ -40,7 +40,54 @@ const MARKETING_PREVIEW_THEME = {
   accentHex: '#ea580c',
   darkHex: '#0c0a09',
   textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+  lightHex: '#ffffff',
 } as const;
+
+/** Fallback when no draft / API theme (matches `.crystal-client-viewport` CSS defaults). */
+const CLIENT_THEME_FALLBACK = {
+  accentHex: '#ea580c',
+  darkHex: '#0c0a09',
+  textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+  lightHex: '#ffffff',
+} as const;
+
+type ParsedWebsiteTheme = Partial<{
+  accentHex: string;
+  darkHex: string;
+  textHex: string;
+  lightHex: string;
+}>;
+
+function parseWebsiteThemeFromApi(raw: unknown): ParsedWebsiteTheme {
+  if (!raw || typeof raw !== 'object') return {};
+  const o = raw as Record<string, unknown>;
+  const pick = (camel: string, snake: string): string | undefined => {
+    const a = o[camel];
+    const b = o[snake];
+    const v = (typeof a === 'string' && a.trim() ? a : typeof b === 'string' && b.trim() ? b : '') as string;
+    return v.trim() || undefined;
+  };
+  return {
+    accentHex: pick('accentHex', 'accent_hex'),
+    darkHex: pick('darkHex', 'dark_hex'),
+    textHex: pick('textHex', 'text_hex'),
+    lightHex: pick('lightHex', 'light_hex'),
+  };
+}
+
+function gymClientThemeToCssVars(theme: {
+  accentHex: string;
+  darkHex: string;
+  textHex: string;
+  lightHex: string;
+}): CSSProperties {
+  return {
+    ['--gym-client-accent' as string]: theme.accentHex,
+    ['--gym-client-dark' as string]: theme.darkHex,
+    ['--gym-client-text' as string]: theme.textHex,
+    ['--gym-client-light' as string]: theme.lightHex,
+  };
+}
 
 function headerSecondaryOpensBookTrial(
   secondary: GymClientSiteContent['header']['ctaSecondary']
@@ -56,15 +103,28 @@ function useRevealOnScroll(rootRef: RefObject<HTMLElement | null>) {
     if (!root) return;
     const els = root.querySelectorAll('[data-reveal]');
     if (els.length === 0) return;
+
+    const reveal = (target: Element) => {
+      target.classList.add('crystal-client-reveal--visible');
+    };
+
+    const inView = (el: Element) => {
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top < vh * 0.92 && rect.bottom > 0;
+    };
+
+    els.forEach((el) => {
+      if (inView(el)) reveal(el);
+    });
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add('crystal-client-reveal--visible');
-          }
+          if (e.isIntersecting) reveal(e.target);
         });
       },
-      { threshold: 0.06, rootMargin: '0px 0px -32px 0px' }
+      { threshold: 0.05, rootMargin: '0px 0px -6% 0px' }
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
@@ -370,10 +430,13 @@ function GymClientFooter({
 function GymClientSiteView({
   content,
   businessSlug,
+  themeCssVars,
   suppressPublicLeads = false,
 }: {
   content: GymClientSiteContent;
   businessSlug: string;
+  /** CSS variables for `--gym-client-*` (modals portal to `body` and need the same theme as the page). */
+  themeCssVars: CSSProperties;
   /** True on `/preview` — no lead API or local lead stats; gym is not published. */
   suppressPublicLeads?: boolean;
 }) {
@@ -452,6 +515,16 @@ function GymClientSiteView({
   const aboutFeatures = content.description.features;
   const showAboutFeatures = aboutFeatures.length > 0;
   const visitCtaHref = visibleDetails.length > 0 ? '#visit' : '#contact';
+  const aboutBodyBackground = content.description.bodyBackground;
+  const aboutBodyBgImageUrl = aboutBodyBackground?.imageUrl?.trim() ?? '';
+  const aboutBodyBlend = aboutBodyBackground?.blendColor?.trim() ?? '#111827CC';
+  const aboutBodyBgEnabled = Boolean(aboutBodyBackground?.enabled && aboutBodyBgImageUrl);
+  const aboutBodyStyle = aboutBodyBgEnabled ?
+    ({
+      ['--gym-about-body-bg-image' as string]: `url(${aboutBodyBgImageUrl})`,
+      ['--gym-about-body-bg-blend' as string]: aboutBodyBlend,
+    } as CSSProperties)
+  : undefined;
 
   const heroStyle = {
     '--gym-hero-bg': `url(${content.layout.heroBackgroundImage})`,
@@ -474,27 +547,51 @@ function GymClientSiteView({
         <div className="crystal-client__hero-overlay" aria-hidden />
         <Container className="crystal-client__hero-container position-relative">
           <div className="crystal-client__hero-inner text-center text-lg-start">
-            <p className="crystal-client__hero-prefix mb-0" data-reveal>
+            <p
+              className="crystal-client__hero-prefix mb-0"
+              data-reveal
+              style={{ transitionDelay: '0.03s' } as CSSProperties}
+            >
               {content.header.titlePrefix}
             </p>
-            <h1 className="crystal-client__hero-title mb-0" data-reveal>
+            <h1
+              className="crystal-client__hero-title mb-0"
+              data-reveal
+              style={{ transitionDelay: '0.1s' } as CSSProperties}
+            >
               {content.header.title}
             </h1>
             {heroTaglineLine ? (
-              <p className="crystal-client__hero-tagline mb-0" data-reveal>
+              <p
+                className="crystal-client__hero-tagline mb-0"
+                data-reveal
+                style={{ transitionDelay: '0.18s' } as CSSProperties}
+              >
                 {heroTaglineLine}
               </p>
             ) : heroSubtitleText ? (
-              <p className="crystal-client__hero-tagline mb-0" data-reveal>
+              <p
+                className="crystal-client__hero-tagline mb-0"
+                data-reveal
+                style={{ transitionDelay: '0.18s' } as CSSProperties}
+              >
                 {heroSubtitleText}
               </p>
             ) : null}
             {heroTaglineLine && heroSubtitleText ? (
-              <p className="crystal-client__hero-subtitle-para mb-0" data-reveal>
+              <p
+                className="crystal-client__hero-subtitle-para mb-0"
+                data-reveal
+                style={{ transitionDelay: '0.26s' } as CSSProperties}
+              >
                 {heroSubtitleText}
               </p>
             ) : null}
-            <div className="crystal-client__hero-ctas mt-3" data-reveal>
+            <div
+              className="crystal-client__hero-ctas mt-3"
+              data-reveal
+              style={{ transitionDelay: '0.34s' } as CSSProperties}
+            >
               {content.nav.ctaLabel && content.nav.ctaHref ?
                 joinLeadFromContactCta ?
                   <button type="button" className="btn crystal-client__hero-cta-primary" onClick={openJoinLeadModal}>
@@ -517,7 +614,11 @@ function GymClientSiteView({
               ) : null}
             </div>
             {showHeroInfoBar ? (
-              <div className="crystal-client__hero-infobar" data-reveal>
+              <div
+                className="crystal-client__hero-infobar"
+                data-reveal
+                style={{ transitionDelay: '0.42s' } as CSSProperties}
+              >
                 {heroAddress ? (
                   <div className="crystal-client__hero-infobar-item crystal-client__hero-infobar-item--address">
                     <SvgHeroPin />
@@ -588,7 +689,8 @@ function GymClientSiteView({
           ) : null}
           {content.description.body.trim() ? (
             <p
-              className={`crystal-client__body mx-auto text-center ${showAboutFeatures ? 'crystal-client__body--after-features' : ''}`}
+              className={`crystal-client__body mx-auto text-center ${showAboutFeatures ? 'crystal-client__body--after-features' : ''} ${aboutBodyBgEnabled ? 'crystal-client__body--blended' : ''}`}
+              style={aboutBodyStyle}
               data-reveal
             >
               {content.description.body}
@@ -785,7 +887,7 @@ function GymClientSiteView({
                 {content.video.caption}
               </p>
             ) : null}
-            {/* No data-reveal: iframe stayed opacity:0 until scroll, so preview looked like an empty box */}
+            <div className="crystal-client__video-frame-wrap" data-reveal>
             <div className="crystal-client__video-frame">
               <iframe
                 title={content.video.sectionTitle}
@@ -793,6 +895,7 @@ function GymClientSiteView({
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
+            </div>
             </div>
           </Container>
         </section>
@@ -912,6 +1015,7 @@ function GymClientSiteView({
         businessSlug={businessSlug}
         gymName={content.header.title}
         brandLogoSrc={content.logo.src}
+        themeCssVars={themeCssVars}
         suppressPublicLeads={suppressPublicLeads}
       />
 
@@ -921,6 +1025,7 @@ function GymClientSiteView({
         businessSlug={businessSlug}
         gymName={content.header.title}
         brandLogoSrc={content.logo.src}
+        themeCssVars={themeCssVars}
         suppressPublicLeads={suppressPublicLeads}
       />
 
@@ -931,6 +1036,7 @@ function GymClientSiteView({
         gymName={content.header.title}
         brandLogoSrc={content.logo.src}
         visitSectionHref={visitCtaHref}
+        themeCssVars={themeCssVars}
         suppressPublicLeads={suppressPublicLeads}
       />
 
@@ -1090,24 +1196,32 @@ export default function CrystalBusinessPage() {
     return null;
   }, [slug, isMarketingPreview, marketingDemoContent, previewDraft, siteContentFromBusiness]);
 
-  const previewViewportStyle = useMemo((): CSSProperties | undefined => {
-    if (slug !== 'preview') return undefined;
-    if (isMarketingPreview) {
+  /** Same tokens on viewport + portaled modals (navbar, hero, modal header gradient, etc.). */
+  const resolvedGymClientTheme = useMemo(() => {
+    if (slug === 'preview' && isMarketingPreview) {
+      return { ...MARKETING_PREVIEW_THEME };
+    }
+    if (slug === 'preview' && previewDraft) {
       return {
-        ['--gym-client-accent' as string]: MARKETING_PREVIEW_THEME.accentHex,
-        ['--gym-client-dark' as string]: MARKETING_PREVIEW_THEME.darkHex,
-        ['--gym-client-text' as string]: MARKETING_PREVIEW_THEME.textHex,
+        accentHex: previewDraft.theme.accentHex?.trim() || CLIENT_THEME_FALLBACK.accentHex,
+        darkHex: previewDraft.theme.darkHex?.trim() || CLIENT_THEME_FALLBACK.darkHex,
+        textHex: previewDraft.theme.textHex?.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
+        lightHex: previewDraft.theme.lightHex?.trim() || CLIENT_THEME_FALLBACK.lightHex,
       };
     }
-    if (previewDraft) {
-      return {
-        ['--gym-client-accent' as string]: previewDraft.theme.accentHex,
-        ['--gym-client-dark' as string]: previewDraft.theme.darkHex,
-        ['--gym-client-text' as string]: previewDraft.theme.textHex ?? GYM_CLIENT_DEFAULT_TEXT_HEX,
-      };
-    }
-    return undefined;
-  }, [slug, isMarketingPreview, previewDraft]);
+    const fromApi = business ? parseWebsiteThemeFromApi(business.website_theme) : {};
+    return {
+      accentHex: fromApi.accentHex ?? CLIENT_THEME_FALLBACK.accentHex,
+      darkHex: fromApi.darkHex ?? CLIENT_THEME_FALLBACK.darkHex,
+      textHex: fromApi.textHex ?? CLIENT_THEME_FALLBACK.textHex,
+      lightHex: fromApi.lightHex ?? CLIENT_THEME_FALLBACK.lightHex,
+    };
+  }, [slug, isMarketingPreview, previewDraft, business]);
+
+  const clientThemeCssVars = useMemo(
+    () => gymClientThemeToCssVars(resolvedGymClientTheme),
+    [resolvedGymClientTheme]
+  );
 
   useEffect(() => {
     if (!slug) {
@@ -1196,7 +1310,7 @@ export default function CrystalBusinessPage() {
               <p className="crystal-business-page__lead">No business selected.</p>
             </div>
           ) : loading ? (
-            <div className="crystal-client-viewport">
+            <div className="crystal-client-viewport" style={clientThemeCssVars}>
               <GymClientLoadingScreen />
             </div>
           ) : error ? (
@@ -1247,7 +1361,7 @@ export default function CrystalBusinessPage() {
                   </Link>
                 </div>
               : null}
-              <div className="crystal-client-viewport" style={previewViewportStyle}>
+              <div className="crystal-client-viewport" style={clientThemeCssVars}>
                 <GymClientSiteView
                   content={siteContent}
                   businessSlug={
@@ -1256,6 +1370,7 @@ export default function CrystalBusinessPage() {
                       : (previewDraft?.slug ?? 'preview')
                     : (slug ?? '')
                   }
+                  themeCssVars={clientThemeCssVars}
                   suppressPublicLeads={slug === 'preview'}
                 />
               </div>

@@ -21,6 +21,7 @@ export type CrystalWebsiteDraftPayload = CrystalWebsiteSetupPayload;
 
 /** Default body copy color on light sections (`--gym-client-text`) when ink/surfaces use a light “dark” token. */
 export const GYM_CLIENT_DEFAULT_TEXT_HEX = '#1c1917';
+export const GYM_CLIENT_DEFAULT_LIGHT_HEX = '#ffffff';
 
 export const CREATE_WEBSITE_MAX_OFFERS = 5;
 export const CREATE_WEBSITE_MAX_PACKAGES = 5;
@@ -141,6 +142,8 @@ export type CreateWebsiteFormState = {
   darkColor: string;
   /** Readable text on light backgrounds (about, packages, etc.); maps to `--gym-client-text`. */
   textColor: string;
+  /** Base color for light surfaces (cards/sections). */
+  lightColor: string;
   logoUrl: string;
   gymName: string;
   businessDescription: string;
@@ -161,7 +164,9 @@ export type CreateWebsiteFormState = {
   leadBefore: string;
   leadAccent: string;
   leadAfter: string;
-  descriptionBody: string;
+  aboutBodyBgEnabled: boolean;
+  aboutBodyBgImageUrl: string;
+  aboutBodyBgBlendColor: string;
   feat1Title: string;
   feat1Sub: string;
   feat1Icon: GymClientAboutFeature['icon'];
@@ -215,6 +220,7 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
     accentColor: '#ea580c',
     darkColor: '#0c0a09',
     textColor: GYM_CLIENT_DEFAULT_TEXT_HEX,
+    lightColor: GYM_CLIENT_DEFAULT_LIGHT_HEX,
     logoUrl: '',
     gymName: d.header.title,
     businessDescription: d.description.body,
@@ -235,7 +241,9 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
     leadBefore: d.description.lead?.before ?? '',
     leadAccent: d.description.lead?.accent ?? '',
     leadAfter: d.description.lead?.after ?? '',
-    descriptionBody: d.description.body,
+    aboutBodyBgEnabled: d.description.bodyBackground?.enabled ?? false,
+    aboutBodyBgImageUrl: d.description.bodyBackground?.imageUrl ?? '',
+    aboutBodyBgBlendColor: d.description.bodyBackground?.blendColor ?? '#111827CC',
     feat1Title: f1?.title ?? '',
     feat1Sub: f1?.subtext ?? '',
     feat1Icon: f1?.icon ?? 'coaches',
@@ -293,11 +301,13 @@ function parsePreviewPayload(raw: string): CrystalWebsiteDraftPayload | null {
     const accent = rec.theme?.accentHex;
     const dark = rec.theme?.darkHex;
     const textRaw = (rec.theme as { textHex?: string } | undefined)?.textHex;
+    const lightRaw = (rec.theme as { lightHex?: string } | undefined)?.lightHex;
     const textHex = typeof textRaw === 'string' && textRaw.trim() ? textRaw.trim() : GYM_CLIENT_DEFAULT_TEXT_HEX;
+    const lightHex = typeof lightRaw === 'string' && lightRaw.trim() ? lightRaw.trim() : GYM_CLIENT_DEFAULT_LIGHT_HEX;
     const theme =
       typeof accent === 'string' && typeof dark === 'string' ?
-        { accentHex: accent, darkHex: dark, textHex }
-      : { accentHex: '#ea580c', darkHex: '#0c0a09', textHex: GYM_CLIENT_DEFAULT_TEXT_HEX };
+        { accentHex: accent, darkHex: dark, textHex, lightHex }
+      : { accentHex: '#ea580c', darkHex: '#0c0a09', textHex: GYM_CLIENT_DEFAULT_TEXT_HEX, lightHex: GYM_CLIENT_DEFAULT_LIGHT_HEX };
     return {
       slug: typeof rec.slug === 'string' && rec.slug ? rec.slug : 'preview',
       theme,
@@ -452,7 +462,14 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
   const laf = form.leadAfter.trim();
   base.description.lead =
     lb || la || laf ? { before: lb, accent: la, after: laf } : undefined;
-  base.description.body = form.businessDescription.trim() || form.descriptionBody.trim();
+  base.description.body = form.businessDescription.trim();
+  const aboutBgImage = form.aboutBodyBgImageUrl.trim();
+  const aboutBgBlendColor = form.aboutBodyBgBlendColor.trim() || '#111827CC';
+  base.description.bodyBackground = {
+    enabled: Boolean(form.aboutBodyBgEnabled && aboutBgImage),
+    imageUrl: aboutBgImage || undefined,
+    blendColor: aboutBgBlendColor,
+  };
   base.description.features = [
     {
       id: 'feat-1',
@@ -564,6 +581,7 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
       accentHex: form.accentColor.trim(),
       darkHex: form.darkColor.trim(),
       textHex: form.textColor.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
+      lightHex: form.lightColor.trim() || GYM_CLIENT_DEFAULT_LIGHT_HEX,
     },
     content: base,
   };
@@ -609,6 +627,7 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     accentColor: draft.theme.accentHex || '#ea580c',
     darkColor: draft.theme.darkHex || '#0c0a09',
     textColor: draft.theme.textHex?.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
+    lightColor: draft.theme.lightHex?.trim() || GYM_CLIENT_DEFAULT_LIGHT_HEX,
     logoUrl,
     gymName: c.header.title,
     businessDescription: c.description.body,
@@ -633,7 +652,9 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     leadBefore: c.description.lead?.before ?? '',
     leadAccent: c.description.lead?.accent ?? '',
     leadAfter: c.description.lead?.after ?? '',
-    descriptionBody: c.description.body,
+    aboutBodyBgEnabled: Boolean(c.description.bodyBackground?.enabled && c.description.bodyBackground?.imageUrl?.trim()),
+    aboutBodyBgImageUrl: c.description.bodyBackground?.imageUrl?.trim() ?? '',
+    aboutBodyBgBlendColor: c.description.bodyBackground?.blendColor?.trim() ?? '#111827CC',
     feat1Title: f1?.title ?? '',
     feat1Sub: f1?.subtext ?? '',
     feat1Icon: f1?.icon && isFeatureIcon(f1.icon) ? f1.icon : 'coaches',
@@ -676,11 +697,13 @@ function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPay
   const accent = o.accentHex ?? o.accent_hex;
   const dark = o.darkHex ?? o.dark_hex;
   const text = o.textHex ?? o.text_hex;
-  if (typeof accent !== 'string' && typeof dark !== 'string' && typeof text !== 'string') return undefined;
+  const light = o.lightHex ?? o.light_hex;
+  if (typeof accent !== 'string' && typeof dark !== 'string' && typeof text !== 'string' && typeof light !== 'string') return undefined;
   return {
     accentHex: typeof accent === 'string' ? accent : '#ea580c',
     darkHex: typeof dark === 'string' ? dark : '#0c0a09',
     textHex: typeof text === 'string' ? text : GYM_CLIENT_DEFAULT_TEXT_HEX,
+    lightHex: typeof light === 'string' ? light : GYM_CLIENT_DEFAULT_LIGHT_HEX,
   };
 }
 
@@ -702,7 +725,7 @@ export function createWebsiteFormFromBusinessDetail(detail: BusinessDetail): Cre
 
   if (wc && slug) {
     const themeResolved: CrystalWebsiteSetupPayload['theme'] =
-      theme ?? { accentHex: '#ea580c', darkHex: '#0c0a09', textHex: GYM_CLIENT_DEFAULT_TEXT_HEX };
+      theme ?? { accentHex: '#ea580c', darkHex: '#0c0a09', textHex: GYM_CLIENT_DEFAULT_TEXT_HEX, lightHex: GYM_CLIENT_DEFAULT_LIGHT_HEX };
     const fromDraft = draftPayloadToFormState({ slug, theme: themeResolved, content: wc });
     return {
       ...fromDraft,
@@ -731,6 +754,7 @@ export function createWebsiteFormFromBusinessDetail(detail: BusinessDetail): Cre
         accentColor: theme.accentHex,
         darkColor: theme.darkHex,
         textColor: theme.textHex,
+        lightColor: theme.lightHex ?? GYM_CLIENT_DEFAULT_LIGHT_HEX,
       }
     : {}),
   };

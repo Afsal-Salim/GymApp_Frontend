@@ -145,6 +145,12 @@ export type GymClientSiteContent = {
     /** e.g. “Helping over **500+ members** get fit since 2018” — accent uses theme color */
     lead?: { before: string; accent: string; after: string };
     body: string;
+    /** Optional blended image background behind the About body copy block. */
+    bodyBackground?: {
+      enabled: boolean;
+      imageUrl?: string;
+      blendColor?: string;
+    };
     /** Empty = simple about (title + body only) */
     features: GymClientAboutFeature[];
   };
@@ -187,7 +193,7 @@ export type GymClientSiteContent = {
  * Sent when the user clicks “Save & continue to plans” on the Crystal website builder.
  *
  * - `slug`: chosen public path (`/{slug}/`).
- * - `theme`: CSS variables for the live client (`--gym-client-accent`, `--gym-client-dark`, `--gym-client-text`).
+ * - `theme`: CSS variables for the live client (`--gym-client-accent`, `--gym-client-dark`, `--gym-client-text`, `--gym-client-light`).
  * - `content`: full public page model (same shape as preview). Image fields may be `https://` or `data:image/...` until the backend persists uploads.
  * - **Location / maps:** `content.contacts.locationMapUrl` — optional string, full `https://…` maps link (e.g. Google Maps share URL).
  *   Also persist on the business record as `location_map_url` if your API supports it.
@@ -199,6 +205,8 @@ export type CrystalWebsiteSetupPayload = {
     accentHex: string;
     darkHex: string;
     textHex: string;
+    /** Light surfaces/cards base (used for “mostly white” areas). */
+    lightHex?: string;
   };
   content: GymClientSiteContent;
 };
@@ -256,6 +264,11 @@ export const GYM_CLIENT_SITE_DEFAULTS: GymClientSiteContent = {
     },
     body:
       'We help you move better, get stronger, and stay consistent. Whether you are new to training or chasing a new PR, our coaches and members have your back.',
+    bodyBackground: {
+      enabled: false,
+      imageUrl: '',
+      blendColor: '#111827CC',
+    },
     features: [
       {
         id: 'feat-coaches',
@@ -437,6 +450,9 @@ function cloneDefaults(): GymClientSiteContent {
     description: {
       ...GYM_CLIENT_SITE_DEFAULTS.description,
       lead: GYM_CLIENT_SITE_DEFAULTS.description.lead ? { ...GYM_CLIENT_SITE_DEFAULTS.description.lead } : undefined,
+      bodyBackground: GYM_CLIENT_SITE_DEFAULTS.description.bodyBackground
+        ? { ...GYM_CLIENT_SITE_DEFAULTS.description.bodyBackground }
+        : undefined,
       features: GYM_CLIENT_SITE_DEFAULTS.description.features.map((f) => ({ ...f })),
     },
     video: { ...GYM_CLIENT_SITE_DEFAULTS.video },

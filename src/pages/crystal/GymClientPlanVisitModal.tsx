@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { recordGymClientPlanVisitSubmission } from './gymClientLeadTracking';
 import { resolveGymClientBrandLogoSrc } from './gymClientBrandLogo';
@@ -9,6 +9,7 @@ type Props = {
   businessSlug: string;
   gymName: string;
   brandLogoSrc?: string;
+  themeCssVars: CSSProperties;
   /** Anchor for “See address & hours” after success. */
   visitSectionHref?: string;
   suppressPublicLeads?: boolean;
@@ -20,6 +21,7 @@ export default function GymClientPlanVisitModal({
   businessSlug,
   gymName,
   brandLogoSrc,
+  themeCssVars,
   visitSectionHref = '#visit',
   suppressPublicLeads = false,
 }: Props) {
@@ -68,6 +70,7 @@ export default function GymClientPlanVisitModal({
       show={show}
       onHide={handleClose}
       centered
+      style={themeCssVars}
       className={`crystal-client-modal-theme crystal-trial-modal${done ? ' crystal-trial-modal--done' : ''}`}
       backdrop="static"
       contentClassName="crystal-trial-modal__content"

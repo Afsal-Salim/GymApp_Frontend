@@ -32,6 +32,7 @@ import {
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
   createWebsiteFormFromBusinessDetail,
   draftPayloadToFormState,
+  GYM_CLIENT_DEFAULT_LIGHT_HEX,
   GYM_CLIENT_DEFAULT_TEXT_HEX,
   emptyCoachRow,
   emptyDiscountOfferRow,
@@ -909,6 +910,7 @@ export default function CreateWebsitePage() {
             accentHex: draft.theme.accentHex.trim() || '#ea580c',
             darkHex: draft.theme.darkHex.trim() || '#0c0a09',
             textHex: draft.theme.textHex.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
+            lightHex: draft.theme.lightHex?.trim() || GYM_CLIENT_DEFAULT_LIGHT_HEX,
           },
           website_content: draft.content,
         });
@@ -982,11 +984,6 @@ export default function CreateWebsitePage() {
               <h1 className="create-website__title h3 mb-1">
                 {isEditMode ? 'Edit gym website' : 'Create your gym website'}
               </h1>
-              <p className="text-muted small mb-0">
-                {isEditMode ?
-                  'Update your public Crystal page and business profile. Saving sends PATCH requests to the server.'
-                : 'These fields match what the public Crystal client page uses (content, layout, and theme colors).'}
-              </p>
               <p className="create-website__content-policy-hint small text-muted mb-0 mt-2">
                 You are responsible for having the rights to all images, videos, and text you publish. Do not use
                 copyrighted or unlicensed material. Do not share end-user personal data improperly. See{' '}
@@ -1104,9 +1101,10 @@ export default function CreateWebsitePage() {
                       <p className="create-website__theme-intro">
                         These map to <code className="create-website__theme-token">--gym-client-accent</code> (CTAs and
                         highlights), <code className="create-website__theme-token">--gym-client-dark</code> (surfaces and
-                        borders), and <code className="create-website__theme-token">--gym-client-text</code> (readable copy on
-                        light sections). Use a dark text color if your “ink” or page background is very light. Stored in your
-                        setup draft for when the theme API is connected.
+                        borders), <code className="create-website__theme-token">--gym-client-text</code> (readable copy), and{' '}
+                        <code className="create-website__theme-token">--gym-client-light</code> (mostly white/light surfaces).
+                        Use a dark text color if your “ink” or page background is very light. Stored in your setup draft for when
+                        the theme API is connected.
                       </p>
                       <div className="create-website__theme-colors-grid mb-3">
                         <ThemeColorField
@@ -1135,6 +1133,15 @@ export default function CreateWebsitePage() {
                           value={form.textColor}
                           onChange={(hex) => set('textColor', hex)}
                           pickerTitle="Body text"
+                        />
+                        <ThemeColorField
+                          id="cw-light"
+                          label="Light surface color"
+                          hintId="cw-hint-light"
+                          hint="Controls the mostly white areas (light section backgrounds/cards/marquee strip)."
+                          value={form.lightColor}
+                          onChange={(hex) => set('lightColor', hex)}
+                          pickerTitle="Light surfaces"
                         />
                       </div>
                       <ImageUrlOrUploadField
@@ -1279,15 +1286,41 @@ export default function CreateWebsitePage() {
                           <Form.Control value={form.leadAfter} onChange={(e) => set('leadAfter', e.target.value)} />
                         </Col>
                       </Row>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Body copy</Form.Label>
-                        <Form.Control
-                          as="textarea"
-                          rows={4}
-                          value={form.descriptionBody}
-                          onChange={(e) => set('descriptionBody', e.target.value)}
-                        />
-                      </Form.Group>
+                      <Form.Text className="text-muted d-block mb-3">
+                        Main about paragraph comes from <strong>Short description (about)</strong> in Business profile above.
+                      </Form.Text>
+                      <Form.Check
+                        type="switch"
+                        id="cw-about-body-bg-enabled"
+                        className="mb-2"
+                        label="Use blended image background behind about text"
+                        checked={form.aboutBodyBgEnabled}
+                        onChange={(e) => set('aboutBodyBgEnabled', e.target.checked)}
+                      />
+                      {form.aboutBodyBgEnabled ? (
+                        <div className="mb-3">
+                          <ImageUrlOrUploadField
+                            id="cw-about-body-bg-image"
+                            label="Body background image"
+                            hintId="cw-hint-about-body-bg-image"
+                            hint="Used behind the short description paragraph (Business profile) with blend overlay."
+                            value={form.aboutBodyBgImageUrl}
+                            onChange={(v) => set('aboutBodyBgImageUrl', v)}
+                            previewVariant="landscape"
+                            ratioHint="Recommended ~16:9 or wide texture."
+                            showToast={showToast}
+                          />
+                          <ThemeColorField
+                            id="cw-about-body-bg-blend"
+                            label="Blend overlay color"
+                            hintId="cw-hint-about-body-bg-blend"
+                            hint="Overlay tint on top of the image so text stays readable."
+                            value={form.aboutBodyBgBlendColor}
+                            onChange={(hex) => set('aboutBodyBgBlendColor', hex)}
+                            pickerTitle="About body blend"
+                          />
+                        </div>
+                      ) : null}
                       {[1, 2, 3].map((n) => {
                         const icon = n === 1 ? form.feat1Icon : n === 2 ? form.feat2Icon : form.feat3Icon;
                         const title = n === 1 ? form.feat1Title : n === 2 ? form.feat2Title : form.feat3Title;
@@ -1673,22 +1706,7 @@ export default function CreateWebsitePage() {
                   </Accordion.Item>
                 </Accordion>
 
-                <div className="create-website__actions mt-4 d-flex flex-wrap gap-3 justify-content-between align-items-center">
-                  <p className="text-muted small mb-0">
-                    {isEditMode ?
-                      <>
-                        <strong>Preview site</strong> opens a local draft without writing to the server.{' '}
-                        <strong>Save changes</strong> sends a merge to{' '}
-                        <code>PATCH …/businesses/&lt;slug&gt;/</code> (profile fields plus{' '}
-                        <code>website_theme</code> and <code>website_content</code>).
-                      </>
-                    : <>
-                        <strong>Preview site</strong> opens your draft without saving to the server.{' '}
-                        <strong>Save &amp; continue to plans</strong> sends the full setup (slug, theme, and all page content) to{' '}
-                        <code>POST …/businesses/website-setup/</code> — you must be logged in.
-                      </>
-                    }
-                  </p>
+                <div className="create-website__actions mt-4 d-flex flex-wrap gap-2 justify-content-end align-items-center">
                   <div className="d-flex flex-wrap gap-2">
                     <Button type="button" variant="outline-primary" onClick={() => setPreviewTargetModalOpen(true)}>
                       Preview site

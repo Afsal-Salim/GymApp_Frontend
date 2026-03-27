@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { recordGymClientBookTrialSubmission } from './gymClientLeadTracking';
 import { resolveGymClientBrandLogoSrc } from './gymClientBrandLogo';
@@ -18,6 +18,7 @@ type Props = {
   businessSlug: string;
   gymName: string;
   brandLogoSrc?: string;
+  themeCssVars: CSSProperties;
   suppressPublicLeads?: boolean;
 };
 
@@ -27,6 +28,7 @@ export default function GymClientBookTrialModal({
   businessSlug,
   gymName,
   brandLogoSrc,
+  themeCssVars,
   suppressPublicLeads = false,
 }: Props) {
   const [name, setName] = useState('');
@@ -82,6 +84,7 @@ export default function GymClientBookTrialModal({
       show={show}
       onHide={handleClose}
       centered
+      style={themeCssVars}
       className={`crystal-client-modal-theme crystal-trial-modal${done ? ' crystal-trial-modal--done' : ''}`}
       backdrop="static"
       contentClassName="crystal-trial-modal__content"

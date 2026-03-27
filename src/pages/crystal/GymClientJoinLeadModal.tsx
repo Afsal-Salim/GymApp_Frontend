@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { recordGymClientJoinLeadSubmission } from './gymClientLeadTracking';
 import { GymClientJoinModalHeaderArt, GymClientJoinSuccessIllustration } from './GymClientDecorIcons';
@@ -25,6 +25,8 @@ type Props = {
   businessSlug: string;
   gymName: string;
   brandLogoSrc?: string;
+  /** Same `--gym-client-*` variables as the client page (modal portals to `body`). */
+  themeCssVars: CSSProperties;
   /** When true (e.g. `/preview`), do not POST leads or write local stats — site is not live. */
   suppressPublicLeads?: boolean;
 };
@@ -35,6 +37,7 @@ export default function GymClientJoinLeadModal({
   businessSlug,
   gymName,
   brandLogoSrc,
+  themeCssVars,
   suppressPublicLeads = false,
 }: Props) {
   const [name, setName] = useState('');
@@ -87,6 +90,7 @@ export default function GymClientJoinLeadModal({
       show={show}
       onHide={handleClose}
       centered
+      style={themeCssVars}
       className={`crystal-client-modal-theme crystal-join-lead-modal${done ? ' crystal-join-lead-modal--done' : ''}`}
       backdrop="static"
       contentClassName="crystal-join-lead-modal__content"
