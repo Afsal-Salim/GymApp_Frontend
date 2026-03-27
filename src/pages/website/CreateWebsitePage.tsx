@@ -287,6 +287,28 @@ function hexColorsEqual(a: string, b: string): boolean {
   return na !== null && nb !== null && na === nb;
 }
 
+/** Parse #RRGGBB or #RRGGBBAA (overlay blend). Returns RGB for the picker and opacity 0–1. */
+function parseHexWithAlpha(raw: string): { rgbHex: string; alpha: number } {
+  let s = raw.trim();
+  if (s.startsWith('#')) s = s.slice(1);
+  if (/^[0-9a-fA-F]{8}$/.test(s)) {
+    const rgb = normalizeHexColor(`#${s.slice(0, 6)}`) ?? '#111827';
+    const aByte = parseInt(s.slice(6, 8), 16);
+    const alpha = Number.isFinite(aByte) ? aByte / 255 : 0.8;
+    return { rgbHex: rgb, alpha: Math.min(1, Math.max(0, alpha)) };
+  }
+  const six = normalizeHexColor(`#${s}`);
+  if (six) return { rgbHex: six, alpha: 1 };
+  return { rgbHex: '#111827', alpha: 0.8 };
+}
+
+function formatHexWithAlpha(rgbHex: string, alpha01: number): string {
+  const rgb = normalizeHexColor(rgbHex) ?? '#111827';
+  const a = Math.round(Math.min(1, Math.max(0, alpha01)) * 255);
+  const aa = a.toString(16).padStart(2, '0');
+  return `${rgb}${aa}`;
+}
+
 /** Curated palette for theme fields — avoids the native OS color dialog. */
 const THEME_COLOR_SWATCH_GROUPS: { label: string; colors: string[] }[] = [
   {
@@ -557,6 +579,73 @@ function ThemeColorField({
           aria-label={`${label} hex value`}
         />
       </div>
+    </div>
+  );
+}
+
+/** Blend overlay: 6-digit color + opacity slider → stored as #RRGGBBAA. */
+function BlendOverlayColorField({
+  id,
+  label,
+  hintId,
+  hint,
+  value,
+  onChange,
+  pickerTitle,
+}: {
+  id: string;
+  label: string;
+  hintId: string;
+  hint: ReactNode;
+  value: string;
+  onChange: (hexWithAlpha: string) => void;
+  pickerTitle: string;
+}) {
+  const { rgbHex, alpha } = parseHexWithAlpha(value);
+  const opacityPct = Math.round(alpha * 100);
+
+  const setRgb = (h: string) => {
+    const n = normalizeHexColor(h);
+    if (!n) return;
+    onChange(formatHexWithAlpha(n, alpha));
+  };
+
+  const setOpacityPct = (pct: number) => {
+    const a = Math.min(100, Math.max(0, pct)) / 100;
+    onChange(formatHexWithAlpha(rgbHex, a));
+  };
+
+  return (
+    <div className="create-website__blend-overlay-field">
+      <ThemeColorField
+        id={id}
+        label={label}
+        hintId={hintId}
+        hint={hint}
+        value={rgbHex}
+        onChange={setRgb}
+        pickerTitle={pickerTitle}
+      />
+      <Form.Group className="mt-2 mb-0">
+        <Form.Label className="small mb-1" htmlFor={`${id}-opacity`}>
+          Overlay opacity ({opacityPct}%)
+        </Form.Label>
+        <Form.Range
+          id={`${id}-opacity`}
+          min={0}
+          max={100}
+          step={1}
+          value={opacityPct}
+          onChange={(e) => setOpacityPct(Number(e.target.value))}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={opacityPct}
+          aria-label={`${label} opacity`}
+        />
+        <Form.Text className="text-muted small d-block mb-0">
+          Full color uses 8-digit hex (#RRGGBBAA). Lower opacity shows more of the photo.
+        </Form.Text>
+      </Form.Group>
     </div>
   );
 }
@@ -1310,11 +1399,11 @@ export default function CreateWebsitePage() {
                             ratioHint="Recommended ~16:9 or wide texture."
                             showToast={showToast}
                           />
-                          <ThemeColorField
+                          <BlendOverlayColorField
                             id="cw-about-body-bg-blend"
                             label="Blend overlay color"
                             hintId="cw-hint-about-body-bg-blend"
-                            hint="Overlay tint on top of the image so text stays readable."
+                            hint="Overlay tint on top of the image so text stays readable. Adjust opacity to let more or less of the photo show through."
                             value={form.aboutBodyBgBlendColor}
                             onChange={(hex) => set('aboutBodyBgBlendColor', hex)}
                             pickerTitle="About body blend"
