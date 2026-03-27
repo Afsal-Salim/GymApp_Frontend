@@ -1,4 +1,5 @@
 import type { PublicBusinessDetail } from '../../api';
+import { publicGymSiteUrl, publicSiteDomain } from '../../config/env';
 import { GYM_CLIENT_BRAND_LOGO_SRC } from './gymClientBrandLogo';
 
 export type GymClientNavItem = {
@@ -536,7 +537,7 @@ export function resolveGymClientSiteContent(business: PublicBusinessDetail): Gym
     c.details.rows = upsertDetail(c.details.rows, {
       id: 'slug',
       label: 'Page',
-      value: `/${business.slug}`,
+      value: publicSiteDomain ? publicGymSiteUrl(business.slug) : `/${business.slug}`,
     });
   }
 

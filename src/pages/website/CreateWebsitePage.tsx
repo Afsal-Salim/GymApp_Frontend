@@ -23,7 +23,7 @@ import {
 } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
-import { crystalPreviewAbsoluteUrl } from '../../config/env';
+import { crystalPreviewAbsoluteUrl, publicSiteDomain } from '../../config/env';
 import { CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY } from '../../config/storageKeys';
 import {
   CREATE_WEBSITE_MAX_COACHES,
@@ -940,7 +940,11 @@ export default function CreateWebsitePage() {
     ) : slugStatus === 'invalid' && form.slug.trim() ? (
       <span className="text-danger small">Use 2–48 characters: lowercase letters, numbers, and hyphens only.</span>
     ) : (
-      <span className="text-muted small">Choose a unique path for your public gym page.</span>
+      <span className="text-muted small">
+        {publicSiteDomain ?
+          `Choose a unique subdomain on ${publicSiteDomain} for your public gym page.`
+        : 'Choose a unique path for your public gym page.'}
+      </span>
     );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1115,9 +1119,20 @@ export default function CreateWebsitePage() {
                           hintId="cw-hint-slug"
                           hint={
                             isEditMode ?
+                              publicSiteDomain ?
+                                <>
+                                  Your live site is <strong>https://your-slug.{publicSiteDomain}/</strong>. You can
+                                  rename the slug if the new address is available; that changes the public URL.
+                                </>
+                              : <>
+                                  Your live link is <strong>/your-slug/</strong>. You can rename the slug if the new
+                                  address is available; that changes the public URL.
+                                </>
+                            : publicSiteDomain ?
                               <>
-                                Your live link is <strong>/your-slug/</strong>. You can rename the slug if the new
-                                address is available; that changes the public URL.
+                                This becomes your live site: <strong>https://your-slug.{publicSiteDomain}/</strong>. Use
+                                only lowercase letters, numbers, and hyphens. You cannot change this later without
+                                support.
                               </>
                             : <>
                                 This becomes your live link: <strong>/your-slug/</strong>. Use only lowercase letters,
@@ -1126,16 +1141,33 @@ export default function CreateWebsitePage() {
                           }
                         />
                         <InputGroup>
-                          <InputGroup.Text className="text-muted small text-nowrap">/</InputGroup.Text>
-                          <Form.Control
-                            id="cw-slug"
-                            value={form.slug}
-                            onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                            placeholder="my-gym"
-                            autoComplete="off"
-                            spellCheck={false}
-                            aria-describedby="cw-slug-help"
-                          />
+                          {publicSiteDomain ?
+                            <>
+                              <InputGroup.Text className="text-muted small text-nowrap">https://</InputGroup.Text>
+                              <Form.Control
+                                id="cw-slug"
+                                value={form.slug}
+                                onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                                placeholder="my-gym"
+                                autoComplete="off"
+                                spellCheck={false}
+                                aria-describedby="cw-slug-help"
+                              />
+                              <InputGroup.Text className="text-muted small text-nowrap">.{publicSiteDomain}</InputGroup.Text>
+                            </>
+                          : <>
+                              <InputGroup.Text className="text-muted small text-nowrap">/</InputGroup.Text>
+                              <Form.Control
+                                id="cw-slug"
+                                value={form.slug}
+                                onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                                placeholder="my-gym"
+                                autoComplete="off"
+                                spellCheck={false}
+                                aria-describedby="cw-slug-help"
+                              />
+                            </>
+                          }
                         </InputGroup>
                         <Form.Text id="cw-slug-help">{slugHelp}</Form.Text>
                       </Form.Group>

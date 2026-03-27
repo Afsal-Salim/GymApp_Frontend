@@ -1,5 +1,11 @@
 import { Link } from 'react-router-dom';
 import { PageContainer } from '../../components';
+import {
+  crystalMarketingAbsoluteUrl,
+  getPublicGymSlugFromHost,
+  publicGymSiteUrl,
+  publicSiteDomain,
+} from '../../config/env';
 import './CrystalServiceUnavailable.css';
 
 type CrystalServiceUnavailableProps = {
@@ -51,6 +57,8 @@ function OopsIllustration() {
  * (Profile “Visit website” still routes inactive businesses to /plans instead.)
  */
 export default function CrystalServiceUnavailable({ slug, businessName }: CrystalServiceUnavailableProps) {
+  const onGymSubdomain = Boolean(getPublicGymSlugFromHost());
+  const pageLabel = slug ? (publicSiteDomain ? publicGymSiteUrl(slug) : `/${slug}`) : null;
   return (
     <PageContainer className="crystal-unavailable">
       <main className="crystal-unavailable__main">
@@ -80,13 +88,19 @@ export default function CrystalServiceUnavailable({ slug, businessName }: Crysta
           {slug ? (
             <p className="crystal-unavailable__slug text-muted small mb-0" aria-live="polite">
               <span className="crystal-unavailable__slug-label">Page:</span>{' '}
-              <code className="crystal-unavailable__slug-code">/{slug}</code>
+              <code className="crystal-unavailable__slug-code">{pageLabel}</code>
             </p>
           ) : null}
           <div className="crystal-unavailable__actions">
-            <Link to="/" className="crystal-unavailable__home btn btn-primary">
-              Back to Crystal home
-            </Link>
+            {onGymSubdomain ? (
+              <a href={crystalMarketingAbsoluteUrl('/')} className="crystal-unavailable__home btn btn-primary">
+                Back to Crystal home
+              </a>
+            ) : (
+              <Link to="/" className="crystal-unavailable__home btn btn-primary">
+                Back to Crystal home
+              </Link>
+            )}
           </div>
         </div>
       </main>

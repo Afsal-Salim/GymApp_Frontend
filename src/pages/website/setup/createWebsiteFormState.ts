@@ -1,4 +1,5 @@
 import type { BusinessDetail } from '../../../api/businesses';
+import { publicGymSiteUrl, publicSiteDomain } from '../../../config/env';
 import {
   CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL,
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
@@ -572,7 +573,11 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
   base.details.rows = [
     { id: 'hours', label: 'Hours', value: form.hours.trim() || '—' },
     { id: 'parking', label: 'Parking', value: form.parking.trim() || '—' },
-    { id: 'slug', label: 'Page', value: slug ? `/${slug}` : '—' },
+    {
+      id: 'slug',
+      label: 'Page',
+      value: slug ? (publicSiteDomain ? publicGymSiteUrl(slug) : `/${slug}`) : '—',
+    },
   ];
 
   return {

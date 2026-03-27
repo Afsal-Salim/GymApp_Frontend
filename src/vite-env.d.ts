@@ -7,4 +7,6 @@ interface ImportMetaEnv {
   readonly VITE_WHATSAPP_PHONE?: string;
   readonly VITE_WHATSAPP_MESSAGE?: string;
   readonly VITE_HOMEPAGE_TUTORIAL_VIDEO_URL?: string;
+  /** e.g. crystal-co.in — enables `{slug}.{domain}` public gym URLs */
+  readonly VITE_PUBLIC_SITE_DOMAIN?: string;
 }

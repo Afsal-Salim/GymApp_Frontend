@@ -5,6 +5,7 @@ import { PageContainer } from '../../components';
 import { getProfile, getBusinessListPaginated, getBusinessDetail, getActiveSubscription, getUserInfo, setUserInfo } from '../../api';
 import type { UserProfile, BusinessListItem, BusinessDetail, ActiveSubscriptionResponse } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
+import { visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import './UserPage.css';
 
@@ -185,7 +186,7 @@ export default function UserPage() {
       .then((data) => {
         if (data.has_active_subscription) {
           closeModal();
-          navigate(`/${slug}/`);
+          visitPublicGymSite(slug, navigate);
         } else {
           closeModal();
           navigate(`${PLANS_PAGE_PATH}/${encodeURIComponent(slug)}`);

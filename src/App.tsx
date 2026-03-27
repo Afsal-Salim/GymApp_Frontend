@@ -1,8 +1,14 @@
-import { useEffect } from 'react';
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useMemo } from 'react';
+import { Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
 import { MainLayout } from './layouts';
 import { ProtectedRoute } from './components';
+import {
+  getPublicGymSlugFromHost,
+  isPublicSiteSubdomainRoutingActive,
+  MARKETING_APP_PATH_FIRST_SEGMENTS,
+  publicGymSiteUrl,
+} from './config/env';
 import {
   HomePage,
   PaymentPage,
@@ -59,30 +65,68 @@ function LegacyCrystalPathRedirect() {
   return <Navigate to={`${path}${search}${hash}`} replace />;
 }
 
+/**
+ * On the marketing host, `/some-slug` redirects to `https://some-slug.{publicSiteDomain}/…` when configured.
+ */
+function PathBasedPublicCrystalRoute() {
+  const { slug, '*': rest } = useParams<{ slug: string; '*'?: string }>();
+  const { search, hash } = useLocation();
+
+  const shouldRedirect =
+    isPublicSiteSubdomainRoutingActive() &&
+    typeof slug === 'string' &&
+    !MARKETING_APP_PATH_FIRST_SEGMENTS.has(slug) &&
+    slug !== 'preview' &&
+    slug !== 'crystal';
+
+  useLayoutEffect(() => {
+    if (!shouldRedirect || !slug) return;
+    const pathSuffix = rest ? `/${rest}` : '/';
+    window.location.replace(publicGymSiteUrl(slug, pathSuffix) + search + hash);
+  }, [shouldRedirect, slug, rest, search, hash]);
+
+  if (shouldRedirect) {
+    return (
+      <div className="container py-5 text-center text-muted small" role="status">
+        Redirecting to your gym site…
+      </div>
+    );
+  }
+  return <CrystalBusinessPage />;
+}
+
 function App() {
+  const gymHostSlug = useMemo(() => getPublicGymSlugFromHost(), []);
+
   return (
     <ToastProvider>
       <InDevelopmentBanner />
       <ScrollToTop />
       <Routes>
         <Route element={<MainLayout />}>
-          <Route path="/crystal/*" element={<LegacyCrystalPathRedirect />} />
-          <Route path="/" element={<HomePage />} />
-          <Route path="/plans/:businessSlug" element={<PlansPage />} />
-          <Route path="/plans" element={<PlansPage />} />
-          <Route path="/starter" element={<PaymentPage plan="starter" />} />
-          <Route path="/pro" element={<PaymentPage plan="pro" />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/legal/user-content" element={<UserContentPolicyPage />} />
-          <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/user/create-website" element={<CreateWebsitePage />} />
-            <Route path="/user/business/:slug/edit" element={<CreateWebsitePage />} />
-            <Route path="/user" element={<UserPage />} />
-          </Route>
-          <Route path="/:slug/*" element={<CrystalBusinessPage />} />
+          {gymHostSlug ? (
+            <Route path="*" element={<CrystalBusinessPage />} />
+          ) : (
+            <>
+              <Route path="/crystal/*" element={<LegacyCrystalPathRedirect />} />
+              <Route path="/" element={<HomePage />} />
+              <Route path="/plans/:businessSlug" element={<PlansPage />} />
+              <Route path="/plans" element={<PlansPage />} />
+              <Route path="/starter" element={<PaymentPage plan="starter" />} />
+              <Route path="/pro" element={<PaymentPage plan="pro" />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/legal/user-content" element={<UserContentPolicyPage />} />
+              <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/user/create-website" element={<CreateWebsitePage />} />
+                <Route path="/user/business/:slug/edit" element={<CreateWebsitePage />} />
+                <Route path="/user" element={<UserPage />} />
+              </Route>
+              <Route path="/:slug/*" element={<PathBasedPublicCrystalRoute />} />
+            </>
+          )}
         </Route>
       </Routes>
     </ToastProvider>

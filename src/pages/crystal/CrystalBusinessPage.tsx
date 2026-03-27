@@ -23,6 +23,12 @@ import {
   type GymClientAboutFeature,
   type GymClientSiteContent,
 } from './gymClientSiteContent';
+import {
+  crystalMarketingAbsoluteUrl,
+  getPublicGymSlugFromHost,
+  publicGymSiteUrl,
+  publicSiteDomain,
+} from '../../config/env';
 import { CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL } from '../../config/storageKeys';
 import {
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
@@ -417,9 +423,15 @@ function GymClientFooter({
           </Col>
           <Col md={4} className="text-center text-md-end small">
             {content.footer.finePrint ? <p className="crystal-client-footer__fine-print mb-2 mb-md-1">{content.footer.finePrint}</p> : null}
-            <Link to="/" className="crystal-client-footer__crystal">
-              ← Crystal home
-            </Link>
+            {getPublicGymSlugFromHost() ? (
+              <a href={crystalMarketingAbsoluteUrl('/')} className="crystal-client-footer__crystal">
+                ← Crystal home
+              </a>
+            ) : (
+              <Link to="/" className="crystal-client-footer__crystal">
+                ← Crystal home
+              </Link>
+            )}
           </Col>
         </Row>
       </Container>
@@ -1123,6 +1135,7 @@ function GymClientSiteView({
 }
 
 function CrystalPreviewEmpty() {
+  const onGymSubdomain = Boolean(getPublicGymSlugFromHost());
   return (
     <PageContainer className="crystal-business-page crystal-business-page--preview-empty">
       <main className="crystal-business-page__main">
@@ -1132,12 +1145,27 @@ function CrystalPreviewEmpty() {
             Use <strong>Preview site</strong> on the setup form (it saves your draft to this browser so the preview tab can load
             it). Typing the URL alone, or an old tab opened before you clicked Preview, will show this screen.
           </p>
-          <Link to="/user/create-website" className="btn btn-primary mt-4 crystal-business-page__back">
-            Create website
-          </Link>
-          <Link to="/" className="btn btn-link mt-2 d-block">
-            Crystal home
-          </Link>
+          {onGymSubdomain ? (
+            <a
+              href={crystalMarketingAbsoluteUrl('/user/create-website')}
+              className="btn btn-primary mt-4 crystal-business-page__back"
+            >
+              Create website
+            </a>
+          ) : (
+            <Link to="/user/create-website" className="btn btn-primary mt-4 crystal-business-page__back">
+              Create website
+            </Link>
+          )}
+          {onGymSubdomain ? (
+            <a href={crystalMarketingAbsoluteUrl('/')} className="btn btn-link mt-2 d-block">
+              Crystal home
+            </a>
+          ) : (
+            <Link to="/" className="btn btn-link mt-2 d-block">
+              Crystal home
+            </Link>
+          )}
         </div>
       </main>
     </PageContainer>
@@ -1145,17 +1173,26 @@ function CrystalPreviewEmpty() {
 }
 
 function CrystalBusinessNotFound({ slug }: { slug: string }) {
+  const urlLabel = publicGymSiteUrl(slug);
+  const onGymSubdomain = Boolean(getPublicGymSlugFromHost());
   return (
     <PageContainer className="crystal-business-page crystal-business-page--not-found">
       <main className="crystal-business-page__main">
         <div className="crystal-business-page__content">
           <h1 className="crystal-business-page__heading">Page not found</h1>
           <p className="crystal-business-page__lead">
-            No business exists for <code className="crystal-business-page__slug-code">/{slug}</code>.
+            No business exists for{' '}
+            <code className="crystal-business-page__slug-code">{publicSiteDomain ? urlLabel : `/${slug}`}</code>.
           </p>
-          <Link to="/" className="btn btn-primary mt-4 crystal-business-page__back">
-            Back to Crystal home
-          </Link>
+          {onGymSubdomain ? (
+            <a href={crystalMarketingAbsoluteUrl('/')} className="btn btn-primary mt-4 crystal-business-page__back">
+              Back to Crystal home
+            </a>
+          ) : (
+            <Link to="/" className="btn btn-primary mt-4 crystal-business-page__back">
+              Back to Crystal home
+            </Link>
+          )}
         </div>
       </main>
     </PageContainer>
@@ -1163,7 +1200,9 @@ function CrystalBusinessNotFound({ slug }: { slug: string }) {
 }
 
 export default function CrystalBusinessPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug: routeSlug } = useParams<{ slug: string }>();
+  const hostSlug = getPublicGymSlugFromHost();
+  const slug = (hostSlug ?? routeSlug) ?? '';
   const [searchParams] = useSearchParams();
   const isMarketingPreview = slug === 'preview' && searchParams.get('from') === 'marketing';
   const [business, setBusiness] = useState<PublicBusinessDetail | null>(null);

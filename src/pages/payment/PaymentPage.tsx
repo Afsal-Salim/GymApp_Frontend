@@ -14,6 +14,7 @@ import {
 } from '../../api';
 import type { VerifyPaymentRequest } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
+import { publicSiteDomain } from '../../config/env';
 import './PaymentPage.css';
 
 const FALLBACK_PLANS: Record<string, { name: string; price: string; period: string; currency: string }> = {
@@ -330,7 +331,15 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
                       isInvalid={slugStatus === 'not-found' || slugStatus === 'invalid' || slugStatus === 'error'}
                     />
                     <Form.Text className="text-muted d-block">
-                      Must match an existing public gym page (<code>/your-slug</code>).
+                      {publicSiteDomain ?
+                        <>
+                          Must match an existing public gym site (
+                          <code>{`https://your-slug.${publicSiteDomain}`}</code>).
+                        </>
+                      : <>
+                          Must match an existing public gym page (<code>/your-slug</code>).
+                        </>
+                      }
                     </Form.Text>
                     {businessSlug.trim() === '' ? null : slugStatus === 'checking' ? (
                       <span className="text-muted small d-flex align-items-center gap-2 mt-1">

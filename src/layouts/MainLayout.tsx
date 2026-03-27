@@ -1,25 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Navbar, Footer } from '../components';
+import { getPublicGymSlugFromHost, MARKETING_APP_PATH_FIRST_SEGMENTS } from '../config/env';
 import './MainLayout.css';
 
-/** App routes that use the marketing shell; all other first path segments are treated as public gym sites (`/:slug`). */
-const MARKETING_FIRST_SEGMENTS = new Set([
-  'plans',
-  'starter',
-  'pro',
-  'login',
-  'signup',
-  'forgot-password',
-  'legal',
-  'user',
-]);
-
-/** Hide navbar/footer on public gym pages (e.g. `/my-gym`, `/preview`). */
+/** Hide navbar/footer on public gym pages (e.g. `/my-gym`, `/preview`, or `{slug}.domain`). */
 function isGymPublicSitePath(pathname: string): boolean {
+  if (getPublicGymSlugFromHost()) return true;
   const seg = pathname.split('/').filter(Boolean)[0];
   if (!seg) return false;
-  return !MARKETING_FIRST_SEGMENTS.has(seg);
+  return !MARKETING_APP_PATH_FIRST_SEGMENTS.has(seg);
 }
 
 export default function MainLayout() {
