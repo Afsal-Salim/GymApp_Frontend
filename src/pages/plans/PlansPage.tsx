@@ -185,7 +185,7 @@ export default function PlansPage() {
           )}
 
           <p className="text-center mt-4">
-            <Link to="/crystal" className="text-muted small">
+            <Link to="/" className="text-muted small">
               ← Back to home
             </Link>
           </p>

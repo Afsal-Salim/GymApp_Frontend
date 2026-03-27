@@ -214,7 +214,7 @@ export default function LoginPage() {
         <Row className="auth-page__row g-0">
           <Col lg={6} className="auth-page__form-col">
             <div className="auth-page__form-inner">
-              <Link to="/crystal" className="auth-page__logo">
+              <Link to="/" className="auth-page__logo">
                 Crystal
               </Link>
               <h1 className="auth-page__title">Log in to your account</h1>
@@ -312,7 +312,7 @@ export default function LoginPage() {
                 )}
                 <p className="auth-page__terms small text-muted mb-0">
                   By creating an account, you agree to our{' '}
-                  <Link to="/crystal" className="auth-page__link">Terms of Use</Link>.
+                  <Link to="/" className="auth-page__link">Terms of Use</Link>.
                 </p>
               </Form>
               <p className="auth-page__switch text-center mt-3 mb-0">

@@ -344,7 +344,7 @@ function GymClientFooter({
           </Col>
           <Col md={4} className="text-center text-md-end small">
             {content.footer.finePrint ? <p className="crystal-client-footer__fine-print mb-2 mb-md-1">{content.footer.finePrint}</p> : null}
-            <Link to="/crystal" className="crystal-client-footer__crystal">
+            <Link to="/" className="crystal-client-footer__crystal">
               ← Crystal home
             </Link>
           </Col>
@@ -992,7 +992,7 @@ function CrystalPreviewEmpty() {
           <Link to="/user/create-website" className="btn btn-primary mt-4 crystal-business-page__back">
             Create website
           </Link>
-          <Link to="/crystal" className="btn btn-link mt-2 d-block">
+          <Link to="/" className="btn btn-link mt-2 d-block">
             Crystal home
           </Link>
         </div>
@@ -1010,7 +1010,7 @@ function CrystalBusinessNotFound({ slug }: { slug: string }) {
           <p className="crystal-business-page__lead">
             No business exists for <code className="crystal-business-page__slug-code">/{slug}</code>.
           </p>
-          <Link to="/crystal" className="btn btn-primary mt-4 crystal-business-page__back">
+          <Link to="/" className="btn btn-primary mt-4 crystal-business-page__back">
             Back to Crystal home
           </Link>
         </div>

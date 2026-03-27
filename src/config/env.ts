@@ -42,5 +42,6 @@ export const authRefreshPath = '/auth/refresh/' as const;
  * Absolute URL for the Crystal site preview (same tab / window).
  */
 export function crystalPreviewAbsoluteUrl(): string {
-  return new URL('crystal/preview', window.location.origin + viteBaseUrl).href;
+  const base = viteBaseUrl.endsWith('/') ? viteBaseUrl : `${viteBaseUrl}/`;
+  return new URL('preview', window.location.origin + base).href;
 }

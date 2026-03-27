@@ -100,7 +100,7 @@ export type GymClientAboutFeature = {
 };
 
 /**
- * Public gym site at /crystal/:slug — swap `GYM_CLIENT_SITE_DEFAULTS` or merge API JSON later.
+ * Public gym site at `/:slug` — swap `GYM_CLIENT_SITE_DEFAULTS` or merge API JSON later.
  */
 export type GymClientSiteContent = {
   layout: {
@@ -186,7 +186,7 @@ export type GymClientSiteContent = {
  * Body for **POST** `{API_BASE}/businesses/website-setup/` (authenticated).
  * Sent when the user clicks “Save & continue to plans” on the Crystal website builder.
  *
- * - `slug`: chosen public path (`/crystal/{slug}/`).
+ * - `slug`: chosen public path (`/{slug}/`).
  * - `theme`: CSS variables for the live client (`--gym-client-accent`, `--gym-client-dark`, `--gym-client-text`).
  * - `content`: full public page model (same shape as preview). Image fields may be `https://` or `data:image/...` until the backend persists uploads.
  * - **Location / maps:** `content.contacts.locationMapUrl` — optional string, full `https://…` maps link (e.g. Google Maps share URL).

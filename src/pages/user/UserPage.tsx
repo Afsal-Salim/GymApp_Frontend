@@ -185,7 +185,7 @@ export default function UserPage() {
       .then((data) => {
         if (data.has_active_subscription) {
           closeModal();
-          navigate(`/crystal/${slug}/`);
+          navigate(`/${slug}/`);
         } else {
           closeModal();
           navigate(`${PLANS_PAGE_PATH}/${encodeURIComponent(slug)}`);
@@ -293,7 +293,7 @@ export default function UserPage() {
                         <span className="user-page__profile-value">{displayEmail}</span>
                       </ListGroup.Item>
                     </ListGroup>
-                    <Link to="/crystal" className="user-page__back-link mt-3">← Back to home</Link>
+                    <Link to="/" className="user-page__back-link mt-3">← Back to home</Link>
                   </Card.Body>
                 </Card>
               )}

@@ -197,7 +197,7 @@ export async function getPublicCheckSlug(slug: string): Promise<PublicCheckSlugR
 }
 
 /**
- * Whether `slug` is free for a new gym Crystal URL (`/crystal/:slug/`).
+ * Whether `slug` is free for a new gym public URL (`/:slug/`).
  *
  * 1) GET /businesses/check-slug/?slug= (public).
  * 2) On failure, falls back to GET /businesses/public/:slug/ (404 ⇒ available).

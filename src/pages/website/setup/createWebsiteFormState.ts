@@ -271,7 +271,7 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
 }
 
 /**
- * Saved for `/crystal/preview` (see CrystalBusinessPage).
+ * Saved for `/preview` (see CrystalBusinessPage).
  * Uses localStorage (not sessionStorage) so a preview opened in a **new tab** can read the same draft —
  * sessionStorage is separate per tab, which caused “No preview yet” after Preview site → new tab.
  */

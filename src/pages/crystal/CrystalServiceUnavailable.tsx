@@ -47,7 +47,7 @@ function OopsIllustration() {
 }
 
 /**
- * Shown when a public /crystal/:slug URL is opened but the business has no active subscription.
+ * Shown when a public `/:slug` gym URL is opened but the business has no active subscription.
  * (Profile “Visit website” still routes inactive businesses to /plans instead.)
  */
 export default function CrystalServiceUnavailable({ slug, businessName }: CrystalServiceUnavailableProps) {
@@ -84,7 +84,7 @@ export default function CrystalServiceUnavailable({ slug, businessName }: Crysta
             </p>
           ) : null}
           <div className="crystal-unavailable__actions">
-            <Link to="/crystal" className="crystal-unavailable__home btn btn-primary">
+            <Link to="/" className="crystal-unavailable__home btn btn-primary">
               Back to Crystal home
             </Link>
           </div>

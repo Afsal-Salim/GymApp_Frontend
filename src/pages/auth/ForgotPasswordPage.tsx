@@ -277,7 +277,7 @@ export default function ForgotPasswordPage() {
               </Card>
 
               <p className="text-center mt-3">
-                <Link to="/crystal" className="text-muted">← Back to home</Link>
+                <Link to="/" className="text-muted">← Back to home</Link>
               </p>
             </Col>
           </Row>

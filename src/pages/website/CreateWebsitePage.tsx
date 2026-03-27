@@ -795,7 +795,7 @@ export default function CreateWebsitePage() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  /** Live-sync preview draft to localStorage so `/crystal/preview` updates (debounced; runs in create and edit). */
+  /** Live-sync preview draft to localStorage so `/preview` updates (debounced; runs in create and edit). */
   useEffect(() => {
     const slugForPreview = form.slug.trim().toLowerCase() || 'preview';
     const t = window.setTimeout(() => {
@@ -962,7 +962,7 @@ export default function CreateWebsitePage() {
       return;
     }
     setPreviewTargetModalOpen(false);
-    navigate('/crystal/preview');
+    navigate('/preview');
   };
 
   const iconOpts = (
@@ -1030,17 +1030,17 @@ export default function CreateWebsitePage() {
                           hint={
                             isEditMode ?
                               <>
-                                Your live link is <strong>/crystal/your-slug/</strong>. You can rename the slug if the new
+                                Your live link is <strong>/your-slug/</strong>. You can rename the slug if the new
                                 address is available; that changes the public URL.
                               </>
                             : <>
-                                This becomes your live link: <strong>/crystal/your-slug/</strong>. Use only lowercase letters,
+                                This becomes your live link: <strong>/your-slug/</strong>. Use only lowercase letters,
                                 numbers, and hyphens. You cannot change this later without support.
                               </>
                           }
                         />
                         <InputGroup>
-                          <InputGroup.Text className="text-muted small text-nowrap">…/crystal/</InputGroup.Text>
+                          <InputGroup.Text className="text-muted small text-nowrap">/</InputGroup.Text>
                           <Form.Control
                             id="cw-slug"
                             value={form.slug}

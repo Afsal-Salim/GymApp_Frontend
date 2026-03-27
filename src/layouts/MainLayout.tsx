@@ -3,15 +3,29 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Navbar, Footer } from '../components';
 import './MainLayout.css';
 
-/** Marketing app shell (navbar/footer) is hidden — URL is the gym’s public site under /crystal/:slug. */
-function isCrystalClientSitePath(pathname: string): boolean {
-  return /^\/crystal\/[^/]+/.test(pathname);
+/** App routes that use the marketing shell; all other first path segments are treated as public gym sites (`/:slug`). */
+const MARKETING_FIRST_SEGMENTS = new Set([
+  'plans',
+  'starter',
+  'pro',
+  'login',
+  'signup',
+  'forgot-password',
+  'legal',
+  'user',
+]);
+
+/** Hide navbar/footer on public gym pages (e.g. `/my-gym`, `/preview`). */
+function isGymPublicSitePath(pathname: string): boolean {
+  const seg = pathname.split('/').filter(Boolean)[0];
+  if (!seg) return false;
+  return !MARKETING_FIRST_SEGMENTS.has(seg);
 }
 
 export default function MainLayout() {
   const location = useLocation();
   const [showRouteLoader, setShowRouteLoader] = useState(false);
-  const hideMarketingChrome = isCrystalClientSitePath(location.pathname);
+  const hideMarketingChrome = isGymPublicSitePath(location.pathname);
 
   useEffect(() => {
     setShowRouteLoader(true);

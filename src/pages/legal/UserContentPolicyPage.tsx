@@ -9,7 +9,7 @@ export default function UserContentPolicyPage() {
       <main className="user-content-policy-page__main">
         <div className="user-content-policy-page__inner">
           <p className="user-content-policy-page__crumb mb-2">
-            <Link to="/crystal">Crystal</Link>
+            <Link to="/">Crystal</Link>
             <span className="text-muted" aria-hidden>
               {' '}
               /{' '}

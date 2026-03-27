@@ -257,7 +257,7 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
     return (
       <PageContainer>
         <p className="text-muted">Invalid plan.</p>
-        <Link to="/crystal">Back to home</Link>
+        <Link to="/">Back to home</Link>
       </PageContainer>
     );
   }
@@ -270,7 +270,7 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
             <div className="payment-page__success-icon" aria-hidden>✓</div>
             <h2 className="payment-page__success-title">Payment successful</h2>
             <p className="payment-page__success-text">Your subscription is active.</p>
-            <Link to="/crystal" className="payment-page__success-link">
+            <Link to="/" className="payment-page__success-link">
               ← Back to home
             </Link>
           </div>
@@ -330,7 +330,7 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
                       isInvalid={slugStatus === 'not-found' || slugStatus === 'invalid' || slugStatus === 'error'}
                     />
                     <Form.Text className="text-muted d-block">
-                      Must match an existing public gym page (<code>/crystal/your-slug</code>).
+                      Must match an existing public gym page (<code>/your-slug</code>).
                     </Form.Text>
                     {businessSlug.trim() === '' ? null : slugStatus === 'checking' ? (
                       <span className="text-muted small d-flex align-items-center gap-2 mt-1">
@@ -372,7 +372,7 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
             </Card>
 
             <p className="text-center">
-              <Link to="/crystal" className="text-muted">
+              <Link to="/" className="text-muted">
                 ← Back to packages
               </Link>
             </p>

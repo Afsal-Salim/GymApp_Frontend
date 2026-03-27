@@ -265,7 +265,7 @@ export default function SignupPage() {
         <Row className="auth-page__row g-0">
           <Col lg={6} className="auth-page__form-col">
             <div className="auth-page__form-inner">
-              <Link to="/crystal" className="auth-page__logo">
+              <Link to="/" className="auth-page__logo">
                 Crystal
               </Link>
               <h1 className="auth-page__title">Sign up</h1>

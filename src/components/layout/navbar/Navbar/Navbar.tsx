@@ -19,7 +19,7 @@ export default function Navbar() {
   const [profileModalShow, setProfileModalShow] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const isCrystal = location.pathname === '/crystal' || location.pathname === '/';
+  const isMarketingHome = location.pathname === '/';
 
   useEffect(() => {
     setIsSignedIn(!!getAccessToken());
@@ -44,7 +44,7 @@ export default function Navbar() {
     clearTokens();
     setIsSignedIn(false);
     closeMenu();
-    navigate('/crystal');
+    navigate('/');
   };
 
   const goToProfile = () => {
@@ -56,7 +56,7 @@ export default function Navbar() {
     <>
       <BSNavbar expand="lg" className="crystal-navbar" sticky="top" expanded={expanded} onToggle={setExpanded}>
       <Container>
-        <BSNavbar.Brand as={Link} to="/crystal" className="crystal-brand d-flex align-items-center gap-2" onClick={closeMenu}>
+        <BSNavbar.Brand as={Link} to="/" className="crystal-brand d-flex align-items-center gap-2" onClick={closeMenu}>
           <img src={logo} alt="Crystal" width="36" height="36" className="crystal-logo" />
           <span>Crystal</span>
         </BSNavbar.Brand>
@@ -66,7 +66,7 @@ export default function Navbar() {
             {navItems.map(({ label, href }) => (
               <Nav.Link
                 key={href}
-                href={isCrystal ? href : `/crystal${href}`}
+                href={isMarketingHome ? href : `/#${href.replace(/^#/, '')}`}
                 className="crystal-nav-link px-3"
                 onClick={closeMenu}
               >

@@ -301,7 +301,7 @@ export default function HomePage() {
   useEffect(() => {
     sessionStorage.removeItem('crystalReturnScroll');
     window.scrollTo(0, 0);
-    if (location.hash && (location.pathname === '/crystal' || location.pathname === '/')) {
+    if (location.hash && location.pathname === '/') {
       window.history.replaceState(null, '', location.pathname + location.search);
     }
   }, []);
@@ -543,7 +543,7 @@ export default function HomePage() {
                   Create your website now
                 </Link>
                 <Link
-                  to={`/crystal/${DUMMY_BUSINESS_SLUG}/`}
+                  to={`/${DUMMY_BUSINESS_SLUG}/`}
                   className="btn btn-outline-primary btn-lg crystal-cta-outline crystal-action-preview-btn"
                 >
                   Preview

@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
 import './Footer.css';
 
-const HOME_PATH = '/crystal';
+const HOME_PATH = '/';
 
 const FOOTER_LINKS = {
   product: [
