@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef, type RefObject, type CSSProperties } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Navbar, Nav } from 'react-bootstrap';
 import { PageContainer, WhatsAppLogoIcon } from '../../components';
 import {
+  getAccessToken,
   getActiveSubscription,
   getPublicBusinessBySlug,
   PublicBusinessNotFoundError,
@@ -13,6 +14,7 @@ import { GYM_CLIENT_BRAND_LOGO_SRC } from './gymClientBrandLogo';
 import GymClientBookTrialModal from './GymClientBookTrialModal';
 import GymClientPlanVisitModal from './GymClientPlanVisitModal';
 import {
+  cloneGymClientSiteDefaults,
   resolveGymClientSiteContent,
   getHeroRatingDisplayText,
   gymVideoUrlToEmbedSrc,
@@ -32,6 +34,13 @@ import { recordGymClientLeadCta, recordGymClientWhatsAppClick } from './gymClien
 import GymClientJoinLeadModal from './GymClientJoinLeadModal';
 import { GymClientMapsPinIcon, GymClientMidCtaIcon } from './GymClientDecorIcons';
 import './CrystalBusinessPage.css';
+
+/** Default theme for the marketing demo at `/preview?from=marketing` (matches website builder defaults). */
+const MARKETING_PREVIEW_THEME = {
+  accentHex: '#ea580c',
+  darkHex: '#0c0a09',
+  textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+} as const;
 
 function headerSecondaryOpensBookTrial(
   secondary: GymClientSiteContent['header']['ctaSecondary']
@@ -125,6 +134,7 @@ function GymClientMidCtaStrip({
   brandLogoSrc,
   onJoinClick,
   onVisitClick,
+  suppressPublicLeads = false,
 }: {
   businessSlug: string;
   variant: GymClientMidVariant;
@@ -134,6 +144,7 @@ function GymClientMidCtaStrip({
   onJoinClick?: () => void;
   /** Opens plan-visit modal instead of navigating (visit strip only). */
   onVisitClick?: () => void;
+  suppressPublicLeads?: boolean;
 }) {
   const config = {
     join: {
@@ -174,7 +185,7 @@ function GymClientMidCtaStrip({
               type="button"
               className="btn crystal-client-mid-cta__btn"
               onClick={() => {
-                recordGymClientLeadCta(businessSlug, config.track);
+                if (!suppressPublicLeads) recordGymClientLeadCta(businessSlug, config.track);
                 onVisitClick();
               }}
             >
@@ -188,7 +199,9 @@ function GymClientMidCtaStrip({
             <a
               href={href}
               className="btn crystal-client-mid-cta__btn"
-              onClick={() => recordGymClientLeadCta(businessSlug, config.track)}
+              onClick={() => {
+                if (!suppressPublicLeads) recordGymClientLeadCta(businessSlug, config.track);
+              }}
             >
               {config.btn}
             </a>
@@ -354,7 +367,16 @@ function GymClientFooter({
   );
 }
 
-function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteContent; businessSlug: string }) {
+function GymClientSiteView({
+  content,
+  businessSlug,
+  suppressPublicLeads = false,
+}: {
+  content: GymClientSiteContent;
+  businessSlug: string;
+  /** True on `/preview` — no lead API or local lead stats; gym is not published. */
+  suppressPublicLeads?: boolean;
+}) {
   const shellRef = useRef<HTMLDivElement>(null);
   const [joinLeadModalOpen, setJoinLeadModalOpen] = useState(false);
   const [bookTrialModalOpen, setBookTrialModalOpen] = useState(false);
@@ -581,6 +603,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         href="#contact"
         brandLogoSrc={content.logo.src}
         onJoinClick={openJoinLeadModal}
+        suppressPublicLeads={suppressPublicLeads}
       />
 
       {trainersList.length > 0 ? (
@@ -678,7 +701,13 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
       : null}
 
       {showPackages ? (
-        <GymClientMidCtaStrip businessSlug={businessSlug} variant="membership" href="#pricing" brandLogoSrc={content.logo.src} />
+        <GymClientMidCtaStrip
+          businessSlug={businessSlug}
+          variant="membership"
+          href="#pricing"
+          brandLogoSrc={content.logo.src}
+          suppressPublicLeads={suppressPublicLeads}
+        />
       ) : null}
 
       {showPackages ? (
@@ -742,6 +771,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         href={visitCtaHref}
         brandLogoSrc={content.logo.src}
         onVisitClick={openPlanVisitModal}
+        suppressPublicLeads={suppressPublicLeads}
       />
 
       {embedSrc ? (
@@ -829,7 +859,9 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
                                   rel="noopener noreferrer"
                                   className="crystal-client-whatsapp-btn"
                                   aria-label="Chat on WhatsApp about joining"
-                                  onClick={() => recordGymClientWhatsAppClick(businessSlug, 'inline')}
+                                  onClick={() => {
+                                    if (!suppressPublicLeads) recordGymClientWhatsAppClick(businessSlug, 'inline');
+                                  }}
                                 >
                                   <WhatsAppLogoIcon className="crystal-client-whatsapp-btn__icon" />
                                 </a>
@@ -880,6 +912,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         businessSlug={businessSlug}
         gymName={content.header.title}
         brandLogoSrc={content.logo.src}
+        suppressPublicLeads={suppressPublicLeads}
       />
 
       <GymClientBookTrialModal
@@ -888,6 +921,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         businessSlug={businessSlug}
         gymName={content.header.title}
         brandLogoSrc={content.logo.src}
+        suppressPublicLeads={suppressPublicLeads}
       />
 
       <GymClientPlanVisitModal
@@ -897,6 +931,7 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
         gymName={content.header.title}
         brandLogoSrc={content.logo.src}
         visitSectionHref={visitCtaHref}
+        suppressPublicLeads={suppressPublicLeads}
       />
 
       <div className="crystal-client-floating-stack">
@@ -946,7 +981,9 @@ function GymClientSiteView({ content, businessSlug }: { content: GymClientSiteCo
               className="crystal-client-whatsapp-fab"
               aria-label="Chat on WhatsApp about joining"
               aria-describedby={showWhatsappFabHintBubble ? 'crystal-whatsapp-fab-hint' : undefined}
-              onClick={() => recordGymClientWhatsAppClick(businessSlug, 'fab')}
+              onClick={() => {
+                if (!suppressPublicLeads) recordGymClientWhatsAppClick(businessSlug, 'fab');
+              }}
             >
               <WhatsAppLogoIcon className="crystal-client-whatsapp-fab__icon" />
             </a>
@@ -1021,6 +1058,8 @@ function CrystalBusinessNotFound({ slug }: { slug: string }) {
 
 export default function CrystalBusinessPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const isMarketingPreview = slug === 'preview' && searchParams.get('from') === 'marketing';
   const [business, setBusiness] = useState<PublicBusinessDetail | null>(null);
   const [loading, setLoading] = useState(!!slug && slug !== 'preview');
   const [error, setError] = useState<string | null>(null);
@@ -1030,24 +1069,45 @@ export default function CrystalBusinessPage() {
   const [previewStorageRev, setPreviewStorageRev] = useState(0);
 
   const previewDraft = useMemo(() => {
-    if (slug !== 'preview') return null;
+    if (slug !== 'preview' || isMarketingPreview) return null;
     return readCrystalWebsitePreviewFromStorage();
-  }, [slug, previewStorageRev]);
+  }, [slug, isMarketingPreview, previewStorageRev]);
+
+  const marketingDemoContent = useMemo(
+    () => (isMarketingPreview ? cloneGymClientSiteDefaults() : null),
+    [isMarketingPreview]
+  );
 
   const siteContentFromBusiness = useMemo(
     () => (business ? resolveGymClientSiteContent(business) : null),
     [business]
   );
-  const siteContent = slug === 'preview' && previewDraft?.content ? previewDraft.content : siteContentFromBusiness;
 
-  const previewViewportStyle =
-    slug === 'preview' && previewDraft ?
-      ({
+  const siteContent = useMemo(() => {
+    if (slug !== 'preview') return siteContentFromBusiness;
+    if (isMarketingPreview && marketingDemoContent) return marketingDemoContent;
+    if (previewDraft?.content) return previewDraft.content;
+    return null;
+  }, [slug, isMarketingPreview, marketingDemoContent, previewDraft, siteContentFromBusiness]);
+
+  const previewViewportStyle = useMemo((): CSSProperties | undefined => {
+    if (slug !== 'preview') return undefined;
+    if (isMarketingPreview) {
+      return {
+        ['--gym-client-accent' as string]: MARKETING_PREVIEW_THEME.accentHex,
+        ['--gym-client-dark' as string]: MARKETING_PREVIEW_THEME.darkHex,
+        ['--gym-client-text' as string]: MARKETING_PREVIEW_THEME.textHex,
+      };
+    }
+    if (previewDraft) {
+      return {
         ['--gym-client-accent' as string]: previewDraft.theme.accentHex,
         ['--gym-client-dark' as string]: previewDraft.theme.darkHex,
         ['--gym-client-text' as string]: previewDraft.theme.textHex ?? GYM_CLIENT_DEFAULT_TEXT_HEX,
-      } as CSSProperties)
-    : undefined;
+      };
+    }
+    return undefined;
+  }, [slug, isMarketingPreview, previewDraft]);
 
   useEffect(() => {
     if (!slug) {
@@ -1115,7 +1175,7 @@ export default function CrystalBusinessPage() {
     };
   }, [slug]);
 
-  if (slug === 'preview' && !previewDraft?.content) {
+  if (slug === 'preview' && !siteContent) {
     return <CrystalPreviewEmpty />;
   }
 
@@ -1151,7 +1211,30 @@ export default function CrystalBusinessPage() {
             </div>
           ) : siteContent ? (
             <>
-              {slug === 'preview' ? (
+              {slug === 'preview' && isMarketingPreview ? (
+                <div
+                  className="crystal-preview-banner crystal-preview-banner--marketing"
+                  role="status"
+                >
+                  <span className="crystal-preview-banner__marketing-copy">
+                    Sample site — colors, text, and layout are fully customizable.
+                  </span>
+                  {getAccessToken() ?
+                    <Link to="/user/create-website" className="btn btn-sm btn-light fw-semibold">
+                      Create now
+                    </Link>
+                  : <Link
+                      to="/login"
+                      state={{
+                        from: { pathname: '/preview', search: '?from=marketing' },
+                      }}
+                      className="btn btn-sm btn-light fw-semibold"
+                    >
+                      Log in to create yours
+                    </Link>
+                  }
+                </div>
+              ) : slug === 'preview' ?
                 <div className="crystal-preview-banner" role="status">
                   <span>Preview — not published</span>
                   <Link
@@ -1163,11 +1246,17 @@ export default function CrystalBusinessPage() {
                     Edit setup
                   </Link>
                 </div>
-              ) : null}
+              : null}
               <div className="crystal-client-viewport" style={previewViewportStyle}>
                 <GymClientSiteView
                   content={siteContent}
-                  businessSlug={slug === 'preview' ? (previewDraft?.slug ?? 'preview') : (slug ?? '')}
+                  businessSlug={
+                    slug === 'preview' ?
+                      isMarketingPreview ? 'demo'
+                      : (previewDraft?.slug ?? 'preview')
+                    : (slug ?? '')
+                  }
+                  suppressPublicLeads={slug === 'preview'}
                 />
               </div>
             </>

@@ -18,9 +18,17 @@ type Props = {
   businessSlug: string;
   gymName: string;
   brandLogoSrc?: string;
+  suppressPublicLeads?: boolean;
 };
 
-export default function GymClientBookTrialModal({ show, onHide, businessSlug, gymName, brandLogoSrc }: Props) {
+export default function GymClientBookTrialModal({
+  show,
+  onHide,
+  businessSlug,
+  gymName,
+  brandLogoSrc,
+  suppressPublicLeads = false,
+}: Props) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [visitDate, setVisitDate] = useState('');
@@ -54,13 +62,15 @@ export default function GymClientBookTrialModal({ show, onHide, businessSlug, gy
     if (!canSubmit || !businessSlug.trim()) return;
     const visitWhen =
       visitTime.trim() ? `${visitDate.trim()} at ${visitTime.trim()}` : `${visitDate.trim()} (time flexible)`;
-    recordGymClientBookTrialSubmission(businessSlug, {
-      name: name.trim(),
-      phone: phone.trim(),
-      visitWhen,
-      interests: interests.join(','),
-      notes: notes.trim(),
-    });
+    if (!suppressPublicLeads) {
+      recordGymClientBookTrialSubmission(businessSlug, {
+        name: name.trim(),
+        phone: phone.trim(),
+        visitWhen,
+        interests: interests.join(','),
+        notes: notes.trim(),
+      });
+    }
     setDone(true);
   };
 

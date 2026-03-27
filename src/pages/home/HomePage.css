@@ -347,23 +347,40 @@ html {
 .crystal-action-statement {
   background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
   border-top: 1px solid #e2e8f0;
+  padding-top: clamp(3.25rem, 6vw, 5.5rem);
+  padding-bottom: clamp(3.25rem, 6vw, 5.5rem);
 }
 
 .crystal-action-title {
   color: #0f172a;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  font-size: clamp(2.125rem, 4.5vw, 3.5rem);
 }
 
 .crystal-action-lead {
-  font-size: 1.1rem;
-  max-width: 36em;
+  font-size: clamp(1.2rem, 2.2vw, 1.45rem);
+  line-height: 1.55;
+  max-width: 40em;
   margin-left: auto;
   margin-right: auto;
 }
 
 .crystal-action-btns {
-  gap: 0.75rem;
+  gap: 1rem 1.25rem;
+}
+
+.crystal-action-statement .crystal-action-btns .btn {
+  font-size: clamp(1.05rem, 1.35vw, 1.2rem);
+  font-weight: 600;
+  min-height: 3.25rem;
+  padding: 0.85rem 2.25rem !important;
+  border-radius: 999px !important;
+}
+
+.crystal-action-statement .crystal-action-btns .crystal-cta-outline {
+  padding: 0.85rem 2.25rem !important;
+  min-height: 3.25rem;
 }
 
 .crystal-action-preview-btn {

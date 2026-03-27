@@ -25,9 +25,18 @@ type Props = {
   businessSlug: string;
   gymName: string;
   brandLogoSrc?: string;
+  /** When true (e.g. `/preview`), do not POST leads or write local stats — site is not live. */
+  suppressPublicLeads?: boolean;
 };
 
-export default function GymClientJoinLeadModal({ show, onHide, businessSlug, gymName, brandLogoSrc }: Props) {
+export default function GymClientJoinLeadModal({
+  show,
+  onHide,
+  businessSlug,
+  gymName,
+  brandLogoSrc,
+  suppressPublicLeads = false,
+}: Props) {
   const [name, setName] = useState('');
   const [focus, setFocus] = useState<string>('');
   const [frequency, setFrequency] = useState<string>('');
@@ -53,12 +62,14 @@ export default function GymClientJoinLeadModal({ show, onHide, businessSlug, gym
 
   const handleSubmit = () => {
     if (!canSubmit || !businessSlug.trim()) return;
-    recordGymClientJoinLeadSubmission(businessSlug, {
-      name: name.trim(),
-      phone: phone.trim(),
-      focus,
-      frequency,
-    });
+    if (!suppressPublicLeads) {
+      recordGymClientJoinLeadSubmission(businessSlug, {
+        name: name.trim(),
+        phone: phone.trim(),
+        focus,
+        frequency,
+      });
+    }
     setDone(true);
   };
 

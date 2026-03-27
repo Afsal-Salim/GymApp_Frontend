@@ -2698,6 +2698,17 @@
   color: #ffedd5 !important;
 }
 
+.crystal-preview-banner--marketing {
+  justify-content: space-between;
+  text-align: left;
+}
+
+.crystal-preview-banner__marketing-copy {
+  flex: 1 1 12rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .crystal-business-page--preview-empty .crystal-business-page__main {
   min-height: 50vh;
 }

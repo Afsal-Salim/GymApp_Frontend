@@ -11,6 +11,7 @@ type Props = {
   brandLogoSrc?: string;
   /** Anchor for “See address & hours” after success. */
   visitSectionHref?: string;
+  suppressPublicLeads?: boolean;
 };
 
 export default function GymClientPlanVisitModal({
@@ -20,6 +21,7 @@ export default function GymClientPlanVisitModal({
   gymName,
   brandLogoSrc,
   visitSectionHref = '#visit',
+  suppressPublicLeads = false,
 }: Props) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -47,12 +49,14 @@ export default function GymClientPlanVisitModal({
     if (!canSubmit || !businessSlug.trim()) return;
     const preferredWhen =
       visitTime.trim() ? `${visitDate.trim()} at ${visitTime.trim()}` : `${visitDate.trim()} (time flexible)`;
-    recordGymClientPlanVisitSubmission(businessSlug, {
-      name: name.trim(),
-      phone: phone.trim(),
-      preferredWhen,
-      notes: notes.trim(),
-    });
+    if (!suppressPublicLeads) {
+      recordGymClientPlanVisitSubmission(businessSlug, {
+        name: name.trim(),
+        phone: phone.trim(),
+        preferredWhen,
+        notes: notes.trim(),
+      });
+    }
     setDone(true);
   };
 

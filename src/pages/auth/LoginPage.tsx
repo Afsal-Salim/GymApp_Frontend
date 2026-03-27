@@ -25,6 +25,8 @@ const LOGIN_PANEL_IMAGE =
 
 type LoginReturnTarget = {
   pathname: string;
+  /** e.g. `?from=marketing` — preserved when redirecting after login */
+  search?: string;
   state?: {
     planDetails?: { name: string; price: string; period: string; currency: string };
     planId?: number;
@@ -86,10 +88,12 @@ export default function LoginPage() {
 
   const redirectTargetRef = useRef<LoginReturnTarget>({
     pathname: state.from?.pathname ?? '/user',
+    search: state.from?.search,
     state: state.from?.state,
   });
   redirectTargetRef.current = {
     pathname: state.from?.pathname ?? '/user',
+    search: state.from?.search,
     state: state.from?.state,
   };
 
@@ -123,10 +127,17 @@ export default function LoginPage() {
           getProfile()
             .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
             .catch(() => {});
-          navigate(redirectTargetRef.current.pathname, {
-            replace: true,
-            state: redirectTargetRef.current.state,
-          });
+          navigate(
+            redirectTargetRef.current.search ?
+              {
+                pathname: redirectTargetRef.current.pathname,
+                search: redirectTargetRef.current.search.startsWith('?') ?
+                  redirectTargetRef.current.search
+                : `?${redirectTargetRef.current.search}`,
+              }
+            : redirectTargetRef.current.pathname,
+            { replace: true, state: redirectTargetRef.current.state }
+          );
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Google sign-in failed';
           setError(msg);
@@ -194,7 +205,20 @@ export default function LoginPage() {
       getProfile()
         .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
         .catch(() => {});
-      navigate(state.from?.pathname ?? '/user', { replace: true, state: state.from?.state });
+      const from = state.from;
+      if (from?.pathname) {
+        navigate(
+          from.search ?
+            {
+              pathname: from.pathname,
+              search: from.search.startsWith('?') ? from.search : `?${from.search}`,
+            }
+          : from.pathname,
+          { replace: true, state: from.state }
+        );
+      } else {
+        navigate('/user', { replace: true });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setError(msg);

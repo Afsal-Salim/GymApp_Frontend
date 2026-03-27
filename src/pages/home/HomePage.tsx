@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
-import { getPlanList, DUMMY_BUSINESS_SLUG, type PlanListItem } from '../../api';
+import { getPlanList, type PlanListItem } from '../../api';
 import { homepageTutorialVideoUrl, whatsappDefaultMessage, whatsappPhone } from '../../config/env';
 import { WhatsAppLogoIcon } from '../../components';
 import './HomePage.css';
@@ -530,21 +530,21 @@ export default function HomePage() {
       </section>
 
       {/* Action statement – above tutorial */}
-      <section className="crystal-section crystal-action-statement py-5">
+      <section className="crystal-section crystal-action-statement">
         <Container data-crystal-reveal>
           <Row className="justify-content-center text-center">
-            <Col lg={8}>
-              <h2 className="crystal-action-title display-5 fw-bold mb-3">Build your gym website today.</h2>
-              <p className="crystal-action-lead lead text-muted mb-4">
+            <Col lg={10} xl={9}>
+              <h2 className="crystal-action-title fw-bold mb-4">Build your gym website today.</h2>
+              <p className="crystal-action-lead text-muted mb-5">
                 No coding. Just add your details and go live. Start in minutes.
               </p>
-              <div className="d-flex flex-wrap gap-2 justify-content-center crystal-action-btns">
-                <Link to="/login" className="btn btn-primary btn-lg crystal-cta">
+              <div className="d-flex flex-wrap justify-content-center crystal-action-btns">
+                <Link to="/login" className="btn btn-primary crystal-cta">
                   Create your website now
                 </Link>
                 <Link
-                  to={`/${DUMMY_BUSINESS_SLUG}/`}
-                  className="btn btn-outline-primary btn-lg crystal-cta-outline crystal-action-preview-btn"
+                  to="/preview?from=marketing"
+                  className="btn btn-outline-primary crystal-cta-outline crystal-action-preview-btn"
                 >
                   Preview
                 </Link>

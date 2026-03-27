@@ -38,6 +38,17 @@ function GoogleIcon() {
 
 type Step = 1 | 2 | 3 | 4;
 
+/** Clear copy when signup cannot continue because policies are unchecked. */
+function policyAgreementErrorMessage(userContentOk: boolean, privacyOk: boolean): string {
+  if (!userContentOk && !privacyOk) {
+    return 'You need to agree to both the User Content Responsibility policy and the Privacy Policy. Please check both boxes above.';
+  }
+  if (!userContentOk) {
+    return 'You need to agree to the User Content Responsibility policy. Please check the first box above.';
+  }
+  return 'You need to agree to the Privacy Policy. Please check the second box above.';
+}
+
 export default function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
@@ -211,7 +222,9 @@ export default function SignupPage() {
       return;
     }
     if (!preAccountPolicyAccepted || !preAccountPrivacyAccepted) {
-      setError('Please go back and confirm both policies before creating your account.');
+      const msg = policyAgreementErrorMessage(preAccountPolicyAccepted, preAccountPrivacyAccepted);
+      setError(msg);
+      showToast(msg);
       return;
     }
     setLoading(true);
@@ -252,7 +265,9 @@ export default function SignupPage() {
 
   const continueToAccountDetails = () => {
     if (!preAccountPolicyAccepted || !preAccountPrivacyAccepted) {
-      setError('Please confirm you have read and agree to both policies above.');
+      const msg = policyAgreementErrorMessage(preAccountPolicyAccepted, preAccountPrivacyAccepted);
+      setError(msg);
+      showToast(msg);
       return;
     }
     setError(null);
@@ -360,12 +375,18 @@ export default function SignupPage() {
                           </span>
                         }
                       />
+                      {!googleSignupPoliciesReady ?
+                        <Alert variant="warning" className="small py-2 mb-2 mb-md-3">
+                          To use Google sign-up, check both the <strong>User Content</strong> and <strong>Privacy Policy</strong>{' '}
+                          boxes above. The Google button appears after both are checked.
+                        </Alert>
+                      : null}
                       <div
                         className={`auth-page__google-wrap mb-3${!googleSignupPoliciesReady ? ' auth-page__google-wrap--gated' : ''}`}
                       >
                         <div ref={googleButtonRef} className="auth-page__google-button" />
                         {!googleSignupPoliciesReady ? (
-                          <p className="small text-muted mb-0 mt-2">Confirm both policies above to sign up with Google.</p>
+                          <p className="small text-muted mb-0 mt-2">Google sign-up is disabled until both policies are accepted.</p>
                         ) : null}
                         {loading && googleSignupPoliciesReady ? (
                           <div className="auth-page__google-loading">
@@ -444,6 +465,7 @@ export default function SignupPage() {
                     type="checkbox"
                     id="signup-pre-account-policy"
                     className="mb-2 auth-page__policy-check"
+                    isInvalid={Boolean(error) && !preAccountPolicyAccepted}
                     checked={preAccountPolicyAccepted}
                     onChange={(e) => {
                       setPreAccountPolicyAccepted(e.target.checked);
@@ -459,6 +481,7 @@ export default function SignupPage() {
                     type="checkbox"
                     id="signup-pre-account-privacy"
                     className="mb-3 auth-page__policy-check"
+                    isInvalid={Boolean(error) && !preAccountPrivacyAccepted}
                     checked={preAccountPrivacyAccepted}
                     onChange={(e) => {
                       setPreAccountPrivacyAccepted(e.target.checked);
@@ -480,7 +503,6 @@ export default function SignupPage() {
                     variant="primary"
                     size="lg"
                     className="w-100 auth-page__submit"
-                    disabled={!preAccountPolicyAccepted || !preAccountPrivacyAccepted}
                     onClick={continueToAccountDetails}
                   >
                     Continue to create account
@@ -493,7 +515,15 @@ export default function SignupPage() {
                 <>
                   <p className="auth-page__subtitle text-muted mb-4">
                     Create your username and password. Email <strong>{email}</strong> is verified.{' '}
-                    <Button type="button" variant="link" className="p-0 align-baseline auth-page__link" onClick={() => setStep(3)}>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="p-0 align-baseline auth-page__link"
+                      onClick={() => {
+                        setError(null);
+                        setStep(3);
+                      }}
+                    >
                       Back to policy
                     </Button>
                     {' · '}
