@@ -35,6 +35,7 @@ import {
   GYM_CLIENT_DEFAULT_TEXT_HEX,
   readCrystalWebsitePreviewFromStorage,
 } from '../website/setup/createWebsiteFormState';
+import { withBundledDefaultClientLogo } from './gymClientBrandLogo';
 import { buildGymClientWhatsAppHref } from './gymClientWhatsApp';
 import { recordGymClientLeadCta, recordGymClientWhatsAppClick } from './gymClientLeadTracking';
 import GymClientJoinLeadModal from './GymClientJoinLeadModal';
@@ -418,6 +419,19 @@ function GymClientFooter({
   );
 }
 
+/** Root-relative or dev-server image paths resolve against the current page origin (important for `/preview`). */
+function resolveSiteBackgroundImageUrl(raw: string): string {
+  const u = raw.trim();
+  if (!u) return u;
+  if (typeof window === 'undefined') return u;
+  if (u.startsWith('data:') || /^https?:\/\//i.test(u)) return u;
+  try {
+    return new URL(u, window.location.origin).href;
+  } catch {
+    return u;
+  }
+}
+
 function GymClientSiteView({
   content,
   businessSlug,
@@ -507,12 +521,12 @@ function GymClientSiteView({
   const showAboutFeatures = aboutFeatures.length > 0;
   const visitCtaHref = visibleDetails.length > 0 ? '#visit' : '#contact';
   const aboutBodyBackground = content.description.bodyBackground;
-  const aboutBodyBgImageUrl = aboutBodyBackground?.imageUrl?.trim() ?? '';
+  const aboutBodyBgImageUrl = resolveSiteBackgroundImageUrl(aboutBodyBackground?.imageUrl?.trim() ?? '');
   const aboutBodyBlend = aboutBodyBackground?.blendColor?.trim() ?? '#111827CC';
   const aboutBodyBgEnabled = Boolean(aboutBodyBackground?.enabled && aboutBodyBgImageUrl);
   const aboutBodyStyle = aboutBodyBgEnabled ?
     ({
-      ['--gym-about-body-bg-image' as string]: `url(${aboutBodyBgImageUrl})`,
+      ['--gym-about-body-bg-image' as string]: `url(${JSON.stringify(aboutBodyBgImageUrl)})`,
       ['--gym-about-body-bg-blend' as string]: aboutBodyBlend,
     } as CSSProperties)
   : undefined;
@@ -521,6 +535,9 @@ function GymClientSiteView({
     '--gym-hero-bg': `url(${content.layout.heroBackgroundImage})`,
     '--gym-hero-overlay': String(content.layout.heroOverlay),
   } as CSSProperties;
+
+  /** Edge glow blobs use accent color; hide them when overlay is off so the photo stays clean at the sides. */
+  const showHeroAccentBlobs = Number(content.layout.heroOverlay) > 0.001;
 
   return (
     <div ref={shellRef} className="crystal-client-shell" id="top">
@@ -533,8 +550,12 @@ function GymClientSiteView({
       />
 
       <header className="crystal-client__hero crystal-client__hero--bg" style={heroStyle}>
-        <div className="crystal-client__hero-blob crystal-client__hero-blob--1" aria-hidden />
-        <div className="crystal-client__hero-blob crystal-client__hero-blob--2" aria-hidden />
+        {showHeroAccentBlobs ? (
+          <>
+            <div className="crystal-client__hero-blob crystal-client__hero-blob--1" aria-hidden />
+            <div className="crystal-client__hero-blob crystal-client__hero-blob--2" aria-hidden />
+          </>
+        ) : null}
         <div className="crystal-client__hero-overlay" aria-hidden />
         <Container className="crystal-client__hero-container position-relative">
           <div className="crystal-client__hero-inner text-center text-lg-start">
@@ -1220,7 +1241,7 @@ export default function CrystalBusinessPage() {
   const siteContent = useMemo(() => {
     if (slug !== 'preview') return siteContentFromBusiness;
     if (isMarketingPreview && marketingDemoContent) return marketingDemoContent;
-    if (previewDraft?.content) return previewDraft.content;
+    if (previewDraft?.content) return withBundledDefaultClientLogo(previewDraft.content);
     return null;
   }, [slug, isMarketingPreview, marketingDemoContent, previewDraft, siteContentFromBusiness]);
 

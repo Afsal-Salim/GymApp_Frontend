@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Card, Spinner, Modal, Button, ListGroup, Badge, Nav, Pagination, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Spinner, Modal, Button, ListGroup, Badge, Nav, Pagination, Alert, Form } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import {
   getProfileCached,
@@ -12,12 +12,21 @@ import {
   getAllWebsitesAnalytics,
   getUserInfo,
   setUserInfo,
+  ANALYTICS_RANGE_OPTIONS,
 } from '../../api';
-import type { UserProfile, BusinessListItem, BusinessDetail, ActiveSubscriptionResponse, WebsiteAnalytics } from '../../api';
+import type {
+  UserProfile,
+  BusinessListItem,
+  BusinessDetail,
+  ActiveSubscriptionResponse,
+  WebsiteAnalytics,
+  AnalyticsRangePreset,
+} from '../../api';
 import { useToast } from '../../contexts/ToastContext';
 import { visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
+import { OverallLeadsByWebsiteChart } from './OverallLeadsByWebsiteChart';
 import './UserPage.css';
 
 function formatDate(s: string | undefined): string {
@@ -140,6 +149,7 @@ export default function UserPage() {
   const [allAnalytics, setAllAnalytics] = useState<WebsiteAnalytics[] | null>(null);
   const [allAnalyticsLoading, setAllAnalyticsLoading] = useState(false);
   const [allAnalyticsError, setAllAnalyticsError] = useState<string | null>(null);
+  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRangePreset>('10d');
 
   useEffect(() => {
     let cancelled = false;
@@ -196,7 +206,7 @@ export default function UserPage() {
     let cancelled = false;
     setAllAnalyticsLoading(true);
     setAllAnalyticsError(null);
-    getAllWebsitesAnalytics()
+    getAllWebsitesAnalytics(analyticsRange)
       .then((sites) => {
         if (!cancelled) setAllAnalytics(sites);
       })
@@ -212,7 +222,7 @@ export default function UserPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab]);
+  }, [activeTab, analyticsRange]);
 
   const openBusinessDetail = (slug: string) => {
     if (!slug) return;
@@ -263,6 +273,12 @@ export default function UserPage() {
   const profilePhone = (profile as { phone?: string })?.phone;
   const activeCount = businesses.filter(isBusinessActive).length;
   const inactiveCount = businesses.length - activeCount;
+  const analyticsAllowedPresets = allAnalytics?.find((s) => s.time_range?.allowed_presets?.length)?.time_range
+    ?.allowed_presets;
+  const userPageRangeOptions =
+    analyticsAllowedPresets?.length ?
+      ANALYTICS_RANGE_OPTIONS.filter((o) => analyticsAllowedPresets.includes(o.value))
+    : ANALYTICS_RANGE_OPTIONS;
 
   return (
     <PageContainer>
@@ -410,10 +426,25 @@ export default function UserPage() {
 
               {activeTab === 'analytics' && (
                 <div className="user-page__analytics-tab">
-                  <p className="text-muted small mb-3">
-                    Combined metrics for every gym you own (same data as each site&apos;s Manage page). Refreshes when you open
-                    this tab.
+                  <p className="text-muted small mb-2">
+                    Compare lead trends across gyms (same time window as Manage when using the same range). Per-site cards below include full detail.
                   </p>
+                  <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <Form.Label className="small text-muted mb-0">Time range</Form.Label>
+                    <Form.Select
+                      size="sm"
+                      style={{ maxWidth: 220 }}
+                      value={analyticsRange}
+                      onChange={(e) => setAnalyticsRange(e.target.value as AnalyticsRangePreset)}
+                      aria-label="Analytics time range for all sites"
+                    >
+                      {userPageRangeOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </div>
                   {allAnalyticsLoading && (!allAnalytics || allAnalytics.length === 0) ?
                     <div className="user-page__loading user-page__loading--center py-5">
                       <Spinner animation="border" /> Loading analytics…
@@ -426,6 +457,9 @@ export default function UserPage() {
                     <Card className="user-page__card">
                       <Card.Body className="text-muted small">No businesses yet — analytics will appear here once you create a gym.</Card.Body>
                     </Card>
+                  : null}
+                  {!allAnalyticsLoading && !allAnalyticsError && allAnalytics && allAnalytics.length > 0 ?
+                    <OverallLeadsByWebsiteChart sites={allAnalytics} />
                   : null}
                   {allAnalytics?.map((site) => {
                     const s = site.business?.slug;

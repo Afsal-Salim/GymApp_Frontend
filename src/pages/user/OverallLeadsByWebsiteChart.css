@@ -1,0 +1,17 @@
+.user-page__overall-leads-chart__head {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.user-page__overall-leads-chart__site-toggles .form-check {
+  padding-left: 1.5rem;
+}
+
+.user-page__overall-leads-chart__check .form-check-input {
+  margin-top: 0.2rem;
+}
+
+.user-page__overall-leads-chart__wrap {
+  width: 100%;
+  min-height: 320px;
+}

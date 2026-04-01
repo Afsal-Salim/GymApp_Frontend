@@ -115,9 +115,19 @@ export default function Navbar() {
       </Container>
     </BSNavbar>
 
-      <Modal show={profileModalShow} onHide={closeProfileModal} centered className="crystal-nav-profile-modal">
+      <Modal
+        show={profileModalShow}
+        onHide={closeProfileModal}
+        centered
+        className="crystal-nav-profile-modal"
+        dialogClassName="crystal-account-modal-dialog"
+        contentClassName="crystal-account-modal-shell"
+        aria-labelledby="crystal-account-modal-title"
+      >
         <Modal.Header closeButton className="crystal-account-modal__header">
-          <Modal.Title className="crystal-account-modal__title">Account</Modal.Title>
+          <Modal.Title id="crystal-account-modal-title" as="h2" className="crystal-account-modal__title">
+            Account
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body className="crystal-account-modal__body">
           <div className="crystal-account-modal__avatar-wrap">
@@ -130,15 +140,17 @@ export default function Navbar() {
             </div>
           </div>
           <p className="crystal-account-modal__name">{userInfo.username || userInfo.email || '—'}</p>
-          {userInfo.email && (
-            <p className="crystal-account-modal__email">{userInfo.email}</p>
-          )}
+          {userInfo.email ? <p className="crystal-account-modal__email">{userInfo.email}</p> : null}
         </Modal.Body>
         <Modal.Footer className="crystal-account-modal__footer">
           <Button className="crystal-account-modal__btn crystal-account-modal__btn--profile w-100" onClick={goToProfile}>
             Profile
           </Button>
-          <Button variant="link" className="crystal-account-modal__btn crystal-account-modal__btn--logout w-100" onClick={handleLogout}>
+          <Button
+            variant="link"
+            className="crystal-account-modal__btn crystal-account-modal__btn--logout w-100"
+            onClick={handleLogout}
+          >
             Log out
           </Button>
         </Modal.Footer>

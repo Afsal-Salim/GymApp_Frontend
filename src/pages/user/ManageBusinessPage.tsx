@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Container, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import { getBusinessWebsiteAnalytics } from '../../api';
-import type { WebsiteAnalytics } from '../../api/businesses';
+import type { WebsiteAnalytics, AnalyticsRangePreset } from '../../api/businesses';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
 import './ManageBusinessPage.css';
@@ -12,11 +12,13 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
   const [data, setData] = useState<WebsiteAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRangePreset>('10d');
   const slugEnc = encodeURIComponent(slug);
 
   useEffect(() => {
     let cancelled = false;
-    getBusinessWebsiteAnalytics(slug)
+    setLoading(true);
+    getBusinessWebsiteAnalytics(slug, { range: analyticsRange })
       .then((d) => {
         if (!cancelled) {
           setData(d);
@@ -35,7 +37,7 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, analyticsRange]);
 
   return (
     <PageContainer>
@@ -68,7 +70,17 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
               <Spinner animation="border" className="mb-2" />
               <p className="text-muted small mb-0">Loading analytics…</p>
             </div>
-          : <WebsiteAnalyticsPanel data={data} loading={loading} error={error} showBusinessHeader />}
+          : (
+            <WebsiteAnalyticsPanel
+              data={data}
+              loading={loading}
+              error={error}
+              showBusinessHeader
+              showLeadMixPieAlways
+              analyticsRange={analyticsRange}
+              onAnalyticsRangeChange={setAnalyticsRange}
+            />
+          )}
         </Container>
       </main>
     </PageContainer>

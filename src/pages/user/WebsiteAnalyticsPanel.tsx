@@ -1,4 +1,4 @@
-import { Card, Table, Spinner, Alert, Row, Col } from 'react-bootstrap';
+import { Card, Table, Spinner, Alert, Row, Col, Form } from 'react-bootstrap';
 import {
   ResponsiveContainer,
   PieChart,
@@ -6,6 +6,8 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -14,7 +16,12 @@ import {
   Area,
   AreaChart,
 } from 'recharts';
-import type { WebsiteAnalytics } from '../../api/businesses';
+import {
+  ANALYTICS_RANGE_OPTIONS,
+  type WebsiteAnalytics,
+  type WebsiteAnalyticsLineGraphPoint,
+  type AnalyticsRangePreset,
+} from '../../api/businesses';
 import './WebsiteAnalyticsPanel.css';
 
 const LEAD_TYPE_ORDER = ['join_now', 'book_free_trial', 'plan_visit', 'whatsapp_click'] as const;
@@ -168,6 +175,85 @@ function formatComputedAt(iso: string | undefined): string {
   }
 }
 
+function formatPeriodAxisLabel(iso: string, bucket: string | undefined): string {
+  try {
+    const d = new Date(iso);
+    if (bucket === 'hour') {
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric' });
+    }
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch {
+    return iso.length > 14 ? `${iso.slice(0, 13)}…` : iso;
+  }
+}
+
+function unitsFromByLeadTypeEntry(raw: unknown): number {
+  if (raw == null) return 0;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    const u = o.units ?? o.unit_count;
+    if (typeof u === 'number' && Number.isFinite(u)) return u;
+    if (typeof u === 'string' && u.trim() !== '' && !Number.isNaN(Number(u))) return Number(u);
+  }
+  return 0;
+}
+
+function rangeSelectOptions(allowed: string[] | undefined): { value: AnalyticsRangePreset; label: string }[] {
+  if (!allowed?.length) return [...ANALYTICS_RANGE_OPTIONS];
+  const set = new Set(allowed);
+  return ANALYTICS_RANGE_OPTIONS.filter((o) => set.has(o.value));
+}
+
+function sortLeadTypeKeysForSeries(keys: string[]): string[] {
+  return [...keys].sort((a, b) => {
+    const ia = LEAD_TYPE_ORDER.indexOf(a as (typeof LEAD_TYPE_ORDER)[number]);
+    const ib = LEAD_TYPE_ORDER.indexOf(b as (typeof LEAD_TYPE_ORDER)[number]);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0) return -1;
+    if (ib >= 0) return 1;
+    return a.localeCompare(b);
+  });
+}
+
+/** Rows for Recharts from API `line_graph`; `seriesKeys` are dataKeys for per–lead-type lines (prefix `lt_`). */
+function buildLineGraphChartRows(
+  points: WebsiteAnalyticsLineGraphPoint[] | undefined,
+  bucket: string | undefined
+): { rows: Record<string, string | number>[]; seriesKeys: string[]; humanNames: Record<string, string> } {
+  if (!points?.length) return { rows: [], seriesKeys: [], humanNames: {} };
+  const leadKeys = new Set<string>();
+  for (const p of points) {
+    const blt = p.by_lead_type;
+    if (blt && typeof blt === 'object' && !Array.isArray(blt)) {
+      Object.keys(blt).forEach((k) => leadKeys.add(k));
+    }
+  }
+  const sortedLeadKeys = sortLeadTypeKeysForSeries([...leadKeys]);
+  const humanNames: Record<string, string> = {};
+  const seriesKeys = sortedLeadKeys.map((k) => {
+    const dk = `lt_${k}`;
+    humanNames[dk] = humanizeLeadTypeKey(k);
+    return dk;
+  });
+
+  const rows = points.map((p) => {
+    const row: Record<string, string | number> = {
+      period_start: p.period_start,
+      label: formatPeriodAxisLabel(p.period_start, bucket),
+      events: Number(p.events) || 0,
+      units: Number(p.units) || 0,
+    };
+    const blt = p.by_lead_type;
+    for (const k of sortedLeadKeys) {
+      const dk = `lt_${k}`;
+      row[dk] = blt && typeof blt === 'object' && !Array.isArray(blt) ? unitsFromByLeadTypeEntry((blt as Record<string, unknown>)[k]) : 0;
+    }
+    return row;
+  });
+  return { rows, seriesKeys, humanNames };
+}
+
 function LeadPieTooltip({ active, payload }: { active?: boolean; payload?: { name?: string; value?: number }[] }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
@@ -180,71 +266,125 @@ function LeadPieTooltip({ active, payload }: { active?: boolean; payload?: { nam
 }
 
 function LeadTypesVisuals({
-  pieData,
-  barData,
+  pieSlices,
+  showPieColumn,
+  leadMixEmptyDetail,
+  lineRows,
+  lineSeriesKeys,
+  lineSeriesLabels,
+  bucket,
 }: {
-  pieData: { name: string; value: number }[];
-  barData: { name: string; events: number; units: number }[];
+  /** Non-zero slices only (for the pie). */
+  pieSlices: { name: string; value: number }[];
+  /** When true, left column shows pie or lead-mix placeholder (individual manage view). */
+  showPieColumn: boolean;
+  /** Rows for the “all types” list when there are no pie slices yet (all-time counts, incl. zeros). */
+  leadMixEmptyDetail: { name: string; events: number }[] | null;
+  lineRows: Record<string, string | number>[];
+  lineSeriesKeys: string[];
+  lineSeriesLabels: Record<string, string>;
+  bucket: string | undefined;
 }) {
-  const pieSum = pieData.reduce((s, d) => s + d.value, 0);
-  const hasBar = barData.some((d) => d.events > 0 || d.units > 0);
+  const pieSum = pieSlices.reduce((s, d) => s + d.value, 0);
+  const hasLine = lineRows.length > 0;
 
-  if (pieSum === 0 && !hasBar) {
+  if (!showPieColumn && !hasLine) {
     return (
       <p className="text-muted small mb-0 py-3 text-center">No lead data to chart yet — activity will appear here.</p>
     );
   }
 
+  const xAxisBottom = bucket === 'hour' ? 52 : 40;
+
   return (
     <Row className="g-3 website-analytics-panel__chart-row">
-      {pieSum > 0 ?
+      {showPieColumn ?
         <Col lg={5}>
           <div className="website-analytics-panel__chart-wrap">
-            <p className="website-analytics-panel__chart-caption">Share of lead events</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={58}
-                  outerRadius={88}
-                  paddingAngle={2}
-                  stroke="#fff"
-                  strokeWidth={2}
-                >
-                  {pieData.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<LeadPieTooltip />} />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <p className="website-analytics-panel__chart-caption">Lead types (all-time)</p>
+            <p className="text-muted small mb-2 website-analytics-panel__pie-hint">
+              Join now · Book free trial · Plan visit · WhatsApp click
+            </p>
+            {pieSum > 0 ?
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={pieSlices}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={58}
+                    outerRadius={88}
+                    paddingAngle={2}
+                    stroke="#fff"
+                    strokeWidth={2}
+                  >
+                    {pieSlices.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<LeadPieTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            : (
+              <div className="website-analytics-panel__pie-empty text-muted small py-3 px-2">
+                <p className="mb-2">No events recorded yet for these types.</p>
+                {leadMixEmptyDetail && leadMixEmptyDetail.length > 0 ?
+                  <ul className="list-unstyled mb-0 website-analytics-panel__pie-empty-list">
+                    {leadMixEmptyDetail.map((row) => (
+                      <li key={row.name} className="d-flex justify-content-between gap-2 py-1 border-bottom border-light">
+                        <span>{row.name}</span>
+                        <span className="text-nowrap">{row.events} events</span>
+                      </li>
+                    ))}
+                  </ul>
+                : null}
+              </div>
+            )}
           </div>
         </Col>
       : null}
-      {hasBar ?
-        <Col lg={pieSum > 0 ? 7 : 12}>
+      {hasLine ?
+        <Col lg={showPieColumn ? 7 : 12}>
           <div className="website-analytics-panel__chart-wrap">
-            <p className="website-analytics-panel__chart-caption">Events vs units by type</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={barData} margin={{ top: 8, right: 8, left: 0, bottom: 48 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} angle={-22} textAnchor="end" height={56} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} width={36} />
-                <Tooltip
-                  contentStyle={TOOLTIP_STYLE}
-                  labelStyle={{ fontWeight: 600 }}
+            <p className="website-analytics-panel__chart-caption">Leads over selected range</p>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={lineRows} margin={{ top: 8, right: 8, left: 0, bottom: xAxisBottom }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 9, fill: '#64748b' }}
+                  interval="preserveStartEnd"
+                  angle={lineRows.length > 14 ? -35 : 0}
+                  textAnchor={lineRows.length > 14 ? 'end' : 'middle'}
+                  height={lineRows.length > 14 ? 48 : 28}
                 />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar dataKey="events" name="Events" fill="#0ea5e9" radius={[6, 6, 0, 0]} maxBarSize={36} />
-                <Bar dataKey="units" name="Units" fill="#06b6d4" radius={[6, 6, 0, 0]} maxBarSize={36} />
-              </BarChart>
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} width={40} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ fontWeight: 600 }} />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Line type="monotone" dataKey="events" name="Events" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                <Line type="monotone" dataKey="units" name="Units" stroke="#06b6d4" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                {lineSeriesKeys.map((dk, i) => (
+                  <Line
+                    key={dk}
+                    type="monotone"
+                    dataKey={dk}
+                    name={lineSeriesLabels[dk] ?? dk}
+                    stroke={CHART_COLORS[(i + 2) % CHART_COLORS.length]}
+                    strokeWidth={1.5}
+                    dot={{ r: 1.5 }}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
             </ResponsiveContainer>
           </div>
+        </Col>
+      : showPieColumn ?
+        <Col lg={7}>
+          <p className="text-muted small mb-0 py-4 text-center">No time-series points for this range yet.</p>
         </Col>
       : null}
     </Row>
@@ -316,6 +456,13 @@ export type WebsiteAnalyticsPanelProps = {
   loading: boolean;
   error: string | null;
   showBusinessHeader?: boolean;
+  /** When set with `onAnalyticsRangeChange`, shows a range control (refetch in the parent). */
+  analyticsRange?: AnalyticsRangePreset;
+  onAnalyticsRangeChange?: (range: AnalyticsRangePreset) => void;
+  /**
+   * Individual manage view: always show the lead-type column (pie or typed list) so Join now / Book trial / Plan visit / WhatsApp stay visible.
+   */
+  showLeadMixPieAlways?: boolean;
 };
 
 export function WebsiteAnalyticsPanel({
@@ -323,6 +470,9 @@ export function WebsiteAnalyticsPanel({
   loading,
   error,
   showBusinessHeader = true,
+  analyticsRange,
+  onAnalyticsRangeChange,
+  showLeadMixPieAlways = false,
 }: WebsiteAnalyticsPanelProps) {
   if (loading && !data) {
     return (
@@ -357,22 +507,43 @@ export function WebsiteAnalyticsPanel({
     ...keysFromApi.filter((k) => !LEAD_TYPE_ORDER.includes(k as (typeof LEAD_TYPE_ORDER)[number])).sort(),
   ];
 
-  const pieData = orderedLeadKeys.map((key) => {
-    const stats = normalizeLeadStats(rawLeads[key]);
-    return {
-      name: humanizeLeadTypeKey(key),
-      value: stats.events,
-    };
-  }).filter((d) => d.value > 0);
+  const pieKeysFull = showLeadMixPieAlways
+    ? [...LEAD_TYPE_ORDER, ...keysFromApi.filter((k) => !LEAD_TYPE_ORDER.includes(k as (typeof LEAD_TYPE_ORDER)[number])).sort()].filter(
+        (k, i, a) => a.indexOf(k) === i
+      )
+    : orderedLeadKeys;
 
-  const barData = orderedLeadKeys.map((key) => {
-    const stats = normalizeLeadStats(rawLeads[key]);
-    return {
-      name: humanizeLeadTypeKey(key),
-      events: stats.events,
-      units: stats.units,
-    };
-  });
+  const pieSlices = pieKeysFull
+    .map((key) => {
+      const stats = normalizeLeadStats(rawLeads[key]);
+      return { name: humanizeLeadTypeKey(key), value: stats.events };
+    })
+    .filter((d) => d.value > 0);
+
+  const pieSumAllTime = pieSlices.reduce((s, d) => s + d.value, 0);
+  const showPieColumn = showLeadMixPieAlways || pieSumAllTime > 0;
+  const leadMixEmptyDetail =
+    showLeadMixPieAlways && pieSumAllTime === 0 ?
+      pieKeysFull.map((key) => ({
+        name: humanizeLeadTypeKey(key),
+        events: normalizeLeadStats(rawLeads[key]).events,
+      }))
+    : null;
+
+  const tr = data.time_range;
+  const bucket = tr?.bucket;
+  const { rows: lineRows, seriesKeys: lineSeriesKeys, humanNames: lineSeriesLabels } = buildLineGraphChartRows(
+    data.line_graph,
+    bucket
+  );
+  const rangeOptions = rangeSelectOptions(tr?.allowed_presets);
+
+  const rawLeadsInRange = data.leads_by_type_in_range ?? {};
+  const keysInRange = Object.keys(rawLeadsInRange);
+  const orderedLeadKeysInRange = [
+    ...LEAD_TYPE_ORDER.filter((k) => k in rawLeadsInRange),
+    ...keysInRange.filter((k) => !LEAD_TYPE_ORDER.includes(k as (typeof LEAD_TYPE_ORDER)[number])).sort(),
+  ];
 
   const waPeriodData: { label: string; value: number }[] = [];
   for (const { keys, label } of WHATSAPP_TOTAL_KEYS) {
@@ -386,6 +557,11 @@ export function WebsiteAnalyticsPanel({
   const uNum = typeof units === 'number' && Number.isFinite(units) ? units : null;
   const totalForBar = evNum != null && uNum != null ? evNum + uNum : null;
 
+  const tir = data.totals_in_range;
+  const evInRange = typeof tir?.lead_events === 'number' && Number.isFinite(tir.lead_events) ? tir.lead_events : null;
+  const uInRange = typeof tir?.units === 'number' && Number.isFinite(tir.units) ? tir.units : null;
+  const totalInRangeBar = evInRange != null && uInRange != null ? evInRange + uInRange : null;
+
   return (
     <div className="website-analytics-panel">
       {showBusinessHeader && (
@@ -397,14 +573,46 @@ export function WebsiteAnalyticsPanel({
         </div>
       )}
 
+      {onAnalyticsRangeChange && analyticsRange !== undefined ?
+        <div className="website-analytics-panel__range-row d-flex flex-wrap align-items-center gap-2 mb-3">
+          <Form.Label className="small text-muted mb-0">Time range</Form.Label>
+          <Form.Select
+            size="sm"
+            className="website-analytics-panel__range-select"
+            style={{ maxWidth: 220 }}
+            value={analyticsRange}
+            onChange={(e) => onAnalyticsRangeChange(e.target.value as AnalyticsRangePreset)}
+            aria-label="Analytics time range"
+          >
+            {rangeOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Form.Select>
+        </div>
+      : null}
+
       <div className="website-analytics-panel__meta text-muted small mb-3">
         Computed at <time dateTime={data.computed_at}>{formatComputedAt(data.computed_at)}</time>
+        {tr?.label ?
+          <>
+            {' '}
+            · <span className="website-analytics-panel__range-meta">{tr.label}</span>
+            {tr.start && tr.end ?
+              <span className="d-block mt-1">
+                {formatComputedAt(tr.start)} — {formatComputedAt(tr.end)}
+                {tr.bucket ? ` · ${tr.bucket} buckets` : ''}
+              </span>
+            : null}
+          </>
+        : null}
       </div>
 
       <Row className="g-3 mb-3">
         <Col sm={6}>
           <div className="website-analytics-panel__stat-card website-analytics-panel__stat-card--events">
-            <span className="website-analytics-panel__stat-label">Lead events</span>
+            <span className="website-analytics-panel__stat-label">Lead events (all-time)</span>
             <span className="website-analytics-panel__stat-value">{leadEvents ?? '—'}</span>
             {totalForBar != null && totalForBar > 0 && evNum != null ?
               <div className="website-analytics-panel__stat-bar" aria-hidden>
@@ -418,7 +626,7 @@ export function WebsiteAnalyticsPanel({
         </Col>
         <Col sm={6}>
           <div className="website-analytics-panel__stat-card website-analytics-panel__stat-card--units">
-            <span className="website-analytics-panel__stat-label">Units</span>
+            <span className="website-analytics-panel__stat-label">Units (all-time)</span>
             <span className="website-analytics-panel__stat-value">{units ?? '—'}</span>
             {totalForBar != null && totalForBar > 0 && uNum != null ?
               <div className="website-analytics-panel__stat-bar" aria-hidden>
@@ -432,11 +640,53 @@ export function WebsiteAnalyticsPanel({
         </Col>
       </Row>
 
+      {tir && (evInRange !== null || uInRange !== null) ?
+        <Row className="g-3 mb-3">
+          <Col sm={6}>
+            <div className="website-analytics-panel__stat-card website-analytics-panel__stat-card--events website-analytics-panel__stat-card--in-range">
+              <span className="website-analytics-panel__stat-label">Lead events (selected range)</span>
+              <span className="website-analytics-panel__stat-value">{evInRange ?? '—'}</span>
+              {totalInRangeBar != null && totalInRangeBar > 0 && evInRange != null ?
+                <div className="website-analytics-panel__stat-bar" aria-hidden>
+                  <span
+                    className="website-analytics-panel__stat-bar-fill website-analytics-panel__stat-bar-fill--events"
+                    style={{ width: `${Math.min(100, Math.round((evInRange / totalInRangeBar) * 100))}%` }}
+                  />
+                </div>
+              : null}
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="website-analytics-panel__stat-card website-analytics-panel__stat-card--units website-analytics-panel__stat-card--in-range">
+              <span className="website-analytics-panel__stat-label">Units (selected range)</span>
+              <span className="website-analytics-panel__stat-value">{uInRange ?? '—'}</span>
+              {totalInRangeBar != null && totalInRangeBar > 0 && uInRange != null ?
+                <div className="website-analytics-panel__stat-bar" aria-hidden>
+                  <span
+                    className="website-analytics-panel__stat-bar-fill website-analytics-panel__stat-bar-fill--units"
+                    style={{ width: `${Math.min(100, Math.round((uInRange / totalInRangeBar) * 100))}%` }}
+                  />
+                </div>
+              : null}
+            </div>
+          </Col>
+        </Row>
+      : null}
+
       <Card className="website-analytics-panel__card mb-3">
         <Card.Header className="website-analytics-panel__card-head">Leads overview</Card.Header>
         <Card.Body className="pt-3 pb-2">
-          <LeadTypesVisuals pieData={pieData} barData={barData} />
-          <Table responsive size="sm" className="website-analytics-panel__table website-analytics-panel__table--after-chart mb-0 mt-2">
+          <LeadTypesVisuals
+            pieSlices={pieSlices}
+            showPieColumn={showPieColumn}
+            leadMixEmptyDetail={leadMixEmptyDetail}
+            lineRows={lineRows}
+            lineSeriesKeys={lineSeriesKeys}
+            lineSeriesLabels={lineSeriesLabels}
+            bucket={bucket}
+          />
+          <p className="text-muted small mb-1 mt-2">All-time by type</p>
+          <Table responsive size="sm" className="website-analytics-panel__table website-analytics-panel__table--after-chart mb-0">
             <thead>
               <tr>
                 <th>Type</th>
@@ -465,6 +715,32 @@ export function WebsiteAnalyticsPanel({
               )}
             </tbody>
           </Table>
+          {orderedLeadKeysInRange.length > 0 ?
+            <>
+              <p className="text-muted small mb-1 mt-3">Selected range by type</p>
+              <Table responsive size="sm" className="website-analytics-panel__table mb-0">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th className="text-end">Events</th>
+                    <th className="text-end">Units</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderedLeadKeysInRange.map((key) => {
+                    const stats = normalizeLeadStats(rawLeadsInRange[key]);
+                    return (
+                      <tr key={key}>
+                        <td>{humanizeLeadTypeKey(key)}</td>
+                        <td className="text-end">{stats.events}</td>
+                        <td className="text-end">{stats.units}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            </>
+          : null}
         </Card.Body>
       </Card>
 

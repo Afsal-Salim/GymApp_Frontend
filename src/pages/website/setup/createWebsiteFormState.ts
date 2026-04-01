@@ -4,7 +4,7 @@ import {
   CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL,
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
 } from '../../../config/storageKeys';
-import { GYM_CLIENT_BRAND_LOGO_SRC } from '../../crystal/gymClientBrandLogo';
+import { GYM_CLIENT_BRAND_LOGO_SRC, isLegacyCrystalGemLogoUrl } from '../../crystal/gymClientBrandLogo';
 import {
   GYM_CLIENT_SITE_DEFAULTS,
   cloneGymClientSiteDefaults,
@@ -16,6 +16,7 @@ import {
   type GymClientAboutFeature,
   type GymClientSiteContent,
 } from '../../crystal/gymClientSiteContent';
+import { getPresetArtworkUrlForColors } from '../websiteThemePresets';
 
 /** Alias: same shape as {@link CrystalWebsiteSetupPayload} (preview storage + backend). */
 export type CrystalWebsiteDraftPayload = CrystalWebsiteSetupPayload;
@@ -168,6 +169,8 @@ export type CreateWebsiteFormState = {
   aboutBodyBgEnabled: boolean;
   aboutBodyBgImageUrl: string;
   aboutBodyBgBlendColor: string;
+  /** Use bundled palette PNG for About body background; disables custom URL/upload for that field. */
+  useDefaultPaletteArtwork: boolean;
   feat1Title: string;
   feat1Sub: string;
   feat1Icon: GymClientAboutFeature['icon'];
@@ -245,6 +248,7 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
     aboutBodyBgEnabled: d.description.bodyBackground?.enabled ?? false,
     aboutBodyBgImageUrl: d.description.bodyBackground?.imageUrl ?? '',
     aboutBodyBgBlendColor: d.description.bodyBackground?.blendColor ?? '#111827CC',
+    useDefaultPaletteArtwork: false,
     feat1Title: f1?.title ?? '',
     feat1Sub: f1?.subtext ?? '',
     feat1Icon: f1?.icon ?? 'coaches',
@@ -423,6 +427,21 @@ function buildPackage(
   };
 }
 
+/**
+ * In the browser, resolve root-relative asset URLs to absolute so preview tabs and `url(...)` always load the same file.
+ */
+function absoluteUrlForStoredImage(url: string): string {
+  const t = url.trim();
+  if (!t) return t;
+  if (typeof window === 'undefined') return t;
+  if (t.startsWith('data:') || /^https?:\/\//i.test(t)) return t;
+  try {
+    return new URL(t, window.location.origin).href;
+  } catch {
+    return t;
+  }
+}
+
 export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebsiteDraftPayload {
   const slug = form.slug.trim().toLowerCase();
   const base = cloneGymClientSiteDefaults();
@@ -464,12 +483,15 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
   base.description.lead =
     lb || la || laf ? { before: lb, accent: la, after: laf } : undefined;
   base.description.body = form.businessDescription.trim();
-  const aboutBgImage = form.aboutBodyBgImageUrl.trim();
+  const usePresetArt = form.useDefaultPaletteArtwork;
+  const aboutBgImageRaw = usePresetArt ? getPresetArtworkUrlForColors(form) : form.aboutBodyBgImageUrl.trim();
+  const aboutBgImage = aboutBgImageRaw ? absoluteUrlForStoredImage(aboutBgImageRaw) : '';
   const aboutBgBlendColor = form.aboutBodyBgBlendColor.trim() || '#111827CC';
   base.description.bodyBackground = {
     enabled: Boolean(form.aboutBodyBgEnabled && aboutBgImage),
     imageUrl: aboutBgImage || undefined,
     blendColor: aboutBgBlendColor,
+    ...(usePresetArt ? { usePresetArtwork: true } : {}),
   };
   base.description.features = [
     {
@@ -605,8 +627,14 @@ function contactValue(items: GymClientSiteContent['contacts']['items'], id: stri
 export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): CreateWebsiteFormState {
   const c = draft.content;
   const defLogoSrc = GYM_CLIENT_SITE_DEFAULTS.logo.src;
+  const rawLogoSrc = c.logo.src?.trim() ?? '';
   const logoUrl =
-    c.logo.src && c.logo.src !== defLogoSrc && c.logo.src !== GYM_CLIENT_BRAND_LOGO_SRC ? c.logo.src : '';
+    rawLogoSrc &&
+    rawLogoSrc !== defLogoSrc &&
+    rawLogoSrc !== GYM_CLIENT_BRAND_LOGO_SRC &&
+    !isLegacyCrystalGemLogoUrl(rawLogoSrc) ?
+      rawLogoSrc
+    : '';
 
   const ti = c.header.taglineItems;
   const feats = c.description.features;
@@ -657,9 +685,27 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     leadBefore: c.description.lead?.before ?? '',
     leadAccent: c.description.lead?.accent ?? '',
     leadAfter: c.description.lead?.after ?? '',
-    aboutBodyBgEnabled: Boolean(c.description.bodyBackground?.enabled && c.description.bodyBackground?.imageUrl?.trim()),
-    aboutBodyBgImageUrl: c.description.bodyBackground?.imageUrl?.trim() ?? '',
+    aboutBodyBgEnabled: (() => {
+      const bg = c.description.bodyBackground;
+      const usePreset = Boolean(bg?.usePresetArtwork);
+      if (usePreset) return true;
+      return Boolean(bg?.enabled && bg?.imageUrl?.trim());
+    })(),
+    aboutBodyBgImageUrl: (() => {
+      const bg = c.description.bodyBackground;
+      const usePreset = Boolean(bg?.usePresetArtwork);
+      if (usePreset) {
+        return getPresetArtworkUrlForColors({
+          accentColor: draft.theme.accentHex || '#ea580c',
+          darkColor: draft.theme.darkHex || '#0c0a09',
+          textColor: draft.theme.textHex?.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
+          lightColor: draft.theme.lightHex?.trim() || GYM_CLIENT_DEFAULT_LIGHT_HEX,
+        });
+      }
+      return bg?.imageUrl?.trim() ?? '';
+    })(),
     aboutBodyBgBlendColor: c.description.bodyBackground?.blendColor?.trim() ?? '#111827CC',
+    useDefaultPaletteArtwork: Boolean(c.description.bodyBackground?.usePresetArtwork),
     feat1Title: f1?.title ?? '',
     feat1Sub: f1?.subtext ?? '',
     feat1Icon: f1?.icon && isFeatureIcon(f1.icon) ? f1.icon : 'coaches',

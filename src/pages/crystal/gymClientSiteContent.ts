@@ -151,6 +151,8 @@ export type GymClientSiteContent = {
       enabled: boolean;
       imageUrl?: string;
       blendColor?: string;
+      /** When true, UI uses bundled palette artwork for `imageUrl` (Crystal builder). */
+      usePresetArtwork?: boolean;
     };
     /** Empty = simple about (title + body only) */
     features: GymClientAboutFeature[];

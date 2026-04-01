@@ -114,51 +114,115 @@ export type WebsiteLeadTypeStats = {
 };
 
 /**
+ * Query preset for GET `/businesses/.../analytics/?range=` and `/businesses/analytics/?range=`.
+ * Omit `range` for server default (10 days). Invalid preset → 400 with `allowed_presets`.
+ */
+export type AnalyticsRangePreset = '1d' | '3d' | '5d' | '10d' | '1m' | '3m';
+
+export const ANALYTICS_RANGE_PRESETS: readonly AnalyticsRangePreset[] = ['1d', '3d', '5d', '10d', '1m', '3m'] as const;
+
+export const ANALYTICS_RANGE_OPTIONS: { value: AnalyticsRangePreset; label: string }[] = [
+  { value: '1d', label: '1 day (hourly)' },
+  { value: '3d', label: '3 days' },
+  { value: '5d', label: '5 days' },
+  { value: '10d', label: '10 days' },
+  { value: '1m', label: '30 days' },
+  { value: '3m', label: '90 days' },
+];
+
+/**
  * WhatsApp block from `website_analytics_for_business`: period totals (today / 7d / 30d / 90d)
  * plus optional day/week/month series for 90d. Keys may be camelCase or snake_case.
  */
 export type WebsiteAnalyticsWhatsapp = Record<string, unknown>;
 
-/** One site’s analytics payload from GET `/businesses/<slug>/analytics/`. */
+/** One point in `line_graph` (gaps filled with zeros on the server). */
+export type WebsiteAnalyticsLineGraphPoint = {
+  period_start: string;
+  events: number;
+  units: number;
+  /** Optional per–lead-type units (or nested stats) for multi-series lines. */
+  by_lead_type?: Record<string, unknown>;
+};
+
+export type WebsiteAnalyticsTimeRange = {
+  preset?: string;
+  label?: string;
+  start?: string;
+  end?: string;
+  bucket?: string;
+  allowed_presets?: string[];
+};
+
+/** One site’s analytics payload from GET `/businesses/<slug>/analytics/?range=`. */
 export type WebsiteAnalytics = {
   business: { slug: string; name?: string };
   whatsapp: WebsiteAnalyticsWhatsapp;
+  /** All-time (unchanged by range). */
   leads_by_type: Record<string, unknown>;
+  /** All-time (unchanged by range). */
   totals: { lead_events?: number; units?: number };
   computed_at: string;
+  /** Window metadata when `range` is applied. */
+  time_range?: WebsiteAnalyticsTimeRange;
+  line_graph?: WebsiteAnalyticsLineGraphPoint[];
+  totals_in_range?: { lead_events?: number; units?: number };
+  leads_by_type_in_range?: Record<string, unknown>;
 };
 
-/** GET `/businesses/analytics/` — one entry per owned business, ordered by name. */
+/** GET `/businesses/analytics/?range=` — one entry per owned business. */
 export type AllWebsitesAnalyticsResponse = {
   websites: WebsiteAnalytics[];
+  /** Echo of applied preset for the whole response. */
+  range_applied?: string;
 };
 
+function analyticsAxiosError(e: unknown, fallback: string): Error {
+  if (axios.isAxiosError(e) && e.response?.status === 400) {
+    const body = e.response?.data;
+    if (body && typeof body === 'object') {
+      const allowed = (body as { allowed_presets?: unknown }).allowed_presets;
+      if (Array.isArray(allowed) && allowed.length) {
+        return new Error(`Invalid range. Allowed: ${allowed.join(', ')}`);
+      }
+    }
+  }
+  return new Error(getAxiosErrorMessage(e, fallback));
+}
+
 /**
- * All owned websites’ analytics. **GET** `/api/businesses/analytics/` (registered before `/<slug>/` routes).
+ * All owned websites’ analytics. **GET** `/api/businesses/analytics/?range=<preset>` (same window for every site).
  */
-export async function getAllWebsitesAnalytics(): Promise<WebsiteAnalytics[]> {
+export async function getAllWebsitesAnalytics(range?: AnalyticsRangePreset): Promise<WebsiteAnalytics[]> {
   try {
-    const { data } = await privateApi.get<AllWebsitesAnalyticsResponse>(`${BASE}/analytics/`);
+    const { data } = await privateApi.get<AllWebsitesAnalyticsResponse>(`${BASE}/analytics/`, {
+      params: range ? { range } : {},
+    });
     return Array.isArray(data?.websites) ? data.websites : [];
   } catch (e) {
-    throw new Error(getAxiosErrorMessage(e, 'Failed to load analytics'));
+    throw analyticsAxiosError(e, 'Failed to load analytics');
   }
 }
 
 /**
- * Single-site analytics. **GET** `/api/businesses/<slug>/analytics/` — 404 if slug missing or not yours.
+ * Single-site analytics. **GET** `/api/businesses/<slug>/analytics/?range=<preset>` — 404 if slug missing or not yours.
  */
-export async function getBusinessWebsiteAnalytics(slug: string): Promise<WebsiteAnalytics> {
+export async function getBusinessWebsiteAnalytics(
+  slug: string,
+  options?: { range?: AnalyticsRangePreset }
+): Promise<WebsiteAnalytics> {
   const key = slug.trim();
   if (!key) throw new Error('Business slug is required.');
   try {
-    const { data } = await privateApi.get<WebsiteAnalytics>(`${BASE}/${encodeURIComponent(key)}/analytics/`);
+    const { data } = await privateApi.get<WebsiteAnalytics>(`${BASE}/${encodeURIComponent(key)}/analytics/`, {
+      params: options?.range ? { range: options.range } : {},
+    });
     return data;
   } catch (e) {
     if (axios.isAxiosError(e) && e.response?.status === 404) {
       throw new Error('Business not found or you do not have access.');
     }
-    throw new Error(getAxiosErrorMessage(e, 'Failed to load analytics'));
+    throw analyticsAxiosError(e, 'Failed to load analytics');
   }
 }
 

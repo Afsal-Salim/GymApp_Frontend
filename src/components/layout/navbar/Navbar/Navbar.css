@@ -117,30 +117,39 @@
   user-select: none;
 }
 
-/* Account modal – aligned with Crystal front page (slate + cyan) */
-.crystal-nav-profile-modal .modal-content {
-  border: none;
-  border-radius: 20px;
+/* Account modal — compact, content-sized dialog */
+.crystal-account-modal-dialog {
+  max-width: min(20rem, calc(100vw - 1.5rem));
+  margin: 0.5rem auto;
+}
+
+.crystal-account-modal-shell.modal-content {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(14, 165, 233, 0.1);
+  box-shadow:
+    0 20px 40px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
 .crystal-account-modal__header {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
   border-bottom: none;
-  padding: 1rem 1.25rem;
+  padding: 0.65rem 0.9rem 0.65rem 1rem;
 }
 
 .crystal-account-modal__title {
-  font-weight: 700;
-  font-size: 1.25rem;
+  font-weight: 600;
+  font-size: 1.0625rem;
   color: #f8fafc;
   letter-spacing: -0.02em;
 }
 
 .crystal-account-modal__header .btn-close {
   filter: invert(1);
-  opacity: 0.85;
+  opacity: 0.75;
+  padding: 0.5rem;
+  margin: -0.25rem -0.15rem -0.25rem auto;
 }
 
 .crystal-account-modal__header .btn-close:hover {
@@ -148,31 +157,32 @@
 }
 
 .crystal-account-modal__body {
-  background: #f8fafc;
+  background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.75rem 1.5rem 1.5rem;
+  padding: 1rem 1.15rem 0.85rem;
+  text-align: center;
 }
 
 .crystal-account-modal__avatar-wrap {
-  margin-bottom: 1rem;
+  margin-bottom: 0.65rem;
 }
 
 .crystal-nav-profile-modal__avatar {
-  width: 80px;
-  height: 80px;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
   background: linear-gradient(135deg, #0ea5e9, #06b6d4);
   color: #fff;
-  font-size: 2rem;
+  font-size: 1.35rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35);
-  border: 3px solid #fff;
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.3);
+  border: 2px solid #f1f5f9;
 }
 
 .crystal-nav-profile-modal__img {
@@ -187,34 +197,40 @@
 }
 
 .crystal-account-modal__name {
-  font-weight: 700;
-  font-size: 1.15rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
   color: #0f172a;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
+  line-height: 1.3;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .crystal-account-modal__email {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
   color: #64748b;
   margin-bottom: 0;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .crystal-account-modal__footer {
   background: #fff;
   border-top: 1px solid #e2e8f0;
-  padding: 1.25rem 1.5rem 1.5rem;
+  padding: 0.65rem 1rem 0.85rem;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.75rem;
+  gap: 0.35rem;
 }
 
 .crystal-account-modal__btn {
   font-weight: 600;
-  font-size: 1rem;
-  border-radius: 12px;
-  padding: 0.75rem 1.25rem;
-  min-height: 48px;
+  font-size: 0.875rem;
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  min-height: 2.5rem;
   transition: transform 0.2s, box-shadow 0.2s;
   flex-shrink: 0;
 }
@@ -238,11 +254,24 @@
   text-decoration: none !important;
   background: transparent !important;
   border: none !important;
+  min-height: 2.25rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
 }
 
 .crystal-account-modal__btn--logout:hover {
   color: #dc2626 !important;
   background: rgba(220, 38, 38, 0.06) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-account-modal__btn {
+    transition: none;
+  }
+
+  .crystal-account-modal__btn--profile:hover {
+    transform: none;
+  }
 }
 
 @media (max-width: 991px) {

@@ -175,6 +175,9 @@ html {
 .crystal-hero-title {
   color: #f8fafc !important;
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+  font-size: clamp(2.35rem, 1.25rem + 4.5vw, 4.125rem) !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.03em;
 }
 
 .crystal-hero-tagline {
@@ -354,8 +357,8 @@ html {
 .crystal-action-title {
   color: #0f172a;
   letter-spacing: -0.03em;
-  line-height: 1.15;
-  font-size: clamp(2.125rem, 4.5vw, 3.5rem);
+  line-height: 1.12;
+  font-size: clamp(2.5rem, 2rem + 3.8vw, 4.25rem);
 }
 
 .crystal-action-lead {
@@ -371,16 +374,16 @@ html {
 }
 
 .crystal-action-statement .crystal-action-btns .btn {
-  font-size: clamp(1.05rem, 1.35vw, 1.2rem);
+  font-size: clamp(1.125rem, 1.1rem + 0.9vw, 1.4rem);
   font-weight: 600;
-  min-height: 3.25rem;
-  padding: 0.85rem 2.25rem !important;
+  min-height: 3.35rem;
+  padding: 0.9rem 2.35rem !important;
   border-radius: 999px !important;
 }
 
 .crystal-action-statement .crystal-action-btns .crystal-cta-outline {
-  padding: 0.85rem 2.25rem !important;
-  min-height: 3.25rem;
+  padding: 0.9rem 2.35rem !important;
+  min-height: 3.35rem;
 }
 
 .crystal-action-preview-btn {
@@ -964,7 +967,8 @@ html {
   }
 
   .crystal-hero-title {
-    font-size: 1.75rem !important;
+    font-size: clamp(2rem, 6.5vw + 0.5rem, 2.85rem) !important;
+    line-height: 1.12 !important;
   }
 
   .crystal-hero-tagline {

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Accordion,
+  Alert,
   Button,
   Card,
   Col,
@@ -50,6 +51,12 @@ import {
   type DiscountOfferFormRow,
   type MembershipPackageFormRow,
 } from './setup/createWebsiteFormState';
+import {
+  formMatchesThemePreset,
+  getPresetArtworkUrlForColors,
+  WEBSITE_THEME_PRESETS,
+  type WebsiteThemePreset,
+} from './websiteThemePresets';
 import {
   clampPercentOff,
   formatDerivedPrice,
@@ -115,6 +122,10 @@ type ImageUrlOrUploadFieldProps = {
   showToast: (message: string, variant?: 'danger' | 'success' | 'warning' | 'info') => void;
   /** When set, hides URL entry — image must come from file upload (data URL). */
   sourceMode?: 'url-or-upload' | 'upload-only';
+  /** Disables URL, upload, and tabs; still shows preview when `value` is set. */
+  disabled?: boolean;
+  /** Shown above controls when `disabled` (e.g. preset artwork is active). */
+  disabledNotice?: ReactNode;
 };
 
 function ImageUrlOrUploadField({
@@ -128,6 +139,8 @@ function ImageUrlOrUploadField({
   ratioHint,
   showToast,
   sourceMode = 'url-or-upload',
+  disabled = false,
+  disabledNotice,
 }: ImageUrlOrUploadFieldProps) {
   const uploadOnly = sourceMode === 'upload-only';
   const [tab, setTab] = useState<'url' | 'upload'>(() =>
@@ -145,12 +158,13 @@ function ImageUrlOrUploadField({
   const previewSrc = canPreviewImageSrc(value) ? value.trim() : null;
 
   const goTab = (next: 'url' | 'upload') => {
-    if (uploadOnly) return;
+    if (disabled || uploadOnly) return;
     if (next === 'url' && isData) onChange('');
     setTab(next);
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
@@ -173,6 +187,11 @@ function ImageUrlOrUploadField({
   return (
     <Form.Group>
       <LabelWithHint htmlFor={id} label={label} hintId={hintId} hint={hint} />
+      {disabled && disabledNotice ?
+        <Alert variant="warning" className="py-2 px-3 small mb-2">
+          {disabledNotice}
+        </Alert>
+      : null}
       <p className="text-muted small mb-2">
         {uploadOnly ?
           <>Upload from your device only (no image URL). {ratioHint} Max 1 MB.</>
@@ -194,6 +213,7 @@ function ImageUrlOrUploadField({
             className="mb-0"
             label="Upload"
             checked={tab === 'upload'}
+            disabled={disabled}
             onChange={() => goTab('upload')}
           />
           <Form.Check
@@ -203,12 +223,19 @@ function ImageUrlOrUploadField({
             className="mb-0"
             label="Url"
             checked={tab === 'url'}
+            disabled={disabled}
             onChange={() => goTab('url')}
           />
         </div>
       )}
       {!uploadOnly && tab === 'url' ?
-        <Form.Control id={id} value={urlFieldValue} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />
+        <Form.Control
+          id={id}
+          value={urlFieldValue}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://…"
+          disabled={disabled}
+        />
       : <>
           <input
             ref={fileInputRef}
@@ -217,11 +244,13 @@ function ImageUrlOrUploadField({
             className="d-none"
             aria-label={`Upload ${label}`}
             onChange={onFileChange}
+            disabled={disabled}
           />
           <button
             type="button"
-            className="create-website__image-upload-zone"
-            onClick={() => fileInputRef.current?.click()}
+            className={`create-website__image-upload-zone${disabled ? ' create-website__image-upload-zone--disabled' : ''}`}
+            onClick={() => !disabled && fileInputRef.current?.click()}
+            disabled={disabled}
           >
             <span className="create-website__image-upload-zone-title">Choose image</span>
             <span className="create-website__image-upload-zone-sub text-muted small">PNG, JPG, WebP, GIF — up to 1 MB</span>
@@ -287,71 +316,6 @@ function hexColorsEqual(a: string, b: string): boolean {
   const na = normalizeHexColor(a);
   const nb = normalizeHexColor(b);
   return na !== null && nb !== null && na === nb;
-}
-
-/** Full theme presets (accent, dark/ink, body text, light surfaces) — curated for contrast on the public gym template. */
-type WebsiteThemePreset = {
-  id: string;
-  name: string;
-  accentColor: string;
-  darkColor: string;
-  textColor: string;
-  lightColor: string;
-};
-
-const WEBSITE_THEME_PRESETS: WebsiteThemePreset[] = [
-  {
-    id: 'ember',
-    name: 'Ember',
-    accentColor: '#ea580c',
-    darkColor: '#0c0a09',
-    textColor: GYM_CLIENT_DEFAULT_TEXT_HEX,
-    lightColor: GYM_CLIENT_DEFAULT_LIGHT_HEX,
-  },
-  {
-    id: 'ocean',
-    name: 'Ocean',
-    accentColor: '#0891b2',
-    darkColor: '#164e63',
-    textColor: '#0f172a',
-    lightColor: '#ecfeff',
-  },
-  {
-    id: 'forest',
-    name: 'Forest',
-    accentColor: '#16a34a',
-    darkColor: '#14532d',
-    textColor: '#1c1917',
-    lightColor: '#f7fee7',
-  },
-  {
-    id: 'royal',
-    name: 'Royal',
-    accentColor: '#7c3aed',
-    darkColor: '#1e1b4b',
-    textColor: '#312e81',
-    lightColor: '#faf5ff',
-  },
-  {
-    id: 'crimson',
-    name: 'Crimson',
-    accentColor: '#dc2626',
-    darkColor: '#450a0a',
-    textColor: '#1c1917',
-    lightColor: '#fff7f7',
-  },
-];
-
-function formMatchesThemePreset(
-  form: Pick<CreateWebsiteFormState, 'accentColor' | 'darkColor' | 'textColor' | 'lightColor'>,
-  preset: WebsiteThemePreset
-): boolean {
-  return (
-    hexColorsEqual(form.accentColor, preset.accentColor) &&
-    hexColorsEqual(form.darkColor, preset.darkColor) &&
-    hexColorsEqual(form.textColor, preset.textColor) &&
-    hexColorsEqual(form.lightColor, preset.lightColor)
-  );
 }
 
 /** Parse #RRGGBB or #RRGGBBAA (overlay blend). Returns RGB for the picker and opacity 0–1. */
@@ -729,6 +693,8 @@ export default function CreateWebsitePage() {
   const isEditMode = Boolean(editRouteSlug);
   const { showToast } = useToast();
   const [form, setForm] = useState<CreateWebsiteFormState>(() => initialFormFromStorageOrDefaults());
+  const formRef = useRef(form);
+  formRef.current = form;
   const set = useCallback(<K extends keyof CreateWebsiteFormState>(key: K, value: CreateWebsiteFormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
   }, []);
@@ -742,7 +708,48 @@ export default function CreateWebsitePage() {
       darkColor: preset.darkColor,
       textColor: preset.textColor,
       lightColor: preset.lightColor,
+      ...(f.useDefaultPaletteArtwork ?
+        {
+          aboutBodyBgEnabled: true,
+          aboutBodyBgImageUrl: preset.artworkSrc,
+        }
+      : {}),
     }));
+  }, []);
+
+  useEffect(() => {
+    if (!form.useDefaultPaletteArtwork) return;
+    const nextUrl = getPresetArtworkUrlForColors(form);
+    setForm((f) => {
+      if (!f.useDefaultPaletteArtwork) return f;
+      if (f.aboutBodyBgImageUrl === nextUrl && f.aboutBodyBgEnabled) return f;
+      return { ...f, aboutBodyBgImageUrl: nextUrl, aboutBodyBgEnabled: true };
+    });
+  }, [
+    form.useDefaultPaletteArtwork,
+    form.accentColor,
+    form.darkColor,
+    form.textColor,
+    form.lightColor,
+  ]);
+
+  const onToggleDefaultPaletteArtwork = useCallback((checked: boolean) => {
+    setForm((f) => {
+      if (checked) {
+        return {
+          ...f,
+          useDefaultPaletteArtwork: true,
+          aboutBodyBgEnabled: true,
+          aboutBodyBgImageUrl: getPresetArtworkUrlForColors(f),
+        };
+      }
+      return {
+        ...f,
+        useDefaultPaletteArtwork: false,
+        aboutBodyBgImageUrl: '',
+        aboutBodyBgEnabled: false,
+      };
+    });
   }, []);
 
   const patchDiscountOffer = useCallback((index: number, patch: Partial<DiscountOfferFormRow>) => {
@@ -964,6 +971,25 @@ export default function CreateWebsitePage() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
+  /**
+   * Push palette / About-background changes to preview storage immediately so `/preview` (other tab or quick
+   * navigation) is not stuck behind the debounced writer.
+   */
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const f = formRef.current;
+    const slugForPreview = f.slug.trim().toLowerCase() || 'preview';
+    writeCrystalWebsitePreviewToStorage(mapFormToWebsiteDraft({ ...f, slug: slugForPreview }));
+  }, [
+    form.useDefaultPaletteArtwork,
+    form.aboutBodyBgImageUrl,
+    form.aboutBodyBgEnabled,
+    form.accentColor,
+    form.darkColor,
+    form.textColor,
+    form.lightColor,
+  ]);
+
   /** Live-sync preview draft to localStorage so `/preview` updates (debounced; runs in create and edit). */
   useEffect(() => {
     const slugForPreview = form.slug.trim().toLowerCase() || 'preview';
@@ -1157,6 +1183,33 @@ export default function CreateWebsitePage() {
   return (
     <PageContainer>
       <main className="create-website">
+        <div className="create-website__preview-dock">
+          <Button
+            type="button"
+            variant="primary"
+            className="create-website__preview-dock-btn"
+            disabled={isEditMode && !editReady}
+            onClick={() => setPreviewTargetModalOpen(true)}
+            aria-label="Open site preview"
+          >
+            <svg
+              className="create-website__preview-dock-icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span className="create-website__preview-dock-label">Preview</span>
+          </Button>
+        </div>
         <Container className="create-website__container py-4">
           <div className="create-website__head">
             <div>
@@ -1177,15 +1230,6 @@ export default function CreateWebsitePage() {
               </p>
             </div>
             <div className="create-website__head-actions">
-              <Button
-                type="button"
-                variant="outline-primary"
-                size="sm"
-                disabled={isEditMode && !editReady}
-                onClick={() => setPreviewTargetModalOpen(true)}
-              >
-                Preview site
-              </Button>
               <Link to="/user" className="btn btn-outline-secondary btn-sm">
                 ← Back to profile
               </Link>
@@ -1325,11 +1369,26 @@ export default function CreateWebsitePage() {
                         value manually (palette, hex, or full-spectrum picker). Stored in your setup draft for when the theme API
                         is connected.
                       </p>
+                      <Form.Check
+                        type="checkbox"
+                        id="cw-default-palette-artwork"
+                        className="mb-2"
+                        label="Use Crystal default palette artwork"
+                        checked={form.useDefaultPaletteArtwork}
+                        onChange={(e) => onToggleDefaultPaletteArtwork(e.target.checked)}
+                      />
+                      <p className="small text-muted mb-3">
+                        When checked, the <strong>About</strong> section background uses the matching palette image (bundled
+                        asset), preset cards show that artwork, and custom URL/upload for that background is disabled. Any
+                        uploaded or pasted image is cleared. Uncheck to use your own background image.
+                      </p>
                       <p className="create-website__theme-presets-label small text-uppercase fw-semibold text-muted mb-2">
                         Suggested palettes
                       </p>
                       <p className="small text-muted mb-3">
-                        Each card shows accent → dark ink → body text → light surfaces (left to right).
+                        {form.useDefaultPaletteArtwork ?
+                          'Each card shows Crystal reference artwork for that palette.'
+                        : 'Each card shows accent → dark ink → body text → light surfaces (left to right).'}
                       </p>
                       <div className="create-website__theme-presets mb-3" role="group" aria-label="Suggested color palettes">
                         {WEBSITE_THEME_PRESETS.map((preset) => {
@@ -1343,12 +1402,19 @@ export default function CreateWebsitePage() {
                               aria-pressed={selected}
                               aria-label={`Apply ${preset.name} theme`}
                             >
-                              <span className="create-website__theme-preset-strip" aria-hidden>
-                                <span style={{ backgroundColor: preset.accentColor }} />
-                                <span style={{ backgroundColor: preset.darkColor }} />
-                                <span style={{ backgroundColor: preset.textColor }} />
-                                <span style={{ backgroundColor: preset.lightColor }} />
-                              </span>
+                              {form.useDefaultPaletteArtwork ?
+                                <img
+                                  src={preset.artworkSrc}
+                                  alt=""
+                                  className="create-website__theme-preset-artwork"
+                                />
+                              : <span className="create-website__theme-preset-strip" aria-hidden>
+                                  <span style={{ backgroundColor: preset.accentColor }} />
+                                  <span style={{ backgroundColor: preset.darkColor }} />
+                                  <span style={{ backgroundColor: preset.textColor }} />
+                                  <span style={{ backgroundColor: preset.lightColor }} />
+                                </span>
+                              }
                               <span className="create-website__theme-preset-name">{preset.name}</span>
                             </button>
                           );
@@ -1579,6 +1645,13 @@ export default function CreateWebsitePage() {
                             previewVariant="landscape"
                             ratioHint="Recommended ~16:9 or wide texture."
                             showToast={showToast}
+                            disabled={form.useDefaultPaletteArtwork}
+                            disabledNotice={
+                              <>
+                                <strong>Default palette artwork is enabled.</strong> Turn off &quot;Use Crystal default palette
+                                artwork&quot; under brand colors to set a custom URL or upload your own image.
+                              </>
+                            }
                           />
                           <BlendOverlayColorField
                             id="cw-about-body-bg-blend"
@@ -1998,24 +2071,56 @@ export default function CreateWebsitePage() {
         </Container>
       </main>
 
-      <Modal show={previewTargetModalOpen} onHide={() => setPreviewTargetModalOpen(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title as="h2" className="h5 mb-0">
-            Open preview
+      <Modal
+        show={previewTargetModalOpen}
+        onHide={() => setPreviewTargetModalOpen(false)}
+        centered
+        dialogClassName="create-website__preview-modal-dialog"
+        contentClassName="create-website__preview-modal-content"
+        backdropClassName="create-website__preview-modal-backdrop"
+        aria-labelledby="create-website-preview-modal-title"
+      >
+        <Modal.Header closeButton className="create-website__preview-modal-header">
+          <Modal.Title id="create-website-preview-modal-title" as="h2" className="h5 mb-0">
+            Preview your site
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <p className="mb-0">Where would you like to open the preview?</p>
+        <Modal.Body className="create-website__preview-modal-body">
+          <p className="create-website__preview-modal-lead mb-0">
+            Your latest draft is saved first. Choose where to open the preview.
+          </p>
+          <div className="create-website__preview-modal-options" role="group" aria-label="Preview destination">
+            <button
+              type="button"
+              className="create-website__preview-modal-option"
+              onClick={openPreviewInSameTab}
+            >
+              <span className="create-website__preview-modal-option-title">This tab</span>
+              <span className="create-website__preview-modal-option-desc">
+                Open here — use the browser back button to return to the editor.
+              </span>
+            </button>
+            <button
+              type="button"
+              className="create-website__preview-modal-option create-website__preview-modal-option--emphasis"
+              onClick={openPreviewInNewTab}
+            >
+              <span className="create-website__preview-modal-option-badge">Recommended</span>
+              <span className="create-website__preview-modal-option-title">New tab</span>
+              <span className="create-website__preview-modal-option-desc">
+                Keep this page open while you review the site.
+              </span>
+            </button>
+          </div>
         </Modal.Body>
-        <Modal.Footer className="flex-wrap gap-2">
-          <Button variant="outline-secondary" onClick={() => setPreviewTargetModalOpen(false)}>
+        <Modal.Footer className="create-website__preview-modal-footer">
+          <Button
+            type="button"
+            variant="link"
+            className="create-website__preview-modal-cancel text-decoration-none"
+            onClick={() => setPreviewTargetModalOpen(false)}
+          >
             Cancel
-          </Button>
-          <Button variant="outline-primary" onClick={openPreviewInSameTab}>
-            This tab
-          </Button>
-          <Button variant="primary" onClick={openPreviewInNewTab}>
-            New tab
           </Button>
         </Modal.Footer>
       </Modal>

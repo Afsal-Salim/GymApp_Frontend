@@ -73,8 +73,13 @@ export {
   type PublicBusinessDetail,
   type WebsiteAnalytics,
   type WebsiteAnalyticsWhatsapp,
+  type WebsiteAnalyticsLineGraphPoint,
+  type WebsiteAnalyticsTimeRange,
   type WebsiteLeadTypeStats,
   type AllWebsitesAnalyticsResponse,
+  type AnalyticsRangePreset,
+  ANALYTICS_RANGE_OPTIONS,
+  ANALYTICS_RANGE_PRESETS,
 } from './businesses';
 export {
   postCrystalPublicLead,
