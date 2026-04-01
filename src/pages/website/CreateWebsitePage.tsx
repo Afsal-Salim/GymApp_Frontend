@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Col,
+  Collapse,
   Container,
   Form,
   InputGroup,
@@ -18,6 +19,7 @@ import { PageContainer } from '../../components';
 import {
   checkBusinessSlugAvailability,
   getBusinessDetail,
+  invalidateUserBusinessListCache,
   patchBusiness,
   submitWebsiteSetupDraft,
 } from '../../api';
@@ -285,6 +287,71 @@ function hexColorsEqual(a: string, b: string): boolean {
   const na = normalizeHexColor(a);
   const nb = normalizeHexColor(b);
   return na !== null && nb !== null && na === nb;
+}
+
+/** Full theme presets (accent, dark/ink, body text, light surfaces) — curated for contrast on the public gym template. */
+type WebsiteThemePreset = {
+  id: string;
+  name: string;
+  accentColor: string;
+  darkColor: string;
+  textColor: string;
+  lightColor: string;
+};
+
+const WEBSITE_THEME_PRESETS: WebsiteThemePreset[] = [
+  {
+    id: 'ember',
+    name: 'Ember',
+    accentColor: '#ea580c',
+    darkColor: '#0c0a09',
+    textColor: GYM_CLIENT_DEFAULT_TEXT_HEX,
+    lightColor: GYM_CLIENT_DEFAULT_LIGHT_HEX,
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    accentColor: '#0891b2',
+    darkColor: '#164e63',
+    textColor: '#0f172a',
+    lightColor: '#ecfeff',
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    accentColor: '#16a34a',
+    darkColor: '#14532d',
+    textColor: '#1c1917',
+    lightColor: '#f7fee7',
+  },
+  {
+    id: 'royal',
+    name: 'Royal',
+    accentColor: '#7c3aed',
+    darkColor: '#1e1b4b',
+    textColor: '#312e81',
+    lightColor: '#faf5ff',
+  },
+  {
+    id: 'crimson',
+    name: 'Crimson',
+    accentColor: '#dc2626',
+    darkColor: '#450a0a',
+    textColor: '#1c1917',
+    lightColor: '#fff7f7',
+  },
+];
+
+function formMatchesThemePreset(
+  form: Pick<CreateWebsiteFormState, 'accentColor' | 'darkColor' | 'textColor' | 'lightColor'>,
+  preset: WebsiteThemePreset
+): boolean {
+  return (
+    hexColorsEqual(form.accentColor, preset.accentColor) &&
+    hexColorsEqual(form.darkColor, preset.darkColor) &&
+    hexColorsEqual(form.textColor, preset.textColor) &&
+    hexColorsEqual(form.lightColor, preset.lightColor)
+  );
 }
 
 /** Parse #RRGGBB or #RRGGBBAA (overlay blend). Returns RGB for the picker and opacity 0–1. */
@@ -666,6 +733,18 @@ export default function CreateWebsitePage() {
     setForm((f) => ({ ...f, [key]: value }));
   }, []);
 
+  const [themeManualOpen, setThemeManualOpen] = useState(false);
+
+  const applyThemePreset = useCallback((preset: WebsiteThemePreset) => {
+    setForm((f) => ({
+      ...f,
+      accentColor: preset.accentColor,
+      darkColor: preset.darkColor,
+      textColor: preset.textColor,
+      lightColor: preset.lightColor,
+    }));
+  }, []);
+
   const patchDiscountOffer = useCallback((index: number, patch: Partial<DiscountOfferFormRow>) => {
     setForm((f) => {
       const next = [...f.discountOffers];
@@ -913,7 +992,12 @@ export default function CreateWebsitePage() {
       setSlugDetail(undefined);
       return;
     }
-    if (isEditMode && editBaselineSlug && debouncedSlug === editBaselineSlug) {
+    /** Route param is the gym being edited; baseline from API may arrive later — both mean “unchanged slug”. */
+    const unchangedEditSlug =
+      isEditMode ?
+        (editBaselineSlug ?? editRouteSlug?.trim().toLowerCase() ?? null)
+      : null;
+    if (unchangedEditSlug && debouncedSlug === unchangedEditSlug) {
       setSlugStatus('available');
       setSlugDetail(undefined);
       return;
@@ -926,7 +1010,7 @@ export default function CreateWebsitePage() {
       setSlugStatus(r.available ? 'available' : 'unavailable');
       setSlugDetail(r.message);
     });
-  }, [debouncedSlug, isEditMode, editBaselineSlug]);
+  }, [debouncedSlug, isEditMode, editBaselineSlug, editRouteSlug]);
 
   const slugHelp =
     slugStatus === 'checking' ? (
@@ -1014,6 +1098,7 @@ export default function CreateWebsitePage() {
         setSaving(false);
       }
       showToast('Business and website updated.', 'success');
+      invalidateUserBusinessListCache();
       navigate('/user');
       return;
     }
@@ -1033,6 +1118,7 @@ export default function CreateWebsitePage() {
       /* quota */
     }
     showToast('Website details saved. Continue with your plan to go live.', 'success');
+    invalidateUserBusinessListCache();
     navigate(PLANS_PAGE_PATH);
   };
 
@@ -1090,9 +1176,20 @@ export default function CreateWebsitePage() {
                 .
               </p>
             </div>
-            <Link to="/user" className="btn btn-outline-secondary btn-sm">
-              ← Back to profile
-            </Link>
+            <div className="create-website__head-actions">
+              <Button
+                type="button"
+                variant="outline-primary"
+                size="sm"
+                disabled={isEditMode && !editReady}
+                onClick={() => setPreviewTargetModalOpen(true)}
+              >
+                Preview site
+              </Button>
+              <Link to="/user" className="btn btn-outline-secondary btn-sm">
+                ← Back to profile
+              </Link>
+            </div>
           </div>
 
           <Card className="create-website__card mt-3">
@@ -1224,46 +1321,98 @@ export default function CreateWebsitePage() {
                         highlights), <code className="create-website__theme-token">--gym-client-dark</code> (surfaces and
                         borders), <code className="create-website__theme-token">--gym-client-text</code> (readable copy), and{' '}
                         <code className="create-website__theme-token">--gym-client-light</code> (mostly white/light surfaces).
-                        Use a dark text color if your “ink” or page background is very light. Stored in your setup draft for when
-                        the theme API is connected.
+                        Choose a suggested palette for a balanced look, or expand <strong>Customise colors</strong> to set each
+                        value manually (palette, hex, or full-spectrum picker). Stored in your setup draft for when the theme API
+                        is connected.
                       </p>
-                      <div className="create-website__theme-colors-grid mb-3">
-                        <ThemeColorField
-                          id="cw-accent"
-                          label="Accent color"
-                          hintId="cw-hint-accent"
-                          hint="Primary brand color — CTAs, links, badges, and gradient accents on the client page."
-                          value={form.accentColor}
-                          onChange={(hex) => set('accentColor', hex)}
-                          pickerTitle="Accent"
-                        />
-                        <ThemeColorField
-                          id="cw-dark"
-                          label="Dark / ink color"
-                          hintId="cw-hint-dark"
-                          hint="Used for surfaces, borders, and dark UI chrome on the public gym template."
-                          value={form.darkColor}
-                          onChange={(hex) => set('darkColor', hex)}
-                          pickerTitle="Dark / ink"
-                        />
-                        <ThemeColorField
-                          id="cw-text"
-                          label="Body text color"
-                          hintId="cw-hint-text"
-                          hint="Main text on light sections (about, pricing, contact). Set a dark color when your ink/surfaces are light so copy stays readable."
-                          value={form.textColor}
-                          onChange={(hex) => set('textColor', hex)}
-                          pickerTitle="Body text"
-                        />
-                        <ThemeColorField
-                          id="cw-light"
-                          label="Light surface color"
-                          hintId="cw-hint-light"
-                          hint="Controls the mostly white areas (light section backgrounds/cards/marquee strip)."
-                          value={form.lightColor}
-                          onChange={(hex) => set('lightColor', hex)}
-                          pickerTitle="Light surfaces"
-                        />
+                      <p className="create-website__theme-presets-label small text-uppercase fw-semibold text-muted mb-2">
+                        Suggested palettes
+                      </p>
+                      <p className="small text-muted mb-3">
+                        Each card shows accent → dark ink → body text → light surfaces (left to right).
+                      </p>
+                      <div className="create-website__theme-presets mb-3" role="group" aria-label="Suggested color palettes">
+                        {WEBSITE_THEME_PRESETS.map((preset) => {
+                          const selected = formMatchesThemePreset(form, preset);
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              className={`create-website__theme-preset-btn${selected ? ' create-website__theme-preset-btn--selected' : ''}`}
+                              onClick={() => applyThemePreset(preset)}
+                              aria-pressed={selected}
+                              aria-label={`Apply ${preset.name} theme`}
+                            >
+                              <span className="create-website__theme-preset-strip" aria-hidden>
+                                <span style={{ backgroundColor: preset.accentColor }} />
+                                <span style={{ backgroundColor: preset.darkColor }} />
+                                <span style={{ backgroundColor: preset.textColor }} />
+                                <span style={{ backgroundColor: preset.lightColor }} />
+                              </span>
+                              <span className="create-website__theme-preset-name">{preset.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="create-website__theme-custom-section mb-3">
+                        <Button
+                          type="button"
+                          variant="outline-secondary"
+                          size="sm"
+                          className="create-website__theme-custom-toggle"
+                          onClick={() => setThemeManualOpen((o) => !o)}
+                          aria-expanded={themeManualOpen}
+                          aria-controls="cw-theme-manual-colors"
+                          id="cw-theme-custom-toggle"
+                        >
+                          {themeManualOpen ? 'Hide customise colors' : 'Customise colors'}
+                        </Button>
+                        <Collapse in={themeManualOpen}>
+                          <div id="cw-theme-manual-colors" className="pt-2">
+                            <p className="small text-muted mb-3">
+                              Adjust accent, ink, text, and light surfaces individually. Each field opens a palette; use “Full
+                              spectrum” inside the modal for any hex.
+                            </p>
+                            <div className="create-website__theme-colors-grid mb-1">
+                              <ThemeColorField
+                                id="cw-accent"
+                                label="Accent color"
+                                hintId="cw-hint-accent"
+                                hint="Primary brand color — CTAs, links, badges, and gradient accents on the client page."
+                                value={form.accentColor}
+                                onChange={(hex) => set('accentColor', hex)}
+                                pickerTitle="Accent"
+                              />
+                              <ThemeColorField
+                                id="cw-dark"
+                                label="Dark / ink color"
+                                hintId="cw-hint-dark"
+                                hint="Used for surfaces, borders, and dark UI chrome on the public gym template."
+                                value={form.darkColor}
+                                onChange={(hex) => set('darkColor', hex)}
+                                pickerTitle="Dark / ink"
+                              />
+                              <ThemeColorField
+                                id="cw-text"
+                                label="Body text color"
+                                hintId="cw-hint-text"
+                                hint="Main text on light sections (about, pricing, contact). Set a dark color when your ink/surfaces are light so copy stays readable."
+                                value={form.textColor}
+                                onChange={(hex) => set('textColor', hex)}
+                                pickerTitle="Body text"
+                              />
+                              <ThemeColorField
+                                id="cw-light"
+                                label="Light surface color"
+                                hintId="cw-hint-light"
+                                hint="Controls the mostly white areas (light section backgrounds/cards/marquee strip)."
+                                value={form.lightColor}
+                                onChange={(hex) => set('lightColor', hex)}
+                                pickerTitle="Light surfaces"
+                              />
+                            </div>
+                          </div>
+                        </Collapse>
                       </div>
                       <ImageUrlOrUploadField
                         id="cw-logo"
@@ -1829,9 +1978,6 @@ export default function CreateWebsitePage() {
 
                 <div className="create-website__actions mt-4 d-flex flex-wrap gap-2 justify-content-end align-items-center">
                   <div className="d-flex flex-wrap gap-2">
-                    <Button type="button" variant="outline-primary" onClick={() => setPreviewTargetModalOpen(true)}>
-                      Preview site
-                    </Button>
                     <Button type="submit" variant="primary" disabled={slugStatus !== 'available' || saving}>
                       {saving ? (
                         <>

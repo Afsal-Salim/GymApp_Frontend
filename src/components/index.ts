@@ -8,3 +8,5 @@ export { default as ProtectedRoute } from './routing/protected-route/ProtectedRo
 export { default as PaymentLoginRequiredModal } from './payment/payment-login-modal/PaymentLoginRequiredModal/PaymentLoginRequiredModal';
 export type { CheckoutRedirect } from './payment/payment-login-modal/PaymentLoginRequiredModal/PaymentLoginRequiredModal';
 export { default as WhatsAppLogoIcon } from './icons/WhatsAppLogoIcon';
+export { GymLoadingScreen } from './gym-loading-screen/GymLoadingScreen';
+export type { GymLoadingScreenProps } from './gym-loading-screen/GymLoadingScreen';

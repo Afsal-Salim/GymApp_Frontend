@@ -6,11 +6,11 @@ import { STORAGE_USER_AVATAR_URL } from '../../../../config/storageKeys';
 import logo from '../../../../assets/logo.svg';
 import './Navbar.css';
 
-const navItems = [
+const navHashItems = [
   { label: 'Home', href: '#home' },
   { label: 'About', href: '#about' },
-  { label: 'Contacts', href: '#contacts' },
   { label: 'Packages', href: '#packages' },
+  { label: 'Contacts', href: '#contacts' },
 ] as const;
 
 export default function Navbar() {
@@ -63,7 +63,7 @@ export default function Navbar() {
         <BSNavbar.Toggle aria-controls="crystal-nav" />
         <BSNavbar.Collapse id="crystal-nav">
           <Nav className="ms-auto align-items-center gap-2">
-            {navItems.map(({ label, href }) => (
+            {navHashItems.map(({ label, href }) => (
               <Nav.Link
                 key={href}
                 href={isMarketingHome ? href : `/#${href.replace(/^#/, '')}`}

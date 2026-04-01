@@ -482,61 +482,216 @@ html {
   opacity: 0.6;
 }
 
-/* Contact section – equal-height cards, aligned content */
+/* Contact section – professional cards, icons, CTA */
+.crystal-contacts.crystal-contacts--pro {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(14, 165, 233, 0.07) 0%, transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(56, 189, 248, 0.06) 0%, transparent 42%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 48%, #eef2f6 100%);
+}
+
+.crystal-contacts.crystal-contacts--pro.crystal-section-bg {
+  background:
+    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(14, 165, 233, 0.07) 0%, transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(56, 189, 248, 0.06) 0%, transparent 42%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.97) 0%, rgba(241, 245, 249, 0.98) 50%, rgba(238, 242, 246, 0.99) 100%),
+    url('/images/section-bg.jpg') center center / cover no-repeat;
+}
+
 .crystal-contacts-row {
   align-items: stretch;
+}
+
+.crystal-contacts__header {
+  max-width: 38rem;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 2.5rem;
+}
+
+.crystal-contacts__title {
+  font-size: clamp(1.65rem, 2.2vw + 1rem, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+  margin: 0 0 0.65rem;
+  line-height: 1.2;
+}
+
+.crystal-contacts__subtitle {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0;
 }
 
 .crystal-contact-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  min-height: 140px;
-  transition: box-shadow 0.2s;
+  padding: 1.85rem 1.4rem 2rem;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 14px 44px -14px rgba(15, 23, 42, 0.1);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+  min-height: 228px;
+  height: 100%;
 }
 
 .crystal-contact-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(14, 165, 233, 0.4);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 22px 50px -18px rgba(14, 165, 233, 0.14);
+  transform: translateY(-3px);
 }
 
-.crystal-contact-type {
-  flex-shrink: 0;
+.crystal-contact-card__icon-wrap {
+  margin-bottom: 1rem;
 }
 
-.crystal-contact-value {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  min-height: 2.5rem;
-}
-
-/* WhatsApp – logo-only button (simple icon) */
-.crystal-whatsapp-logo-btn {
+.crystal-contact-card__icon-disk {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: #25d366;
-  color: #fff;
-  border-radius: 50%;
-  box-shadow: 0 2px 10px rgba(37, 211, 102, 0.4);
-  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
-.crystal-whatsapp-logo-btn:hover {
-  background: #20bd5a;
-  color: #fff;
-  transform: scale(1.08);
-  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.5);
+.crystal-contact-card__icon-disk--email {
+  background: linear-gradient(160deg, #e0f2fe 0%, #dbeafe 100%);
+  color: #0369a1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.crystal-whatsapp-logo {
+.crystal-contact-card__icon-disk--phone {
+  background: linear-gradient(160deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #047857;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.crystal-contact-card__icon-disk--whatsapp-muted {
+  background: color-mix(in srgb, #94a3b8 18%, #f1f5f9);
+  color: #64748b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.crystal-contact-card__glyph {
   width: 26px;
   height: 26px;
   flex-shrink: 0;
+}
+
+.crystal-contact-card__icon-btn {
+  text-decoration: none;
+}
+
+.crystal-contact-card__icon-btn--whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #25d366 0%, #128c7e 100%);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(37, 211, 102, 0.38);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.crystal-contact-card__icon-btn--whatsapp:hover {
+  color: #fff;
+  transform: scale(1.06);
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
+}
+
+.crystal-contact-card__wa-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.crystal-contact-card__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #0ea5e9;
+  margin: 0 0 0.65rem;
+}
+
+.crystal-contact-card__value {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+}
+
+.crystal-contact-card__link {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-decoration: none;
+  line-height: 1.45;
+  transition: color 0.2s ease;
+  word-break: break-word;
+}
+
+.crystal-contact-card__link:hover {
+  color: #0284c7;
+}
+
+.crystal-contact-card__text {
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.crystal-contacts__cta-wrap {
+  margin-top: 2.75rem;
+}
+
+.crystal-contacts__enquiry-btn {
+  padding: 0.7rem 2.35rem;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 20px rgba(13, 148, 211, 0.32);
+  border: none;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.crystal-contacts__enquiry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(13, 148, 211, 0.38);
+}
+
+.crystal-contacts__enquiry-btn:active {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-contact-card:hover {
+    transform: none;
+  }
+
+  .crystal-contacts__enquiry-btn:hover {
+    transform: none;
+  }
 }
 
 /* Tutorial section */

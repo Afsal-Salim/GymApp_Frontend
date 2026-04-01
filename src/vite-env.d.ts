@@ -9,4 +9,6 @@ interface ImportMetaEnv {
   readonly VITE_HOMEPAGE_TUTORIAL_VIDEO_URL?: string;
   /** e.g. crystal-co.in — enables `{slug}.{domain}` public gym URLs */
   readonly VITE_PUBLIC_SITE_DOMAIN?: string;
+  /** POST path for homepage enquiry form (default `/public/enquiries/` under api base) */
+  readonly VITE_MARKETING_ENQUIRY_PATH?: string;
 }

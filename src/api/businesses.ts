@@ -105,6 +105,63 @@ export async function getBusinessDetail(slug: string): Promise<BusinessDetail> {
   return data;
 }
 
+// —— Owner website analytics (Bearer; must own the business) ——
+
+/** Per–lead-type counts: `events` = row count, `units` = sum of quantities. */
+export type WebsiteLeadTypeStats = {
+  events?: number;
+  units?: number;
+};
+
+/**
+ * WhatsApp block from `website_analytics_for_business`: period totals (today / 7d / 30d / 90d)
+ * plus optional day/week/month series for 90d. Keys may be camelCase or snake_case.
+ */
+export type WebsiteAnalyticsWhatsapp = Record<string, unknown>;
+
+/** One site’s analytics payload from GET `/businesses/<slug>/analytics/`. */
+export type WebsiteAnalytics = {
+  business: { slug: string; name?: string };
+  whatsapp: WebsiteAnalyticsWhatsapp;
+  leads_by_type: Record<string, unknown>;
+  totals: { lead_events?: number; units?: number };
+  computed_at: string;
+};
+
+/** GET `/businesses/analytics/` — one entry per owned business, ordered by name. */
+export type AllWebsitesAnalyticsResponse = {
+  websites: WebsiteAnalytics[];
+};
+
+/**
+ * All owned websites’ analytics. **GET** `/api/businesses/analytics/` (registered before `/<slug>/` routes).
+ */
+export async function getAllWebsitesAnalytics(): Promise<WebsiteAnalytics[]> {
+  try {
+    const { data } = await privateApi.get<AllWebsitesAnalyticsResponse>(`${BASE}/analytics/`);
+    return Array.isArray(data?.websites) ? data.websites : [];
+  } catch (e) {
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load analytics'));
+  }
+}
+
+/**
+ * Single-site analytics. **GET** `/api/businesses/<slug>/analytics/` — 404 if slug missing or not yours.
+ */
+export async function getBusinessWebsiteAnalytics(slug: string): Promise<WebsiteAnalytics> {
+  const key = slug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await privateApi.get<WebsiteAnalytics>(`${BASE}/${encodeURIComponent(key)}/analytics/`);
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Business not found or you do not have access.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load analytics'));
+  }
+}
+
 /** Public gym profile from GET /businesses/public/<slug>/ (no auth). */
 export type PublicBusinessDetail = {
   id: number;

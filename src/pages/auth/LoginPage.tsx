@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { login, loginWithGoogle, setTokens, getProfile, setUserInfo } from '../../api';
+import { login, loginWithGoogle, setTokens, getProfileCached, setUserInfo } from '../../api';
 import { googleOAuthClientId } from '../../config/env';
 import { useToast } from '../../contexts/ToastContext';
 import './AuthPage.css';
@@ -124,7 +124,7 @@ export default function LoginPage() {
           const loginUsername =
             payload.customer?.username ?? payload.username ?? payload.user?.username;
           setUserInfo(loginEmail, loginUsername);
-          getProfile()
+          getProfileCached({ force: true })
             .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
             .catch(() => {});
           navigate(
@@ -202,7 +202,7 @@ export default function LoginPage() {
       const loginUsername =
         res.customer?.username ?? res.username ?? res.user?.username;
       setUserInfo(loginEmail, loginUsername);
-      getProfile()
+      getProfileCached({ force: true })
         .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
         .catch(() => {});
       const from = state.from;

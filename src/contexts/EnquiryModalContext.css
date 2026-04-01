@@ -1,0 +1,9 @@
+.crystal-enquiry-modal .modal-content {
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--bs-body-color) 10%, transparent);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+}
+
+.crystal-enquiry-modal__dialog {
+  max-width: min(440px, 100vw - 1.5rem);
+}

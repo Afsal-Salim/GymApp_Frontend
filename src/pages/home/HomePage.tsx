@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
 import { getPlanList, type PlanListItem } from '../../api';
+import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
 import { homepageTutorialVideoUrl, whatsappDefaultMessage, whatsappPhone } from '../../config/env';
 import { WhatsAppLogoIcon } from '../../components';
 import './HomePage.css';
@@ -95,11 +96,45 @@ const CONTACTS = {
     subtitle: 'Our team is here to help you launch your gym website smoothly.',
     whatsappHref: WHATSAPP_HREF,
     items: [
-      { type: 'Email', value: 'support@crystal.io', href: 'mailto:support@crystal.io' },
-      { type: 'Phone', value: '+91 98765 43210', href: 'tel:+919876543210' },
+      { type: 'Email', value: 'crystal.gym.in@gmail.com', href: 'mailto:crystal.gym.in@gmail.com' },
+      { type: 'Phone', value: '+91 82379 51793', href: 'tel:+918237951793' },
       { type: 'WhatsApp', value: 'Chat with us instantly', href: WHATSAPP_HREF },
     ],
   };
+
+function CrystalContactMailGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path
+        d="M4 6h16v12H4V6z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 8l8 5.5L20 8"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CrystalContactPhoneGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path
+        d="M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.12.86.3 1.7.54 2.5a2 2 0 01-.45 2.11L8.09 9.9a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.8.24 1.64.42 2.5.54A2 2 0 0122 16.92z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 const FEATURES_SCROLL = [
     { icon: '◇', title: 'Add your details', text: 'Enter your gym info in minutes' },
@@ -110,10 +145,10 @@ const FEATURES_SCROLL = [
   ];
 
 const TESTIMONIALS_SCROLL = [
-    { quote: 'We launched our gym website in under 10 minutes. Super आसान!', author: 'Rahul S., Gym Owner' },
-    { quote: 'Didn’t expect it to be this simple. No developer needed at all.', author: 'Ankit P., Fitness Studio' },
-    { quote: 'The live preview feature is amazing—we could see everything instantly.', author: 'Sneha R., Trainer' },
-    { quote: 'Perfect solution for small gyms wanting to go online quickly.', author: 'Faisal K., Gym Manager' },
+    { quote: 'We launched our gym website in under 10 minutes. Super आसान!', author: 'Vaishak U K, Gym Owner' },
+    { quote: 'Didn’t expect it to be this simple. No developer needed at all.', author: 'LijuMon, Fitness Studio' },
+    { quote: 'The live preview feature is amazing—we could see everything instantly.', author: 'Akshay, Trainer' },
+    { quote: 'Perfect solution for small gyms wanting to go online quickly.', author: 'Sahal, Gym Manager' },
   ];
   
 const CUSTOM_PLAN: DisplayPlan = {
@@ -241,6 +276,7 @@ const FEATURES_AUTOPLAY_MS = 3000;
 const TESTIMONIALS_AUTOPLAY_MS = 3000;
 
 export default function HomePage() {
+  const { openEnquiryModal } = useEnquiryModal();
   const [plans, setPlans] = useState<DisplayPlan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState<string | null>(null);
@@ -733,38 +769,75 @@ export default function HomePage() {
       </button>
 
       {/* Contacts */}
-      <section id="contacts" className="crystal-section crystal-contacts py-5 bg-light crystal-section-bg">
+      <section id="contacts" className="crystal-section crystal-contacts py-5 crystal-section-bg crystal-contacts--pro">
         <Container data-crystal-reveal>
-          <h2 className="crystal-section-title text-center display-6 fw-bold mb-2">{CONTACTS.title}</h2>
-          {CONTACTS.subtitle && (
-            <p className="text-center text-muted mb-4">{CONTACTS.subtitle}</p>
-          )}
-          <Row className="justify-content-center g-3 crystal-contacts-row">
+          <header className="crystal-contacts__header text-center mx-auto">
+            <h2 className="crystal-contacts__title">{CONTACTS.title}</h2>
+            {CONTACTS.subtitle ?
+              <p className="crystal-contacts__subtitle">{CONTACTS.subtitle}</p>
+            : null}
+          </header>
+          <Row className="justify-content-center g-4 crystal-contacts-row">
             {CONTACTS.items.map(({ type, value, href }) => (
               <Col md={4} key={type} className="d-flex">
-                <div className="crystal-contact-card p-3 bg-white rounded-3 shadow-sm w-100 text-center">
-                  <span className="d-block fw-semibold text-primary small text-uppercase crystal-contact-type">{type}</span>
-                  <div className="crystal-contact-value mt-2">
-                    {type === 'WhatsApp' && href ? (
+                <article className="crystal-contact-card w-100 text-center">
+                  <div className="crystal-contact-card__icon-wrap">
+                    {type === 'WhatsApp' && href ?
                       <a
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="crystal-whatsapp-logo-btn"
+                        className="crystal-contact-card__icon-btn crystal-contact-card__icon-btn--whatsapp"
                         aria-label="Chat on WhatsApp"
                       >
-                        <WhatsAppLogoIcon className="crystal-whatsapp-logo" />
+                        <WhatsAppLogoIcon className="crystal-contact-card__wa-logo" />
                       </a>
-                    ) : href ? (
-                      <a href={href} className="text-dark text-decoration-none">{value}</a>
-                    ) : (
-                      <span className="text-dark">{value}</span>
+                    : type === 'WhatsApp' ?
+                      <div
+                        className="crystal-contact-card__icon-disk crystal-contact-card__icon-disk--whatsapp-muted"
+                        aria-hidden
+                      >
+                        <WhatsAppLogoIcon className="crystal-contact-card__wa-logo" />
+                      </div>
+                    : type === 'Email' ?
+                      <div className="crystal-contact-card__icon-disk crystal-contact-card__icon-disk--email">
+                        <CrystalContactMailGlyph className="crystal-contact-card__glyph" />
+                      </div>
+                    : (
+                      <div className="crystal-contact-card__icon-disk crystal-contact-card__icon-disk--phone">
+                        <CrystalContactPhoneGlyph className="crystal-contact-card__glyph" />
+                      </div>
                     )}
                   </div>
-                </div>
+                  <h3 className="crystal-contact-card__label">{type}</h3>
+                  <div className="crystal-contact-card__value">
+                    {type === 'WhatsApp' && href ?
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="crystal-contact-card__link">
+                        {value}
+                      </a>
+                    : href ?
+                      <a href={href} className="crystal-contact-card__link">
+                        {value}
+                      </a>
+                    : (
+                      <span className="crystal-contact-card__text">{value}</span>
+                    )}
+                  </div>
+                </article>
               </Col>
             ))}
           </Row>
+          <div className="crystal-contacts__cta-wrap text-center">
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              className="crystal-contacts__enquiry-btn"
+              onClick={openEnquiryModal}
+            >
+              Send an enquiry
+            </Button>
+          </div>
         </Container>
       </section>
     </main>

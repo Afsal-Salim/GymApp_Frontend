@@ -1,0 +1,23 @@
+.manage-business-page {
+  min-height: 50vh;
+  background: linear-gradient(180deg, #f0f9ff 0%, #f8fafc 35%, #fff 100%);
+}
+
+.manage-business-page__container {
+  max-width: 900px;
+}
+
+.manage-business-page__title {
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.manage-business-page__crumb a {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.manage-business-page__crumb a:hover {
+  color: #0ea5e9;
+  text-decoration: underline;
+}

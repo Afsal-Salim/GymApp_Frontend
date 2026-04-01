@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { sendOtp, verifyOtp, signup, loginWithGoogle, setTokens, getProfile, setUserInfo } from '../../api';
+import { sendOtp, verifyOtp, signup, loginWithGoogle, setTokens, getProfileCached, setUserInfo } from '../../api';
 import { googleOAuthClientId } from '../../config/env';
 import { useToast } from '../../contexts/ToastContext';
 import PrivacyPolicyArticle from '../legal/PrivacyPolicyArticle';
@@ -118,7 +118,7 @@ export default function SignupPage() {
           const loginUsername =
             payload.customer?.username ?? payload.username ?? payload.user?.username;
           setUserInfo(loginEmail, loginUsername);
-          getProfile()
+          getProfileCached({ force: true })
             .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
             .catch(() => {});
           navigate('/user', { replace: true });

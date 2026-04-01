@@ -2,6 +2,8 @@ import {
   STORAGE_ACCESS_TOKEN,
   STORAGE_REFRESH_TOKEN,
   STORAGE_USER_EMAIL,
+  STORAGE_USER_PROFILE_CACHE,
+  STORAGE_USER_BUSINESS_LIST_CACHE,
   STORAGE_USER_USERNAME,
 } from '../config/storageKeys';
 
@@ -60,5 +62,7 @@ function clearUserInfo(): void {
 export function clearTokens(): void {
   localStorage.removeItem(STORAGE_ACCESS_TOKEN);
   localStorage.removeItem(STORAGE_REFRESH_TOKEN);
+  localStorage.removeItem(STORAGE_USER_PROFILE_CACHE);
+  localStorage.removeItem(STORAGE_USER_BUSINESS_LIST_CACHE);
   clearUserInfo();
 }

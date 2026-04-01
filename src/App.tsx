@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
+import { EnquiryModalProvider } from './contexts/EnquiryModalContext';
 import { MainLayout } from './layouts';
 import { ProtectedRoute } from './components';
 import {
@@ -16,11 +17,13 @@ import {
   ForgotPasswordPage,
   SignupPage,
   UserPage,
+  ManageBusinessPage,
   CreateWebsitePage,
   CrystalBusinessPage,
   PlansPage,
   UserContentPolicyPage,
   PrivacyPolicyPage,
+  SupportFeedbackPage,
 } from './pages';
 import './App.css';
 
@@ -100,6 +103,7 @@ function App() {
 
   return (
     <ToastProvider>
+      <EnquiryModalProvider>
       <InDevelopmentBanner />
       <ScrollToTop />
       <Routes>
@@ -119,8 +123,10 @@ function App() {
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/legal/user-content" element={<UserContentPolicyPage />} />
               <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/support" element={<SupportFeedbackPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/user/create-website" element={<CreateWebsitePage />} />
+                <Route path="/user/business/:slug/manage" element={<ManageBusinessPage />} />
                 <Route path="/user/business/:slug/edit" element={<CreateWebsitePage />} />
                 <Route path="/user" element={<UserPage />} />
               </Route>
@@ -129,6 +135,7 @@ function App() {
           )}
         </Route>
       </Routes>
+      </EnquiryModalProvider>
     </ToastProvider>
   );
 }

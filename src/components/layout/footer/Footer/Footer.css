@@ -59,6 +59,29 @@
   color: #38bdf8;
 }
 
+.crystal-footer__list button.crystal-footer__link-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  display: inline-block;
+  min-height: 44px;
+  line-height: 1.4;
+  transition: color 0.2s;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.crystal-footer__list button.crystal-footer__link-btn:hover {
+  color: #38bdf8;
+}
+
 .crystal-footer__bottom {
   color: #64748b !important;
   text-align: center;
@@ -91,7 +114,8 @@
     text-align: center;
   }
 
-  .crystal-footer__list a {
+  .crystal-footer__list a,
+  .crystal-footer__list button.crystal-footer__link-btn {
     min-height: 44px;
     display: inline-flex;
     align-items: center;

@@ -6,33 +6,6 @@
   position: relative;
 }
 
-/* Top loading bar on route change */
-.main-layout__route-loader {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #0ea5e9, #06b6d4);
-  transform: scaleX(0);
-  transform-origin: left;
-  z-index: 9999;
-  transition: transform 0.15s ease-out;
-  pointer-events: none;
-}
-
-.main-layout__route-loader--active {
-  transform: scaleX(1);
-  animation: main-layout-loader-shrink 0.4s ease-in 0.15s forwards;
-}
-
-@keyframes main-layout-loader-shrink {
-  to {
-    transform-origin: right;
-    transform: scaleX(0);
-  }
-}
-
 .main-layout__content {
   flex: 1;
   padding-left: env(safe-area-inset-left);

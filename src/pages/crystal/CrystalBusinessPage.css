@@ -159,60 +159,9 @@
   }
 }
 
-/* —— Loading: brand mark —— */
-.crystal-client-loader {
+.crystal-client-viewport--loading {
   min-height: 100vh;
   min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(ellipse at center, var(--gym-d-video) 0%, var(--gym-client-dark) 70%);
-}
-
-.crystal-client-loader__inner {
-  text-align: center;
-}
-
-.crystal-client-loader__mark-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-  color: var(--gym-a-mid);
-  filter: drop-shadow(0 0 24px var(--gym-a-shadow-45));
-}
-
-.crystal-client-loader__mark {
-  width: 88px !important;
-  height: 88px !important;
-  object-fit: contain;
-  animation: crystal-client-mark-pulse 1.85s ease-in-out infinite;
-}
-
-.crystal-client-loader__text {
-  color: var(--gym-text-on-dark-mute);
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin: 0;
-}
-
-@keyframes crystal-client-mark-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.07);
-    opacity: 0.88;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .crystal-client-loader__mark {
-    animation: none;
-  }
 }
 
 /* —— Nav —— */

@@ -34,6 +34,14 @@ export const homepageTutorialVideoUrl =
   'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
 /**
+ * POST path for homepage enquiry form (appended to `apiBaseUrl`, which already includes `/api`).
+ * Full URL: `{apiBaseUrl}/public/enquiries/` → e.g. `https://host/api/public/enquiries/`.
+ * @default /public/enquiries/
+ */
+export const marketingEnquiryPath =
+  (import.meta.env.VITE_MARKETING_ENQUIRY_PATH ?? '').trim() || '/public/enquiries/';
+
+/**
  * Refresh-token endpoint path, appended to `apiBaseUrl` (same as legacy `REFRESH_ENDPOINT`).
  */
 export const authRefreshPath = '/auth/refresh/' as const;
@@ -80,6 +88,7 @@ export const MARKETING_APP_PATH_FIRST_SEGMENTS = new Set([
   'forgot-password',
   'legal',
   'user',
+  'support',
 ]);
 
 const RESERVED_PUBLIC_SITE_SUBDOMAINS = new Set([
@@ -142,6 +151,15 @@ export function crystalMarketingAbsoluteUrl(path = '/'): string {
   return new URL(raw, base).href;
 }
 
+/**
+ * Opens the gym’s public site in the browser.
+ *
+ * - **Production-style (subdomain):** when `VITE_PUBLIC_SITE_DOMAIN` is set and the host is not localhost, performs a
+ *   full navigation to `https://{slug}.{VITE_PUBLIC_SITE_DOMAIN}/` — i.e. `{slug}` as a **subdomain**, not `crystal/{slug}`.
+ * - **Local / no domain:** stays on the current origin and uses React Router to `/{slug}/` (path-based public site).
+ *
+ * Legacy bookmarks `/crystal/...` are handled separately in the router (stripped to `/...`).
+ */
 export function visitPublicGymSite(slug: string, navigate: (to: string) => void): void {
   if (isPublicSiteSubdomainRoutingActive()) {
     window.location.assign(publicGymSiteUrl(slug));

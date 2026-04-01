@@ -1,12 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Card, Spinner, Modal, Button, ListGroup, Badge, Nav, Pagination } from 'react-bootstrap';
+import { Container, Row, Col, Card, Spinner, Modal, Button, ListGroup, Badge, Nav, Pagination, Alert } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { getProfile, getBusinessListPaginated, getBusinessDetail, getActiveSubscription, getUserInfo, setUserInfo } from '../../api';
-import type { UserProfile, BusinessListItem, BusinessDetail, ActiveSubscriptionResponse } from '../../api';
+import {
+  getProfileCached,
+  peekProfileCache,
+  getBusinessListPaginatedCached,
+  peekBusinessListPage,
+  getBusinessDetail,
+  getActiveSubscription,
+  getAllWebsitesAnalytics,
+  getUserInfo,
+  setUserInfo,
+} from '../../api';
+import type { UserProfile, BusinessListItem, BusinessDetail, ActiveSubscriptionResponse, WebsiteAnalytics } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
 import { visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
+import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
 import './UserPage.css';
 
 function formatDate(s: string | undefined): string {
@@ -87,12 +98,22 @@ function BusinessCard({
             View
           </Button>
           {b.slug ?
-            <Link
-              to={`/user/business/${encodeURIComponent(b.slug)}/edit`}
-              className="btn btn-outline-secondary btn-sm"
-            >
-              Edit
-            </Link>
+            <>
+              <Link
+                to={`/user/business/${encodeURIComponent(b.slug)}/manage`}
+                className="btn btn-outline-primary btn-sm user-page__btn-manage"
+                title="Analytics & website management"
+              >
+                Manage
+              </Link>
+              <Link
+                to={`/user/business/${encodeURIComponent(b.slug)}/edit`}
+                className="btn btn-outline-secondary btn-sm"
+                title="Edit website content & design"
+              >
+                Edit
+              </Link>
+            </>
           : null}
         </div>
       </Card.Body>
@@ -103,22 +124,26 @@ function BusinessCard({
 export default function UserPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [businesses, setBusinesses] = useState<BusinessListItem[]>([]);
-  const [businessesLoading, setBusinessesLoading] = useState(true);
-  const [businessTotalCount, setBusinessTotalCount] = useState(0);
-  const [businessPage, setBusinessPage] = useState(1);
+  const [profile, setProfile] = useState<UserProfile | null>(() => peekProfileCache());
+  const [profileLoading, setProfileLoading] = useState(() => peekProfileCache() === null);
   const businessPageSize = 5;
+  const [businessPage, setBusinessPage] = useState(1);
+  const initialBusinessList = peekBusinessListPage(1, businessPageSize);
+  const [businesses, setBusinesses] = useState<BusinessListItem[]>(() => initialBusinessList?.results ?? []);
+  const [businessesLoading, setBusinessesLoading] = useState(() => initialBusinessList === null);
+  const [businessTotalCount, setBusinessTotalCount] = useState(() => initialBusinessList?.count ?? 0);
   const [selectedBusiness, setSelectedBusiness] = useState<BusinessDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeSubscriptionApi, setActiveSubscriptionApi] = useState<ActiveSubscriptionResponse | null>(null);
   const [visitCheckLoading, setVisitCheckLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'businesses'>('businesses');
+  const [activeTab, setActiveTab] = useState<'overview' | 'businesses' | 'analytics'>('businesses');
+  const [allAnalytics, setAllAnalytics] = useState<WebsiteAnalytics[] | null>(null);
+  const [allAnalyticsLoading, setAllAnalyticsLoading] = useState(false);
+  const [allAnalyticsError, setAllAnalyticsError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getProfile()
+    getProfileCached()
       .then((data) => {
         if (!cancelled) {
           setProfile(data);
@@ -136,8 +161,16 @@ export default function UserPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setBusinessesLoading(true);
-    getBusinessListPaginated(businessPage, businessPageSize)
+    const hit = peekBusinessListPage(businessPage, businessPageSize);
+    if (hit) {
+      setBusinesses(hit.results);
+      setBusinessTotalCount(hit.count);
+      setBusinessesLoading(false);
+    } else {
+      setBusinessesLoading(true);
+    }
+
+    getBusinessListPaginatedCached(businessPage, businessPageSize)
       .then(({ results, count }) => {
         if (!cancelled) {
           setBusinesses(results);
@@ -153,8 +186,33 @@ export default function UserPage() {
       .finally(() => {
         if (!cancelled) setBusinessesLoading(false);
       });
-    return () => { cancelled = true; };
-  }, [businessPage]);
+    return () => {
+      cancelled = true;
+    };
+  }, [businessPage, businessPageSize]);
+
+  useEffect(() => {
+    if (activeTab !== 'analytics') return;
+    let cancelled = false;
+    setAllAnalyticsLoading(true);
+    setAllAnalyticsError(null);
+    getAllWebsitesAnalytics()
+      .then((sites) => {
+        if (!cancelled) setAllAnalytics(sites);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setAllAnalytics(null);
+          setAllAnalyticsError(e instanceof Error ? e.message : 'Failed to load analytics.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAllAnalyticsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
 
   const openBusinessDetail = (slug: string) => {
     if (!slug) return;
@@ -277,6 +335,9 @@ export default function UserPage() {
                 <Nav.Item>
                   <Nav.Link eventKey="businesses" active={activeTab === 'businesses'} onClick={() => setActiveTab('businesses')}>Businesses</Nav.Link>
                 </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link eventKey="analytics" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>Analytics</Nav.Link>
+                </Nav.Item>
               </Nav>
 
               {/* Tab content */}
@@ -345,6 +406,48 @@ export default function UserPage() {
                     </div>
                   )}
                 </>
+              )}
+
+              {activeTab === 'analytics' && (
+                <div className="user-page__analytics-tab">
+                  <p className="text-muted small mb-3">
+                    Combined metrics for every gym you own (same data as each site&apos;s Manage page). Refreshes when you open
+                    this tab.
+                  </p>
+                  {allAnalyticsLoading && (!allAnalytics || allAnalytics.length === 0) ?
+                    <div className="user-page__loading user-page__loading--center py-5">
+                      <Spinner animation="border" /> Loading analytics…
+                    </div>
+                  : null}
+                  {allAnalyticsError ?
+                    <Alert variant="danger">{allAnalyticsError}</Alert>
+                  : null}
+                  {!allAnalyticsLoading && !allAnalyticsError && allAnalytics && allAnalytics.length === 0 ?
+                    <Card className="user-page__card">
+                      <Card.Body className="text-muted small">No businesses yet — analytics will appear here once you create a gym.</Card.Body>
+                    </Card>
+                  : null}
+                  {allAnalytics?.map((site) => {
+                    const s = site.business?.slug;
+                    if (!s) return null;
+                    return (
+                      <Card key={s} className="user-page__card user-page__analytics-site-card mb-3">
+                        <Card.Header className="user-page__analytics-site-head d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-3">
+                          <span className="small fw-semibold text-uppercase text-muted mb-0">Website</span>
+                          <Link
+                            to={`/user/business/${encodeURIComponent(s)}/manage`}
+                            className="btn btn-sm btn-outline-primary"
+                          >
+                            Manage
+                          </Link>
+                        </Card.Header>
+                        <Card.Body className="pt-3">
+                          <WebsiteAnalyticsPanel data={site} loading={false} error={null} showBusinessHeader />
+                        </Card.Body>
+                      </Card>
+                    );
+                  })}
+                </div>
               )}
             </Col>
 
@@ -494,16 +597,39 @@ export default function UserPage() {
             </>
           ) : null}
         </Modal.Body>
-        <Modal.Footer className="user-page__modal-footer">
+        <Modal.Footer className="user-page__modal-footer user-page__modal-footer--actions">
           {selectedBusiness?.slug && (
-            <Button
-              variant="outline-secondary"
-              className="user-page__visit-btn"
-              disabled={visitCheckLoading}
-              onClick={handleVisitWebsite}
-            >
-              {visitCheckLoading ? 'Checking…' : 'Visit website'}
-            </Button>
+            <>
+              <Button
+                variant="outline-secondary"
+                className="user-page__visit-btn"
+                disabled={visitCheckLoading}
+                onClick={handleVisitWebsite}
+              >
+                {visitCheckLoading ? 'Checking…' : 'Visit website'}
+              </Button>
+              <Link
+                to={`/user/business/${encodeURIComponent(selectedBusiness.slug)}/manage`}
+                className="btn btn-outline-primary btn-sm user-page__modal-manage-btn"
+                onClick={closeModal}
+              >
+                Manage
+              </Link>
+              <Link
+                to={`${PLANS_PAGE_PATH}/${encodeURIComponent(selectedBusiness.slug)}`}
+                className="btn btn-outline-secondary btn-sm user-page__modal-plans-btn"
+                onClick={closeModal}
+              >
+                Plans
+              </Link>
+              <Link
+                to={`/user/business/${encodeURIComponent(selectedBusiness.slug)}/edit`}
+                className="btn btn-outline-secondary btn-sm user-page__modal-edit-btn"
+                onClick={closeModal}
+              >
+                Edit website
+              </Link>
+            </>
           )}
           <Button variant="dark" onClick={closeModal}>Close</Button>
         </Modal.Footer>

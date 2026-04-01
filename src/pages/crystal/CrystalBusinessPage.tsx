@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo, useRef, type RefObject, type CSSProperties } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Navbar, Nav } from 'react-bootstrap';
-import { PageContainer, WhatsAppLogoIcon } from '../../components';
+import { PageContainer, WhatsAppLogoIcon, GymLoadingScreen } from '../../components';
 import {
+  fetchPublicGymBundle,
   getAccessToken,
-  getActiveSubscription,
-  getPublicBusinessBySlug,
+  invalidatePublicGymBundleCache,
+  peekPublicGymBundle,
   PublicBusinessNotFoundError,
 } from '../../api';
 import type { PublicBusinessDetail } from '../../api';
 import CrystalServiceUnavailable from './CrystalServiceUnavailable';
-import { GYM_CLIENT_BRAND_LOGO_SRC } from './gymClientBrandLogo';
 import GymClientBookTrialModal from './GymClientBookTrialModal';
 import GymClientPlanVisitModal from './GymClientPlanVisitModal';
 import {
@@ -275,27 +275,6 @@ function GymClientMidCtaStrip({
         </div>
       </Container>
     </section>
-  );
-}
-
-function GymClientLoadingScreen() {
-  return (
-    <div className="crystal-client-viewport crystal-client-loader" role="status" aria-live="polite">
-      <div className="crystal-client-loader__inner">
-        <div className="crystal-client-loader__mark-wrap">
-          <img
-            src={GYM_CLIENT_BRAND_LOGO_SRC}
-            alt=""
-            className="crystal-client-loader__mark"
-            width={88}
-            height={88}
-            decoding="async"
-            aria-hidden
-          />
-        </div>
-        <p className="crystal-client-loader__text">Loading your gym…</p>
-      </div>
-    </div>
   );
 }
 
@@ -1205,11 +1184,21 @@ export default function CrystalBusinessPage() {
   const slug = (hostSlug ?? routeSlug) ?? '';
   const [searchParams] = useSearchParams();
   const isMarketingPreview = slug === 'preview' && searchParams.get('from') === 'marketing';
-  const [business, setBusiness] = useState<PublicBusinessDetail | null>(null);
-  const [loading, setLoading] = useState(!!slug && slug !== 'preview');
+  const [business, setBusiness] = useState<PublicBusinessDetail | null>(() => {
+    if (!slug || slug === 'preview') return null;
+    return peekPublicGymBundle(slug)?.business ?? null;
+  });
+  const [loading, setLoading] = useState(() => {
+    if (!slug || slug === 'preview') return false;
+    return peekPublicGymBundle(slug) === null;
+  });
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [subscriptionInactive, setSubscriptionInactive] = useState(false);
+  const [subscriptionInactive, setSubscriptionInactive] = useState(() => {
+    if (!slug || slug === 'preview') return false;
+    const hit = peekPublicGymBundle(slug);
+    return hit ? !hit.subscription.has_active_subscription : false;
+  });
   /** Bumped when another tab writes the preview draft so we re-read localStorage. */
   const [previewStorageRev, setPreviewStorageRev] = useState(0);
 
@@ -1279,30 +1268,41 @@ export default function CrystalBusinessPage() {
       setError(null);
       return;
     }
-    setLoading(true);
     setError(null);
     setNotFound(false);
-    setSubscriptionInactive(false);
-    setBusiness(null);
+    const hit = peekPublicGymBundle(slug);
+    if (hit) {
+      setBusiness(hit.business);
+      setSubscriptionInactive(!hit.subscription.has_active_subscription);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setBusiness(null);
+      setSubscriptionInactive(false);
+    }
 
-    getPublicBusinessBySlug(slug)
-      .then((b) => {
-        setBusiness(b);
-        return getActiveSubscription(slug);
-      })
-      .then((sub) => {
-        if (!sub.has_active_subscription) {
-          setSubscriptionInactive(true);
-        }
+    let cancelled = false;
+    fetchPublicGymBundle(slug)
+      .then((bundle) => {
+        if (cancelled) return;
+        setBusiness(bundle.business);
+        setSubscriptionInactive(!bundle.subscription.has_active_subscription);
       })
       .catch((err) => {
+        if (cancelled) return;
         if (err instanceof PublicBusinessNotFoundError) {
+          invalidatePublicGymBundleCache(slug);
           setNotFound(true);
         } else {
           setError(err instanceof Error ? err.message : 'Failed to load');
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   useEffect(() => {
@@ -1349,8 +1349,8 @@ export default function CrystalBusinessPage() {
               <p className="crystal-business-page__lead">No business selected.</p>
             </div>
           ) : loading ? (
-            <div className="crystal-client-viewport" style={clientThemeCssVars}>
-              <GymClientLoadingScreen />
+            <div className="crystal-client-viewport crystal-client-viewport--loading" style={clientThemeCssVars}>
+              <GymLoadingScreen active variant="embed" message="Loading your gym…" />
             </div>
           ) : error ? (
             <div className="crystal-business-page__fallback">
