@@ -5,8 +5,9 @@
 export { LoginPage, SignupPage, ForgotPasswordPage } from './auth';
 export { HomePage } from './home';
 export { PaymentPage } from './payment';
-export { PlansPage, PLANS_PAGE_PATH } from './plans';
-export { UserPage, ManageBusinessPage } from './user';
+export { PlansPage, PLANS_PAGE_PATH, SERVICES_CUSTOM_PATH } from './plans';
+export { ServiceEnquiryPage } from './services';
+export { UserPage, AdminDashboardPage, ManageBusinessPage } from './user';
 export { CreateWebsitePage } from './website';
 export { Welcome } from './welcome';
 export { CrystalBusinessPage } from './crystal';

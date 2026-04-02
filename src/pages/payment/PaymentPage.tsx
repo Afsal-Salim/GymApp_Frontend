@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
-import { PageContainer, PaymentLoginRequiredModal } from '../../components';
+import { PageContainer, PaymentLoginRequiredModal, PlanPriceDisplay } from '../../components';
 import type { CheckoutRedirect } from '../../components';
 import {
   createOrder,
@@ -17,8 +17,24 @@ import { useToast } from '../../contexts/ToastContext';
 import { publicSiteDomain } from '../../config/env';
 import './PaymentPage.css';
 
-const FALLBACK_PLANS: Record<string, { name: string; price: string; period: string; currency: string }> = {
-  starter: { name: 'Starter', price: '₹499', period: ' / 28 days', currency: 'INR' },
+type PlanDetailsFallback = {
+  name: string;
+  price: string;
+  period: string;
+  currency: string;
+  listPriceFormatted?: string;
+  firstActivationFormatted?: string | null;
+};
+
+const FALLBACK_PLANS: Record<string, PlanDetailsFallback> = {
+  starter: {
+    name: 'Starter',
+    price: '₹299',
+    period: ' / 28 days',
+    currency: 'INR',
+    listPriceFormatted: '₹499',
+    firstActivationFormatted: '₹299',
+  },
   pro: { name: 'Pro', price: '₹999', period: ' / 28 days', currency: 'INR' },
 };
 
@@ -72,10 +88,19 @@ type PaymentPageProps = {
 
 export default function PaymentPage({ plan }: PaymentPageProps) {
   const location = useLocation();
-  const stateDetails = (location.state as { planDetails?: { name: string; price: string; period: string; currency: string }; planId?: number; businessSlug?: string } | null)?.planDetails;
+  const stateDetails = (
+    location.state as {
+      planDetails?: PlanDetailsFallback;
+      planId?: number;
+      businessSlug?: string;
+    } | null
+  )?.planDetails;
   const statePlanId = (location.state as { planId?: number } | null)?.planId;
   const stateBusinessSlug = (location.state as { businessSlug?: string } | null)?.businessSlug?.trim().replace(/^\/+/, '');
-  const details = stateDetails ?? FALLBACK_PLANS[plan];
+  const details: PlanDetailsFallback = stateDetails ?? FALLBACK_PLANS[plan];
+  const summaryListFormatted = details.listPriceFormatted ?? details.price;
+  const summaryFirstFormatted = details.firstActivationFormatted ?? null;
+  const summaryShowIntro = Boolean(summaryFirstFormatted && summaryListFormatted !== summaryFirstFormatted);
 
   const [email, setEmail] = useState('');
   const [businessSlug, setBusinessSlug] = useState('');
@@ -288,17 +313,29 @@ export default function PaymentPage({ plan }: PaymentPageProps) {
           <Col lg={8} xl={6}>
             <h1 className="payment-page__title">Payment</h1>
             <p className="payment-page__subtitle text-muted mb-4">
-              Complete checkout for <strong>{details.name}</strong> — {details.price}{details.period}
+              Complete checkout for <strong>{details.name}</strong>
+              {summaryShowIntro ?
+                <span> — amount at checkout follows first-time or renewal rules for your gym.</span>
+              : (
+                <span>
+                  {' '}
+                  — {details.price}
+                  {details.period}
+                </span>
+              )}
             </p>
 
             <Card className="payment-page__card shadow-sm mb-4">
               <Card.Body className="p-4">
                 <div className="payment-page__summary mb-4 p-3 bg-light rounded-3">
-                  <span className="d-block fw-semibold">{details.name}</span>
-                  <span className="text-primary fw-bold">
-                    {details.price}
-                    <small className="text-muted fw-normal">{details.period}</small>
-                  </span>
+                  <span className="d-block fw-semibold mb-2">{details.name}</span>
+                  <PlanPriceDisplay
+                    listFormatted={summaryListFormatted}
+                    firstFormatted={summaryFirstFormatted}
+                    period={details.period}
+                    showIntro={summaryShowIntro}
+                    size="md"
+                  />
                 </div>
 
                 {error && (

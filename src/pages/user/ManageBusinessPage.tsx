@@ -6,6 +6,7 @@ import { getBusinessWebsiteAnalytics } from '../../api';
 import type { WebsiteAnalytics, AnalyticsRangePreset } from '../../api/businesses';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
+import { ManageBusinessLeadsSection } from './ManageBusinessLeadsSection';
 import './ManageBusinessPage.css';
 
 function ManageBusinessPageLoaded({ slug }: { slug: string }) {
@@ -42,7 +43,7 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
   return (
     <PageContainer>
       <main className="manage-business-page">
-        <Container className="manage-business-page__container py-4">
+        <Container className="manage-business-page__container py-3 py-md-4 px-3">
           <div className="manage-business-page__head d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
             <div>
               <nav className="manage-business-page__crumb small text-muted mb-1">
@@ -52,7 +53,8 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
               </nav>
               <h1 className="manage-business-page__title h3 mb-1">Manage website</h1>
               <p className="manage-business-page__subtitle text-muted small mb-0">
-                Analytics for your public gym page. Subscription and billing are under Plans.
+                Analytics, modal leads (join / trial / visit), and business enquiries for your public gym page. Subscription
+                and billing are under Plans.
               </p>
             </div>
             <div className="manage-business-page__actions d-flex flex-wrap gap-2">
@@ -71,16 +73,19 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
               <p className="text-muted small mb-0">Loading analytics…</p>
             </div>
           : (
-            <WebsiteAnalyticsPanel
-              data={data}
-              loading={loading}
-              error={error}
-              showBusinessHeader
-              showLeadMixPieAlways
-              analyticsRange={analyticsRange}
-              onAnalyticsRangeChange={setAnalyticsRange}
-            />
+            <div className="manage-business-page__analytics-scroll">
+              <WebsiteAnalyticsPanel
+                data={data}
+                loading={loading}
+                error={error}
+                showBusinessHeader
+                showLeadMixPieAlways
+                analyticsRange={analyticsRange}
+                onAnalyticsRangeChange={setAnalyticsRange}
+              />
+            </div>
           )}
+          <ManageBusinessLeadsSection slug={slug} />
         </Container>
       </main>
     </PageContainer>
@@ -95,7 +100,7 @@ export default function ManageBusinessPage() {
     return (
       <PageContainer>
         <main className="manage-business-page">
-          <Container className="manage-business-page__container py-4">
+          <Container className="manage-business-page__container py-3 py-md-4 px-3">
             <div className="manage-business-page__head mb-4">
               <h1 className="manage-business-page__title h3 mb-1">Manage website</h1>
             </div>

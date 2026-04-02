@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { recordGymClientBookTrialSubmission } from './gymClientLeadTracking';
 import { resolveGymClientBrandLogoSrc } from './gymClientBrandLogo';
+import { clampPhoneDigitsInput } from '../../utils/phoneDigits';
 
 const INTEREST_OPTIONS = [
   { id: 'strength', label: 'Strength training' },
@@ -50,9 +51,9 @@ export default function GymClientBookTrialModal({
     setDone(false);
   }, [show]);
 
-  const digits = phone.replace(/\D/g, '');
+  const digits = clampPhoneDigitsInput(phone);
   const canSubmit =
-    name.trim().length >= 2 && digits.length >= 8 && visitDate.trim().length > 0 && interests.length > 0;
+    name.trim().length >= 2 && digits.length === 10 && visitDate.trim().length > 0 && interests.length > 0;
 
   const toggleInterest = (id: string) => {
     setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -67,7 +68,7 @@ export default function GymClientBookTrialModal({
     if (!suppressPublicLeads) {
       recordGymClientBookTrialSubmission(businessSlug, {
         name: name.trim(),
-        phone: phone.trim(),
+        phone: digits,
         visitWhen,
         interests: interests.join(','),
         notes: notes.trim(),
@@ -157,10 +158,10 @@ export default function GymClientBookTrialModal({
                 type="tel"
                 autoComplete="tel"
                 inputMode="tel"
-                placeholder="WhatsApp-friendly number"
+                placeholder="10-digit mobile number"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                maxLength={20}
+                onChange={(e) => setPhone(clampPhoneDigitsInput(e.target.value))}
+                maxLength={10}
                 className="crystal-trial-modal__input"
               />
             </Form.Group>

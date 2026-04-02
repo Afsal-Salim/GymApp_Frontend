@@ -20,6 +20,7 @@ import {
   gymVideoUrlToEmbedSrc,
   isGymClientDiscountOfferFilled,
   isGymClientPackageItemFilled,
+  withLegacyHeroBackgroundMigrated,
   type GymClientAboutFeature,
   type GymClientSiteContent,
 } from './gymClientSiteContent';
@@ -39,7 +40,8 @@ import { withBundledDefaultClientLogo } from './gymClientBrandLogo';
 import { buildGymClientWhatsAppHref } from './gymClientWhatsApp';
 import { recordGymClientLeadCta, recordGymClientWhatsAppClick } from './gymClientLeadTracking';
 import GymClientJoinLeadModal from './GymClientJoinLeadModal';
-import { GymClientMapsPinIcon, GymClientMidCtaIcon } from './GymClientDecorIcons';
+import { GymClientMapsPinIcon, GymClientMetaRowDisk, GymClientMidCtaIcon } from './GymClientDecorIcons';
+import { normalizeHexColor } from '../../utils/hexColor';
 import './CrystalBusinessPage.css';
 
 /** Default theme for the marketing demo at `/preview?from=marketing` (matches website builder defaults). */
@@ -193,6 +195,36 @@ function GymClientAboutFeatureGlyph({ icon }: { icon: GymClientAboutFeature['ico
 }
 
 type GymClientMidVariant = 'join' | 'membership' | 'visit';
+
+/** Insert a word space between inline fragments when neither side already has boundary whitespace (avoids “membersget”). */
+function joinLeadNeedsSpace(left: string, right: string): boolean {
+  if (!left.trim() || !right.trim()) return false;
+  return !/\s$/.test(left) && !/^\s/.test(right);
+}
+
+function GymClientAboutLeadInline({ lead }: { lead: { before: string; accent: string; after: string } }) {
+  const before = lead.before ?? '';
+  const accent = lead.accent ?? '';
+  const after = lead.after ?? '';
+  const anchorBeforeAfter = accent.trim() ? accent : before;
+  return (
+    <>
+      {before}
+      {accent.trim() ?
+        <>
+          {joinLeadNeedsSpace(before, accent) ? ' ' : null}
+          <span className="crystal-client__about-lead-accent">{accent}</span>
+        </>
+      : null}
+      {after ?
+        <>
+          {joinLeadNeedsSpace(anchorBeforeAfter, after) ? ' ' : null}
+          {after}
+        </>
+      : null}
+    </>
+  );
+}
 
 function GymClientMidCtaStrip({
   businessSlug,
@@ -536,6 +568,11 @@ function GymClientSiteView({
     '--gym-hero-overlay': String(content.layout.heroOverlay),
   } as CSSProperties;
 
+  const heroTextResolved = normalizeHexColor(content.layout.heroTextColor?.trim() ?? '');
+  const heroInnerTextStyle = heroTextResolved ?
+    ({ ['--gym-hero-text' as string]: heroTextResolved } as CSSProperties)
+  : undefined;
+
   /** Edge glow blobs use accent color; hide them when overlay is off so the photo stays clean at the sides. */
   const showHeroAccentBlobs = Number(content.layout.heroOverlay) > 0.001;
 
@@ -558,7 +595,7 @@ function GymClientSiteView({
         ) : null}
         <div className="crystal-client__hero-overlay" aria-hidden />
         <Container className="crystal-client__hero-container position-relative">
-          <div className="crystal-client__hero-inner text-center text-lg-start">
+          <div className="crystal-client__hero-inner text-center text-lg-start" style={heroInnerTextStyle}>
             <p
               className="crystal-client__hero-prefix mb-0"
               data-reveal
@@ -670,9 +707,7 @@ function GymClientSiteView({
             </h2>
             {content.description.lead ? (
               <p className="crystal-client__about-lead mb-0">
-                {content.description.lead.before}
-                <span className="crystal-client__about-lead-accent">{content.description.lead.accent}</span>
-                {content.description.lead.after}
+                <GymClientAboutLeadInline lead={content.description.lead} />
               </p>
             ) : null}
           </div>
@@ -916,18 +951,32 @@ function GymClientSiteView({
       {(visibleDetails.length > 0 || visibleContacts.length > 0) && (
         <section className="crystal-client__section crystal-client__section--meta" aria-labelledby="crystal-client-meta">
           <Container className="crystal-client__meta-container">
-            <Row className="crystal-client__meta-row g-4 g-lg-4 justify-content-center align-items-stretch">
+            <Row className="crystal-client__meta-row g-3 g-lg-3 justify-content-center align-items-stretch">
               {visibleDetails.length > 0 ? (
                 <Col xs={12} md={6} lg={6} id="visit" className="crystal-client__meta-col">
                   <div className="crystal-client__meta-panel">
                     <h2 id="crystal-client-meta" className="crystal-client__section-title crystal-client__section-title--meta" data-reveal>
                       {content.details.sectionTitle}
                     </h2>
-                    <dl className="crystal-client__dl crystal-client__dl--meta-panel" data-reveal>
+                    <dl className="crystal-client__dl crystal-client__dl--meta-panel crystal-client__dl--pro" data-reveal>
                       {visibleDetails.map((row) => (
-                        <div key={row.id} className="crystal-client__dl-row">
-                          <dt>{row.label}</dt>
-                          <dd>{row.value}</dd>
+                        <div key={row.id} className="crystal-client__dl-row crystal-client__dl-row--pro">
+                          <GymClientMetaRowDisk rowKind={row.id} />
+                          <div className="crystal-client__dl-row__body">
+                            <dt>{row.label}</dt>
+                            <dd>
+                              {row.href ?
+                                <a
+                                  href={row.href}
+                                  className="crystal-client__detail-value-link"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  {row.value}
+                                </a>
+                              : row.value}
+                            </dd>
+                          </div>
                         </div>
                       ))}
                     </dl>
@@ -952,9 +1001,11 @@ function GymClientSiteView({
                     >
                       {content.contacts.sectionTitle}
                     </h2>
-                    <ul className="crystal-client__contact-list list-unstyled mb-0" data-reveal>
+                    <ul className="crystal-client__contact-list crystal-client__contact-list--pro list-unstyled mb-0" data-reveal>
                       {visibleContacts.map((item) => (
-                        <li key={item.id} className="crystal-client__contact-item">
+                        <li key={item.id} className="crystal-client__contact-item crystal-client__contact-item--pro">
+                          <GymClientMetaRowDisk rowKind={item.id} />
+                          <div className="crystal-client__contact-item__body">
                           <span className="crystal-client__contact-label crystal-client__contact-label--meta small text-uppercase fw-bold d-block">
                             {item.label}
                           </span>
@@ -1003,6 +1054,7 @@ function GymClientSiteView({
                           ) : (
                             <span className="crystal-client__contact-value crystal-client__contact-line">{item.value}</span>
                           )}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -1241,7 +1293,9 @@ export default function CrystalBusinessPage() {
   const siteContent = useMemo(() => {
     if (slug !== 'preview') return siteContentFromBusiness;
     if (isMarketingPreview && marketingDemoContent) return marketingDemoContent;
-    if (previewDraft?.content) return withBundledDefaultClientLogo(previewDraft.content);
+    if (previewDraft?.content) {
+      return withBundledDefaultClientLogo(withLegacyHeroBackgroundMigrated(previewDraft.content));
+    }
     return null;
   }, [slug, isMarketingPreview, marketingDemoContent, previewDraft, siteContentFromBusiness]);
 

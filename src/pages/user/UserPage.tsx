@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Container, Row, Col, Card, Spinner, Modal, Button, ListGroup, Badge, Nav, Pagination, Alert, Form } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import {
@@ -13,6 +13,9 @@ import {
   getUserInfo,
   setUserInfo,
   ANALYTICS_RANGE_OPTIONS,
+  postBusinessRecordStatus,
+  BusinessDeactivateBlockedError,
+  invalidateUserBusinessListCache,
 } from '../../api';
 import type {
   UserProfile,
@@ -23,10 +26,11 @@ import type {
   AnalyticsRangePreset,
 } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
-import { visitPublicGymSite } from '../../config/env';
+import { isEmailAllowedAdmin, visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
 import { OverallLeadsByWebsiteChart } from './OverallLeadsByWebsiteChart';
+import logo from '../../assets/logo.svg';
 import './UserPage.css';
 
 function formatDate(s: string | undefined): string {
@@ -59,72 +63,231 @@ function isBusinessActive(b: { subscriptions?: { subscription_end_date?: string 
   return subs.some((sub) => isSubscriptionActive(sub.subscription_end_date));
 }
 
+/** Public site hidden (soft-deleted); not shown as a “record status” label in the UI. */
+function isBusinessArchived(b: BusinessListItem): boolean {
+  return (b as BusinessDetail).record_status === 'inactive';
+}
+
+function BusinessCardLocationIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 21c-3.5-3.2-6-6.4-6-10a6 6 0 1 1 12 0c0 3.6-2.5 6.8-6 10z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="11" r="2.25" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  );
+}
+
+function BusinessCardPhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M8.5 3h2.2c.35 0 .65.22.75.55l1.1 3.65a.8.8 0 0 1-.2.75l-1.35 1.35a12 12 0 0 0 5.4 5.4l1.35-1.35c.22-.22.55-.28.85-.18l3.65 1.1c.33.1.55.4.55.75v2.2c0 1.1-.9 2-2 2h-.35C10.4 22 2 13.6 2 3.85 2 2.75 2.9 1.85 4 1.85h.35"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BusinessCardEditIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BusinessCardTrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M10 11v6M14 11v6M6 7l1 14h10l1-14"
+        stroke="currentColor"
+        strokeWidth="1.65"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function BusinessCard({
   b,
   onOpen,
   isActive,
+  actionSlug,
+  onRequestRemove,
+  onRestore,
 }: {
   b: BusinessListItem;
   onOpen: (slug: string) => void;
   isActive: (x: BusinessListItem) => boolean;
+  actionSlug: string | null;
+  onRequestRemove: (b: BusinessListItem) => void;
+  onRestore: (b: BusinessListItem) => void;
 }) {
   const active = isActive(b);
+  const archived = isBusinessArchived(b);
+  const slugBusy = Boolean(b.slug && actionSlug === b.slug);
+  const address = b.address != null && String(b.address).trim() !== '' ? String(b.address).trim() : '';
+  const phone = b.phone != null && String(b.phone).trim() !== '' ? String(b.phone).trim() : '';
   return (
-    <Card className="user-page__business-card-item h-100">
+    <Card
+      className={`user-page__business-card-item h-100${archived ? ' user-page__business-card-item--archived' : ''}`}
+    >
       <Card.Body className="user-page__business-card-body">
         <div className="user-page__business-card-header">
-          <div className="user-page__business-icon" aria-hidden><span>◆</span></div>
-          <div className="user-page__business-card-head">
-            <Card.Title className="user-page__business-card-title">{b.name || b.slug || '—'}</Card.Title>
-            {b.slug && <p className="user-page__business-slug">/{b.slug}</p>}
-            <Badge bg={active ? 'success' : 'secondary'} className="user-page__status-badge">{active ? 'Active' : 'Inactive'}</Badge>
+          <div className="user-page__business-icon" aria-hidden>
+            <span className="user-page__business-icon-mark">◆</span>
+          </div>
+          <div
+            className={`user-page__business-card-head${!archived && b.slug ? ' user-page__business-card-head--pad-trash' : ''}`}
+          >
+            <div className="user-page__business-card-title-row">
+              <Card.Title as="h3" className="user-page__business-card-title">
+                {b.name || b.slug || '—'}
+              </Card.Title>
+              <Badge
+                pill
+                bg={active ? 'success' : 'secondary'}
+                className="user-page__status-badge"
+              >
+                {active ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            {b.slug ?
+              <p className="user-page__business-slug">
+                <span className="user-page__business-slug-label">Site</span>
+                <span className="user-page__business-slug-value">/{b.slug}</span>
+              </p>
+            : null}
+            {archived ?
+              <p className="user-page__business-card-archived-note mb-0">
+                Hidden from the web. Restore anytime to publish again.
+              </p>
+            : null}
           </div>
         </div>
-        <div className="user-page__business-meta-list">
-          {b.address != null && b.address !== '' && (
-            <div className="user-page__business-meta-row">
-              <span className="user-page__meta-icon" aria-hidden>📍</span>
-              <span className="user-page__business-meta-text">{String(b.address)}</span>
-            </div>
-          )}
-          {b.phone != null && b.phone !== '' && (
-            <div className="user-page__business-meta-row">
-              <span className="user-page__meta-icon" aria-hidden>📞</span>
-              <span className="user-page__business-meta-text">{String(b.phone)}</span>
-            </div>
-          )}
-        </div>
-        <div className="user-page__business-card-actions">
-          <Button
-            variant="primary"
-            size="sm"
-            className="user-page__btn-view"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (b.slug) onOpen(b.slug);
-            }}
-          >
-            View
-          </Button>
-          {b.slug ?
-            <>
-              <Link
-                to={`/user/business/${encodeURIComponent(b.slug)}/manage`}
-                className="btn btn-outline-primary btn-sm user-page__btn-manage"
-                title="Analytics & website management"
+
+        <dl className="user-page__business-meta-list">
+          <div className="user-page__business-meta-row">
+            <dt className="user-page__business-meta-dt">
+              <BusinessCardLocationIcon className="user-page__meta-glyph" />
+              <span className="visually-hidden">Address</span>
+            </dt>
+            <dd className={`user-page__business-meta-dd ${address ? '' : 'user-page__business-meta-dd--empty'}`}>
+              {address || 'No address on file'}
+            </dd>
+          </div>
+          <div className="user-page__business-meta-row">
+            <dt className="user-page__business-meta-dt">
+              <BusinessCardPhoneIcon className="user-page__meta-glyph" />
+              <span className="visually-hidden">Phone</span>
+            </dt>
+            <dd className={`user-page__business-meta-dd ${phone ? '' : 'user-page__business-meta-dd--empty'}`}>
+              {phone || 'No phone on file'}
+            </dd>
+          </div>
+        </dl>
+
+        {archived && b.slug ?
+          <div className="user-page__business-card-actions user-page__business-card-actions--archived">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              className="user-page__business-action-btn"
+              disabled={slugBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen(b.slug!);
+              }}
+            >
+              View
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              className="user-page__business-action-btn user-page__btn-view"
+              disabled={slugBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestore(b);
+              }}
+            >
+              {slugBusy ?
+                <>
+                  <Spinner animation="border" size="sm" className="me-1" />
+                  Restoring…
+                </>
+              : 'Restore website'}
+            </Button>
+          </div>
+        : (
+          <>
+            <div
+              className={`user-page__business-card-actions${b.slug ? '' : ' user-page__business-card-actions--single'}`}
+            >
+              <Button
+                variant="primary"
+                size="sm"
+                className="user-page__btn-view user-page__business-action-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (b.slug) onOpen(b.slug);
+                }}
               >
-                Manage
-              </Link>
-              <Link
-                to={`/user/business/${encodeURIComponent(b.slug)}/edit`}
-                className="btn btn-outline-secondary btn-sm"
-                title="Edit website content & design"
+                View
+              </Button>
+              {b.slug ?
+                <>
+                  <Link
+                    to={`/user/business/${encodeURIComponent(b.slug)}/manage`}
+                    className="btn btn-outline-primary btn-sm user-page__btn-manage user-page__business-action-btn"
+                    title="Analytics, leads & enquiries"
+                  >
+                    Manage
+                  </Link>
+                  <Link
+                    to={`/user/business/${encodeURIComponent(b.slug)}/edit`}
+                    className="btn btn-outline-secondary btn-sm user-page__business-action-btn user-page__business-action-btn--icon"
+                    title="Edit website content & design"
+                    aria-label="Edit website"
+                  >
+                    <BusinessCardEditIcon />
+                  </Link>
+                </>
+              : null}
+            </div>
+            {b.slug ?
+              <button
+                type="button"
+                className="user-page__business-remove-fab"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRequestRemove(b);
+                }}
+                disabled={slugBusy}
+                aria-label="Remove website from dashboard"
+                title="Remove website"
               >
-                Edit
-              </Link>
-            </>
-          : null}
-        </div>
+                <BusinessCardTrashIcon />
+              </button>
+            : null}
+          </>
+        )}
       </Card.Body>
     </Card>
   );
@@ -133,6 +296,8 @@ function BusinessCard({
 export default function UserPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const asMemberDashboard = searchParams.get('as') === 'member';
   const [profile, setProfile] = useState<UserProfile | null>(() => peekProfileCache());
   const [profileLoading, setProfileLoading] = useState(() => peekProfileCache() === null);
   const businessPageSize = 5;
@@ -145,6 +310,8 @@ export default function UserPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeSubscriptionApi, setActiveSubscriptionApi] = useState<ActiveSubscriptionResponse | null>(null);
   const [visitCheckLoading, setVisitCheckLoading] = useState(false);
+  const [removeConfirmBusiness, setRemoveConfirmBusiness] = useState<BusinessListItem | null>(null);
+  const [recordActionSlug, setRecordActionSlug] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'businesses' | 'analytics'>('businesses');
   const [allAnalytics, setAllAnalytics] = useState<WebsiteAnalytics[] | null>(null);
   const [allAnalyticsLoading, setAllAnalyticsLoading] = useState(false);
@@ -168,6 +335,14 @@ export default function UserPage() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (asMemberDashboard || profileLoading) return;
+    const email = profile?.email;
+    if (email && isEmailAllowedAdmin(email)) {
+      navigate('/user/admin', { replace: true });
+    }
+  }, [asMemberDashboard, profileLoading, profile?.email, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -224,6 +399,44 @@ export default function UserPage() {
     };
   }, [activeTab, analyticsRange]);
 
+  const refetchBusinessesSilently = useCallback(async () => {
+    invalidateUserBusinessListCache();
+    try {
+      const res = await getBusinessListPaginatedCached(businessPage, businessPageSize, { force: true });
+      setBusinesses(res.results);
+      setBusinessTotalCount(res.count);
+    } catch {
+      setBusinesses([]);
+      setBusinessTotalCount(0);
+    }
+  }, [businessPage, businessPageSize]);
+
+  const handleRestoreBusiness = useCallback(
+    async (b: BusinessListItem) => {
+      const slug = b.slug?.trim();
+      if (!slug) return;
+      setRecordActionSlug(slug);
+      try {
+        await postBusinessRecordStatus(slug, { record_status: 'active' });
+        showToast('Website is live again.');
+        await refetchBusinessesSilently();
+        if (selectedBusiness?.slug === slug) {
+          try {
+            const d = await getBusinessDetail(slug);
+            setSelectedBusiness(d);
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : 'Could not restore.');
+      } finally {
+        setRecordActionSlug(null);
+      }
+    },
+    [refetchBusinessesSilently, selectedBusiness?.slug, showToast]
+  );
+
   const openBusinessDetail = (slug: string) => {
     if (!slug) return;
     setDetailLoading(true);
@@ -240,11 +453,32 @@ export default function UserPage() {
       .finally(() => setDetailLoading(false));
   };
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setSelectedBusiness(null);
     setDetailLoading(false);
     setActiveSubscriptionApi(null);
-  };
+  }, []);
+
+  const confirmRemoveBusiness = useCallback(async () => {
+    const slug = removeConfirmBusiness?.slug?.trim();
+    if (!slug) return;
+    setRecordActionSlug(slug);
+    try {
+      await postBusinessRecordStatus(slug, { record_status: 'inactive' });
+      setRemoveConfirmBusiness(null);
+      showToast('Website hidden. Use Restore on the card to bring it back.');
+      if (selectedBusiness?.slug === slug) closeModal();
+      await refetchBusinessesSilently();
+    } catch (e) {
+      if (e instanceof BusinessDeactivateBlockedError) {
+        showToast(e.message);
+      } else {
+        showToast(e instanceof Error ? e.message : 'Could not remove website.');
+      }
+    } finally {
+      setRecordActionSlug(null);
+    }
+  }, [removeConfirmBusiness?.slug, refetchBusinessesSilently, selectedBusiness?.slug, showToast, closeModal]);
 
   const handleVisitWebsite = () => {
     const slug = selectedBusiness?.slug;
@@ -279,6 +513,10 @@ export default function UserPage() {
     analyticsAllowedPresets?.length ?
       ANALYTICS_RANGE_OPTIONS.filter((o) => analyticsAllowedPresets.includes(o.value))
     : ANALYTICS_RANGE_OPTIONS;
+
+  const detailArchived = selectedBusiness ? isBusinessArchived(selectedBusiness) : false;
+  const removeBusySlug = removeConfirmBusiness?.slug?.trim();
+  const removeDialogBusy = Boolean(removeBusySlug && recordActionSlug === removeBusySlug);
 
   return (
     <PageContainer>
@@ -389,13 +627,20 @@ export default function UserPage() {
                       <p className="user-page__empty-hint">Your connected businesses will appear here.</p>
                     </div>
                   ) : (
-                    <Row xs={1} md={2} className="g-2 user-page__business-grid">
+                    <Row xs={1} md={2} className="g-3 g-xl-4 user-page__business-grid">
                       {businesses.map((b, index) => (
                         <Col
                           key={(b as { id?: string }).id ?? b.slug ?? `business-${index}`}
                           className="d-flex"
                         >
-                          <BusinessCard b={b} onOpen={openBusinessDetail} isActive={isBusinessActive} />
+                          <BusinessCard
+                            b={b}
+                            onOpen={openBusinessDetail}
+                            isActive={isBusinessActive}
+                            actionSlug={recordActionSlug}
+                            onRequestRemove={setRemoveConfirmBusiness}
+                            onRestore={handleRestoreBusiness}
+                          />
                         </Col>
                       ))}
                     </Row>
@@ -531,7 +776,7 @@ export default function UserPage() {
       </main>
 
       {/* Business detail modal */}
-      <Modal show={selectedBusiness !== null || detailLoading} onHide={closeModal} centered className="user-page__modal">
+      <Modal show={selectedBusiness !== null || detailLoading} onHide={closeModal} className="user-page__modal">
         <Modal.Header closeButton className="user-page__modal-header">
           {detailLoading ? (
             <Modal.Title>Loading…</Modal.Title>
@@ -562,6 +807,12 @@ export default function UserPage() {
           ) : selectedBusiness ? (
             <>
               <div className="user-page__modal-content">
+                {detailArchived ?
+                  <Alert variant="warning" className="user-page__modal-archived-alert rounded-0 border-0 mb-0">
+                    This site is hidden from the public. Restore it from the actions below when you are ready to publish
+                    again.
+                  </Alert>
+                : null}
                 <section className="user-page__detail-section">
                   <h3 className="user-page__detail-heading">Business details</h3>
                   <dl className="user-page__detail-dl">
@@ -632,7 +883,21 @@ export default function UserPage() {
           ) : null}
         </Modal.Body>
         <Modal.Footer className="user-page__modal-footer user-page__modal-footer--actions">
-          {selectedBusiness?.slug && (
+          {selectedBusiness?.slug && detailArchived ?
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={recordActionSlug === selectedBusiness.slug}
+              onClick={() => handleRestoreBusiness(selectedBusiness)}
+            >
+              {recordActionSlug === selectedBusiness.slug ?
+                <>
+                  <Spinner animation="border" size="sm" className="me-1" />
+                  Restoring…
+                </>
+              : 'Restore website'}
+            </Button>
+          : selectedBusiness?.slug ?
             <>
               <Button
                 variant="outline-secondary"
@@ -663,9 +928,66 @@ export default function UserPage() {
               >
                 Edit website
               </Link>
+              <Button
+                variant="outline-danger"
+                size="sm"
+                className="user-page__modal-remove-icon-btn"
+                onClick={() => setRemoveConfirmBusiness(selectedBusiness)}
+                aria-label="Remove website"
+                title="Remove website"
+              >
+                <BusinessCardTrashIcon />
+              </Button>
             </>
-          )}
-          <Button variant="dark" onClick={closeModal}>Close</Button>
+          : null}
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={removeConfirmBusiness !== null}
+        onHide={() => !removeDialogBusy && setRemoveConfirmBusiness(null)}
+        centered
+        backdrop={removeDialogBusy ? 'static' : true}
+        keyboard={!removeDialogBusy}
+        dialogClassName="user-page__remove-website-modal"
+        contentClassName="user-page__remove-website-modal-content"
+      >
+        <Modal.Header closeButton className="user-page__remove-website-modal-header border-0">
+          <div className="user-page__remove-website-modal-header-main">
+            <img src={logo} alt="" className="user-page__remove-website-modal-logo" width={48} height={48} />
+            <Modal.Title as="h2" className="user-page__remove-website-modal-title">
+              Remove website?
+            </Modal.Title>
+            {removeConfirmBusiness?.name ?
+              <p className="user-page__remove-website-modal-business text-muted small mb-0">
+                {removeConfirmBusiness.name}
+                {removeConfirmBusiness.slug ?
+                  <span className="user-page__remove-website-modal-slug"> · /{removeConfirmBusiness.slug}</span>
+                : null}
+              </p>
+            : null}
+          </div>
+        </Modal.Header>
+        <Modal.Body className="user-page__remove-website-modal-body">
+          <p className="mb-2 mb-md-3">
+            Your public gym page will be hidden until you restore it from your business list.
+          </p>
+          <p className="text-muted small mb-0">
+            If you still have an active paid plan, removal may be blocked until the subscription ends or is cancelled.
+          </p>
+        </Modal.Body>
+        <Modal.Footer className="user-page__remove-website-modal-footer border-0">
+          <Button variant="secondary" onClick={() => setRemoveConfirmBusiness(null)} disabled={removeDialogBusy}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={confirmRemoveBusiness} disabled={removeDialogBusy}>
+            {removeDialogBusy ?
+              <>
+                <Spinner animation="border" size="sm" className="me-1" />
+                Removing…
+              </>
+            : 'Remove'}
+          </Button>
         </Modal.Footer>
       </Modal>
     </PageContainer>

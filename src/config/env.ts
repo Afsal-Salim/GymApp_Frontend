@@ -29,6 +29,26 @@ export const whatsappDefaultMessage =
   (import.meta.env.VITE_WHATSAPP_MESSAGE ?? '').trim() ||
   'Hello I am interested in your service';
 
+/**
+ * Comma-separated emails that may use the in-app admin dashboard (`/user/admin`).
+ * Must mirror the server `ADMIN` env list so UI gating matches `/api/admin/*` authorization.
+ */
+function parseAdminEmailSet(raw: string): Set<string> {
+  return new Set(
+    raw
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+export const adminAllowedEmails = parseAdminEmailSet(import.meta.env.VITE_ADMIN_EMAILS ?? '');
+
+export function isEmailAllowedAdmin(email: string | undefined | null): boolean {
+  if (!email?.trim()) return false;
+  return adminAllowedEmails.has(email.trim().toLowerCase());
+}
+
 export const homepageTutorialVideoUrl =
   (import.meta.env.VITE_HOMEPAGE_TUTORIAL_VIDEO_URL ?? '').trim() ||
   'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
@@ -40,6 +60,13 @@ export const homepageTutorialVideoUrl =
  */
 export const marketingEnquiryPath =
   (import.meta.env.VITE_MARKETING_ENQUIRY_PATH ?? '').trim() || '/public/enquiries/';
+
+/**
+ * POST path for service / custom website enquiries (appended to `apiBaseUrl`).
+ * @default /public/service-enquiries/
+ */
+export const serviceEnquiryPath =
+  (import.meta.env.VITE_SERVICE_ENQUIRY_PATH ?? '').trim() || '/public/service-enquiries/';
 
 /**
  * Refresh-token endpoint path, appended to `apiBaseUrl` (same as legacy `REFRESH_ENDPOINT`).
@@ -89,6 +116,7 @@ export const MARKETING_APP_PATH_FIRST_SEGMENTS = new Set([
   'legal',
   'user',
   'support',
+  'services',
 ]);
 
 const RESERVED_PUBLIC_SITE_SUBDOMAINS = new Set([
@@ -137,6 +165,18 @@ export function publicGymSiteUrl(slug: string, path = '/'): string {
   const scheme =
     typeof window !== 'undefined' && window.location.protocol === 'http:' ? 'http' : 'https';
   return `${scheme}://${encodeURIComponent(s)}.${publicSiteDomain}${tail === '/' ? '/' : tail}`;
+}
+
+/**
+ * Display-only public address without `http(s)://` — e.g. `my-gym.example.com/` or `/my-gym/` when using path-based dev.
+ */
+export function publicGymSiteHostLabel(slug: string): string {
+  const s = slug.trim().toLowerCase();
+  if (!s) return '—';
+  if (!publicSiteDomain) {
+    return `/${s}/`;
+  }
+  return `${s}.${publicSiteDomain}/`;
 }
 
 /** Marketing SPA entry on `www` (dashboard, login, `/preview`, etc.). */

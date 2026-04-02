@@ -1,52 +1,57 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
-import { getPlanList, type PlanListItem } from '../../api';
+import { getPlanList, formatPlanPrice, type PlanListItem } from '../../api';
+import { PlanPriceDisplay } from '../../components';
 import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
 import { homepageTutorialVideoUrl, whatsappDefaultMessage, whatsappPhone } from '../../config/env';
 import { WhatsAppLogoIcon } from '../../components';
 import './HomePage.css';
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  INR: '₹',
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-};
-
-function formatPrice(price: string, currency?: string): string {
-  const num = Number(price);
-  const symbol = currency && CURRENCY_SYMBOLS[currency] ? CURRENCY_SYMBOLS[currency] : currency ?? '₹';
-  return `${symbol}${num.toFixed(0)}`;
-}
-
 type DisplayPlan = {
   id: string;
   name: string;
-  price: string;
+  listPriceFormatted: string;
+  firstActivationFormatted: string | null;
+  showIntroPrice: boolean;
   period: string;
   currency: string;
   features: string[];
   cta: string;
   paymentSlug: 'starter' | 'pro' | null;
   popular: boolean;
+  comingSoon: boolean;
 };
 
-function mapPlanToDisplay(apiPlan: PlanListItem, index: number): DisplayPlan {
+function mapPlanToDisplay(apiPlan: PlanListItem): DisplayPlan {
   const slug = apiPlan.name.toLowerCase() as string;
-  const paymentSlug = slug === 'starter' || slug === 'pro' ? (slug as 'starter' | 'pro') : null;
-  const priceFormatted = formatPrice(apiPlan.price, apiPlan.currency);
+  const comingSoon = apiPlan.coming_soon === true;
+  const paymentSlug =
+    comingSoon ? null : slug === 'starter' || slug === 'pro' ? (slug as 'starter' | 'pro') : null;
+  const listPriceFormatted = formatPlanPrice(apiPlan.price, apiPlan.currency);
+  const firstRaw = apiPlan.first_activation_price?.trim();
+  const firstNum = firstRaw ? Number(firstRaw) : NaN;
+  const firstActivationFormatted =
+    firstRaw && Number.isFinite(firstNum) && firstNum > 0 ?
+      formatPlanPrice(firstRaw, apiPlan.currency)
+    : null;
+  const showIntroPrice = Boolean(firstActivationFormatted) && !comingSoon;
   const period = apiPlan.duration ? ` / ${apiPlan.duration} days` : '';
+  const primaryDisplay =
+    showIntroPrice && firstActivationFormatted ? firstActivationFormatted : listPriceFormatted;
   return {
     id: String(apiPlan.id),
     name: apiPlan.name,
-    price: priceFormatted,
+    listPriceFormatted,
+    firstActivationFormatted,
+    showIntroPrice,
     period,
     currency: apiPlan.currency ?? 'INR',
     features: apiPlan.features?.map((f) => f.name) ?? [],
-    cta: paymentSlug ? `Get now for ${priceFormatted}` : 'Contact sales',
+    cta: paymentSlug ? `Get now for ${primaryDisplay}` : 'Contact sales',
     paymentSlug,
-    popular: index === 1,
+    popular: slug === 'pro' && !comingSoon,
+    comingSoon,
   };
 }
 
@@ -154,13 +159,16 @@ const TESTIMONIALS_SCROLL = [
 const CUSTOM_PLAN: DisplayPlan = {
   id: 'custom',
   name: 'Custom',
-  price: 'Custom',
+  listPriceFormatted: 'Custom',
+  firstActivationFormatted: null,
+  showIntroPrice: false,
   period: '',
   currency: 'INR',
   features: ['Everything in Pro', 'Multi-team', 'API access', 'Dedicated success manager'],
   cta: 'Contact sales',
   paymentSlug: null,
   popular: false,
+  comingSoon: false,
 };
 
 const TUTORIAL_VIDEO_URL = homepageTutorialVideoUrl;
@@ -221,49 +229,57 @@ function useHorizontalWheel(ref: React.RefObject<HTMLDivElement | null>) {
 
 function PlanFeatures({ planId, features }: { planId: string; features: string[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [showArrow, setShowArrow] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(false);
 
-  const updateArrowVisibility = useCallback(() => {
+  const updateScrollHint = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
     const hasMore = el.scrollHeight > el.clientHeight + 2;
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
-    setShowArrow(hasMore && !atBottom);
+    setShowScrollHint(hasMore && !atBottom);
   }, []);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    updateArrowVisibility();
-    const ro = new ResizeObserver(updateArrowVisibility);
+    updateScrollHint();
+    const ro = new ResizeObserver(updateScrollHint);
     ro.observe(el);
-    el.addEventListener('scroll', updateArrowVisibility);
+    el.addEventListener('scroll', updateScrollHint);
     return () => {
       ro.disconnect();
-      el.removeEventListener('scroll', updateArrowVisibility);
+      el.removeEventListener('scroll', updateScrollHint);
     };
-  }, [features.length, updateArrowVisibility]);
+  }, [features.length, updateScrollHint]);
 
   return (
     <div className="crystal-package-features-wrapper">
       <div className="crystal-package-features" ref={containerRef}>
-        <ul className="list-unstyled small text-start mb-0">
+        <ul className="crystal-package-features-list list-unstyled mb-0">
           {features.map((name, idx) => (
-            <li key={`${planId}-${idx}`} className="mb-1">✓ {name}</li>
+            <li key={`${planId}-${idx}`} className="crystal-package-features-list__item">
+              <span className="crystal-package-features-list__check" aria-hidden>
+                ✓
+              </span>
+              <span className="crystal-package-features-list__text">{name}</span>
+            </li>
           ))}
         </ul>
       </div>
-      {showArrow && (
+      {showScrollHint && (
         <button
           type="button"
-          className="crystal-features-scroll-down"
+          className="crystal-features-scroll-hint"
           onClick={(e) => {
             e.stopPropagation();
-            containerRef.current?.scrollBy({ top: 80, behavior: 'smooth' });
+            containerRef.current?.scrollBy({ top: 96, behavior: 'smooth' });
           }}
-          aria-label="Scroll features down"
+          aria-label="Scroll to see more features"
         >
-          <span className="crystal-chevron-down" aria-hidden>▼</span>
+          More features below
+          <span className="crystal-features-scroll-hint__chev" aria-hidden>
+            ↓
+          </span>
         </button>
       )}
     </div>
@@ -321,7 +337,7 @@ export default function HomePage() {
     getPlanList()
       .then((data) => {
         if (cancelled) return;
-        const mapped = data.map((p, i) => mapPlanToDisplay(p, i));
+        const mapped = data.map((p) => mapPlanToDisplay(p));
         setPlans([...mapped, CUSTOM_PLAN]);
       })
       .catch((err) => {
@@ -537,8 +553,11 @@ export default function HomePage() {
               <h2 className="crystal-section-title display-6 fw-bold mb-3">
               Turn visitors into paying gym members with your own website.
               </h2>
-              <p className="text-muted mb-4">
+              <p className="text-muted mb-3">
                 A dedicated website builds trust, shows your classes and timings, and helps new members find you. Stand out with a polished online presence—no tech skills needed.
+              </p>
+              <p className="text-muted mb-4">
+                Show your plans, promote offers, and receive instant enquiries on WhatsApp — all in one place.
               </p>
               <div className="crystal-value-points d-flex flex-wrap justify-content-center gap-3">
                 <span className="crystal-value-badge">Reach more members</span>
@@ -716,17 +735,34 @@ export default function HomePage() {
                   <Card
                     key={pkg.id}
                     data-plan-id={pkg.id}
-                    className={`crystal-package-card flex-shrink-0 ${pkg.popular ? 'border-primary' : ''}`}
+                    className={`crystal-package-card flex-shrink-0 ${pkg.popular && !pkg.comingSoon ? 'border-primary' : ''}`}
                   >
-                    {pkg.popular && (
+                    {pkg.popular && !pkg.comingSoon && (
                       <div className="crystal-package-badge bg-primary text-white small py-1">Popular</div>
                     )}
-                    <Card.Body className="text-center">
-                      <Card.Title className="h5">{pkg.name}</Card.Title>
-                      <div className="mb-3">
-                        <span className="display-6 fw-bold">{pkg.price}</span>
-                        <span className="text-muted">{pkg.period}</span>
+                    {pkg.comingSoon && (
+                      <div className="crystal-package-badge crystal-package-badge--soon text-white small py-1">
+                        Soon
                       </div>
+                    )}
+                    <Card.Body className="text-center crystal-package-card__body">
+                      <Card.Title className="h5">{pkg.name}</Card.Title>
+                      {pkg.id === 'custom' ?
+                        <div className="mb-3 crystal-package-price-wrap">
+                          <span className="crystal-package-custom-price">Custom</span>
+                        </div>
+                      : (
+                        <div className="mb-3 crystal-package-price-wrap">
+                          <PlanPriceDisplay
+                            listFormatted={pkg.listPriceFormatted}
+                            firstFormatted={pkg.firstActivationFormatted}
+                            period={pkg.period}
+                            showIntro={pkg.showIntroPrice}
+                            size="lg"
+                            className="text-center w-100"
+                          />
+                        </div>
+                      )}
                       {pkg.features.length > 0 && (
                         <PlanFeatures planId={pkg.id} features={pkg.features} />
                       )}

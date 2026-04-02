@@ -1,5 +1,86 @@
 /** Inline SVG accents for the public gym client (mid CTAs, join modal). */
 
+const META_DISK_GLYPH = 'crystal-client__meta-disk__glyph';
+
+function metaDiskModifier(id: string): string {
+  const known = new Set(['hours', 'parking', 'slug', 'email', 'phone', 'address', 'instagram']);
+  return known.has(id) ? id : 'default';
+}
+
+/**
+ * Circular icon disk for Visit / Contact meta rows (visual parity with marketing Home contact cards).
+ * `rowKind` should match `GymClientDetailRow.id` or contact item `id`.
+ */
+export function GymClientMetaRowDisk({ rowKind }: { rowKind: string }) {
+  const k = metaDiskModifier(rowKind);
+  return (
+    <span className={`crystal-client__meta-disk crystal-client__meta-disk--${k}`} aria-hidden>
+      {k === 'hours' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.75" />
+          <path d="M12 7.25v5l3.25 2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {k === 'parking' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M9 7h4.8c2.3 0 3.7 1.35 3.7 3.2S16.1 13.4 13.8 13.4H11.3V18M9 7v11"
+            stroke="currentColor"
+            strokeWidth="1.85"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      {k === 'slug' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M10 13a5 5 0 0 1 0-7l1-1M14 11a5 5 0 0 1 0 7l-1 1M8 12h8"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      {k === 'email' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3.5" y="5.5" width="17" height="13" rx="2" stroke="currentColor" strokeWidth="1.75" />
+          <path d="M4 7.5l8 6 8-6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {k === 'phone' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M8.5 4.5h2.2c.35 0 .65.22.75.55l1.1 3.65a.8.8 0 0 1-.2.75l-1.35 1.35a12 12 0 0 0 5.4 5.4l1.35-1.35c.22-.22.55-.28.85-.18l3.65 1.1c.33.1.55.4.55.75v2.2c0 1.1-.9 2-2 2h-.35C10.4 22 2 13.6 2 3.85 2 2.75 2.9 1.85 4 1.85h.35"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      {k === 'address' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z" />
+        </svg>
+      )}
+      {k === 'instagram' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" strokeWidth="1.75" />
+          <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.75" />
+          <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" />
+        </svg>
+      )}
+      {k === 'default' && (
+        <svg className={META_DISK_GLYPH} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeDasharray="3 4" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 /** Map pin for “Open in Google Maps” (generic pin shape, not Google trademark artwork). */
 export function GymClientMapsPinIcon({ className }: { className?: string }) {
   return (

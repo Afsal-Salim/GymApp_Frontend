@@ -5,7 +5,14 @@ import './PaymentLoginRequiredModal.css';
 export type CheckoutRedirect = {
   pathname: string;
   state?: {
-    planDetails?: { name: string; price: string; period: string; currency: string };
+    planDetails?: {
+      name: string;
+      price: string;
+      period: string;
+      currency: string;
+      listPriceFormatted?: string;
+      firstActivationFormatted?: string | null;
+    };
     planId?: number;
     businessSlug?: string;
   };

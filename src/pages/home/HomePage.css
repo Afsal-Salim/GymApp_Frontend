@@ -785,7 +785,7 @@ html {
   border: 0;
 }
 
-/* Packages – extra padding so selected (scaled) card isn’t cut off */
+/* Packages – room for hover lift / shadow */
 .crystal-packages .container {
   overflow: visible;
 }
@@ -830,8 +830,9 @@ html {
   .crystal-packages-inner {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 1fr;
     overflow: visible;
-    align-items: center;
+    align-items: stretch;
     padding-top: 2rem;
     padding-bottom: 2rem;
   }
@@ -840,14 +841,31 @@ html {
 .crystal-package-card {
   scroll-snap-align: start;
   min-width: 280px;
-  min-height: 380px;
+  min-height: 400px;
+  height: 100%;
+  width: 100%;
   border-radius: 16px !important;
   position: relative;
   cursor: pointer;
-  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.2s;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  background: #fff !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 12px rgba(15, 23, 42, 0.06),
+    0 16px 42px rgba(15, 23, 42, 0.07);
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease,
+    border-color 0.2s ease;
+}
+
+@media (min-width: 992px) {
+  .crystal-package-card {
+    min-height: 420px;
+  }
 }
 
 .crystal-package-card .card-body {
@@ -857,24 +875,30 @@ html {
   min-height: 0;
 }
 
-/* All cards same base size; only selected is bigger */
-.crystal-package-card:not(.crystal-package-card--selected) {
-  transform: scale(0.94);
-}
-
-.crystal-package-card--selected {
-  transform: scale(1.06);
-  box-shadow: 0 20px 40px rgba(14, 165, 233, 0.2), 0 0 0 2px rgba(14, 165, 233, 0.4);
-  z-index: 2;
-  border-color: #0ea5e9 !important;
+/* Popular plan – subtle brand tint, same footprint as other cards */
+.crystal-package-card.border-primary {
+  border-color: rgba(14, 165, 233, 0.42) !important;
+  box-shadow:
+    0 1px 2px rgba(14, 165, 233, 0.07),
+    0 6px 18px rgba(14, 165, 233, 0.1),
+    0 20px 48px rgba(14, 165, 233, 0.12);
 }
 
 .crystal-package-card:hover {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px);
+  border-color: rgba(148, 163, 184, 0.55) !important;
+  box-shadow:
+    0 4px 8px rgba(15, 23, 42, 0.05),
+    0 14px 32px rgba(15, 23, 42, 0.1),
+    0 28px 64px rgba(14, 165, 233, 0.1);
 }
 
-.crystal-package-card--selected:hover {
-  box-shadow: 0 24px 48px rgba(14, 165, 233, 0.25), 0 0 0 2px rgba(14, 165, 233, 0.5);
+.crystal-package-card.border-primary:hover {
+  border-color: rgba(14, 165, 233, 0.65) !important;
+  box-shadow:
+    0 6px 12px rgba(14, 165, 233, 0.12),
+    0 18px 40px rgba(14, 165, 233, 0.16),
+    0 36px 72px rgba(14, 165, 233, 0.14);
 }
 
 .crystal-package-badge {
@@ -887,56 +911,144 @@ html {
   font-weight: 600;
 }
 
+.crystal-package-card__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.crystal-package-price-wrap {
+  flex-shrink: 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* PlanPriceDisplay uses flex rows; center like plans page */
+.crystal-package-price-wrap .plan-price-display__badge-row {
+  display: flex;
+  justify-content: center;
+}
+
+.crystal-package-price-wrap .plan-price-display__primary {
+  justify-content: center;
+}
+
+.crystal-package-price-wrap .plan-price-display__was {
+  justify-content: center;
+}
+
+.crystal-package-custom-price {
+  display: block;
+  text-align: center;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
 .crystal-package-features-wrapper {
-  position: relative;
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-bottom: 0.35rem;
+  flex: 1;
+  min-height: 0;
+  text-align: left;
 }
 
 .crystal-package-features {
-  height: 180px;
+  flex: 1 1 auto;
+  max-height: 11.5rem;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  padding: 0.15rem 0.15rem 0.35rem;
+  margin: 0 -0.15rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(14, 165, 233, 0.45) transparent;
 }
 
 .crystal-package-features::-webkit-scrollbar {
-  display: none;
+  width: 5px;
 }
 
-.crystal-package-features ul {
-  padding-bottom: 2rem;
+.crystal-package-features::-webkit-scrollbar-thumb {
+  background: rgba(14, 165, 233, 0.4);
+  border-radius: 999px;
 }
 
-.crystal-features-scroll-down {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 2rem;
-  height: 1.75rem;
-  border: none;
-  border-radius: 6px 6px 0 0;
-  background: linear-gradient(180deg, transparent, rgba(14, 165, 233, 0.25));
-  color: #0ea5e9;
-  font-size: 1rem;
-  cursor: pointer;
+.crystal-package-features-list {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.crystal-package-features-list__item {
   display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  padding: 0.32rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.crystal-package-features-list__item:last-child {
+  border-bottom: none;
+}
+
+.crystal-package-features-list__check {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+  color: #0ea5e9;
+  font-weight: 700;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin-top: 0.05rem;
+}
+
+.crystal-package-features-list__text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.crystal-features-scroll-hint {
+  flex-shrink: 0;
+  align-self: center;
+  margin-top: auto;
+  padding-top: 0.4rem;
+  padding: 0.25rem 0.65rem 0.3rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.1);
+  color: #0284c7;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  line-height: 1;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  gap: 0.35rem;
+  line-height: 1.2;
 }
 
-.crystal-features-scroll-down:hover {
-  background: linear-gradient(180deg, transparent, rgba(14, 165, 233, 0.4));
+.crystal-features-scroll-hint:hover {
+  background: rgba(14, 165, 233, 0.18);
+  color: #0369a1;
 }
 
-.crystal-features-scroll-down .crystal-chevron-down {
-  display: inline-block;
-  font-size: 0.75rem;
+.crystal-features-scroll-hint__chev {
+  font-size: 0.85rem;
   line-height: 1;
-  transform: scaleY(0.6);
+}
+
+.crystal-package-badge--soon {
+  background: linear-gradient(135deg, #64748b, #475569) !important;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.65rem !important;
 }
 
 .crystal-section {
@@ -1022,7 +1134,7 @@ html {
 
   .crystal-packages-inner {
     padding-left: max(1rem, env(safe-area-inset-left));
-    /* Extra right padding so Enterprise (last) card isn’t cut off when selected */
+    /* Extra right padding so the last card isn’t clipped in the horizontal scroll */
     padding-right: max(45vw, 2rem, env(safe-area-inset-right));
     gap: 1rem;
     padding-top: 0.5rem;
@@ -1033,18 +1145,9 @@ html {
     min-width: min(260px, calc(100vw - 3rem));
     max-width: min(300px, calc(100vw - 2rem));
     flex: 0 0 auto;
-    transform: scale(0.94);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-
-  .crystal-package-card--selected {
-    transform: scale(1.06);
-    box-shadow: 0 12px 24px rgba(14, 165, 233, 0.2), 0 0 0 2px rgba(14, 165, 233, 0.4);
-    z-index: 2;
-  }
-
-  .crystal-package-card:not(.crystal-package-card--selected) {
-    opacity: 0.9;
+    min-height: 400px;
+    transform: none;
+    opacity: 1;
   }
 
   .crystal-package-card .card-body {
@@ -1055,12 +1158,12 @@ html {
     font-size: 1.1rem;
   }
 
-  .crystal-package-card .display-6 {
+  .crystal-package-price-wrap .plan-price-display__primary--lg .plan-price-display__amount {
     font-size: 1.5rem !important;
   }
 
-  .crystal-package-card .list-unstyled li {
-    font-size: 0.875rem;
+  .crystal-package-features-list {
+    font-size: 0.8rem;
   }
 
   .crystal-package-card .btn {
@@ -1085,11 +1188,7 @@ html {
   }
 }
 
-/* Touch targets (iPhone): min 44px */
-.crystal-package-card {
-  min-height: 44px;
-}
-
+/* Touch targets (iPhone): min height on CTAs (not the package card — that broke equal heights). */
 .crystal-cta,
 .crystal-cta-outline,
 .crystal-package-card .btn {

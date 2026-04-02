@@ -10,3 +10,4 @@ export type { CheckoutRedirect } from './payment/payment-login-modal/PaymentLogi
 export { default as WhatsAppLogoIcon } from './icons/WhatsAppLogoIcon';
 export { GymLoadingScreen } from './gym-loading-screen/GymLoadingScreen';
 export type { GymLoadingScreenProps } from './gym-loading-screen/GymLoadingScreen';
+export { PlanPriceDisplay } from './PlanPriceDisplay';

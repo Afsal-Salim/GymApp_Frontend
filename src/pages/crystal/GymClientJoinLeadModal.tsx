@@ -3,6 +3,7 @@ import { Modal, Button, Form } from 'react-bootstrap';
 import { recordGymClientJoinLeadSubmission } from './gymClientLeadTracking';
 import { GymClientJoinModalHeaderArt, GymClientJoinSuccessIllustration } from './GymClientDecorIcons';
 import { resolveGymClientBrandLogoSrc } from './gymClientBrandLogo';
+import { clampPhoneDigitsInput } from '../../utils/phoneDigits';
 
 const FOCUS_OPTIONS = [
   { id: 'strength', label: 'Strength & muscle' },
@@ -55,9 +56,9 @@ export default function GymClientJoinLeadModal({
     setDone(false);
   }, [show]);
 
-  const digits = phone.replace(/\D/g, '');
+  const digits = clampPhoneDigitsInput(phone);
   const canSubmit =
-    name.trim().length >= 2 && Boolean(focus && frequency) && digits.length >= 8;
+    name.trim().length >= 2 && Boolean(focus && frequency) && digits.length === 10;
 
   const handleClose = () => {
     onHide();
@@ -68,7 +69,7 @@ export default function GymClientJoinLeadModal({
     if (!suppressPublicLeads) {
       recordGymClientJoinLeadSubmission(businessSlug, {
         name: name.trim(),
-        phone: phone.trim(),
+        phone: digits,
         focus,
         frequency,
       });
@@ -188,10 +189,10 @@ export default function GymClientJoinLeadModal({
                   type="tel"
                   autoComplete="tel"
                   inputMode="tel"
-                  placeholder="e.g. 98765 43210"
+                  placeholder="10-digit mobile number"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  maxLength={20}
+                  onChange={(e) => setPhone(clampPhoneDigitsInput(e.target.value))}
+                  maxLength={10}
                   className="crystal-join-lead-modal__input"
                 />
                 <Form.Text className="text-muted small">We only use this to follow up about your enquiry.</Form.Text>

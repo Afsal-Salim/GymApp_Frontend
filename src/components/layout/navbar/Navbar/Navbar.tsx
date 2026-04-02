@@ -73,6 +73,15 @@ export default function Navbar() {
                 {label}
               </Nav.Link>
             ))}
+            <Nav.Item className="d-lg-inline-flex align-items-stretch">
+              <Link
+                to="/services/custom"
+                className="nav-link crystal-nav-link crystal-nav-link--services px-3 w-100 w-lg-auto text-start"
+                onClick={closeMenu}
+              >
+                Services
+              </Link>
+            </Nav.Item>
             {isSignedIn ? (
               <Nav.Item className="mt-2 mt-lg-0">
                 <button

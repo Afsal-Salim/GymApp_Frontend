@@ -1,5 +1,7 @@
 import type { BusinessDetail } from '../../../api/businesses';
-import { publicGymSiteUrl, publicSiteDomain } from '../../../config/env';
+import { normalizeHexColor } from '../../../utils/hexColor';
+import { clampPhoneDigitsInput } from '../../../utils/phoneDigits';
+import { publicGymSiteHostLabel, publicGymSiteUrl } from '../../../config/env';
 import {
   CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL,
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
@@ -10,8 +12,10 @@ import {
   cloneGymClientSiteDefaults,
   clampMemberRating,
   formatHeroMemberRating,
+  normalizeLegacyHeroBackgroundImageUrl,
   normalizeLocationMapUrl,
   parseLegacyRatingToMemberRating,
+  withLegacyHeroBackgroundMigrated,
   type CrystalWebsiteSetupPayload,
   type GymClientAboutFeature,
   type GymClientSiteContent,
@@ -151,6 +155,8 @@ export type CreateWebsiteFormState = {
   businessDescription: string;
   heroBackgroundImage: string;
   heroOverlay: number;
+  /** `#rrggbb` or empty = default hero text (white tones). */
+  heroTextColor: string;
   titlePrefix: string;
   tagline1: string;
   tagline2: string;
@@ -230,6 +236,7 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
     businessDescription: d.description.body,
     heroBackgroundImage: d.layout.heroBackgroundImage,
     heroOverlay: d.layout.heroOverlay,
+    heroTextColor: normalizeHexColor((d.layout.heroTextColor ?? '').trim()) ?? '',
     titlePrefix: d.header.titlePrefix,
     tagline1: ti[0] ?? '',
     tagline2: ti[1] ?? '',
@@ -316,7 +323,7 @@ function parsePreviewPayload(raw: string): CrystalWebsiteDraftPayload | null {
     return {
       slug: typeof rec.slug === 'string' && rec.slug ? rec.slug : 'preview',
       theme,
-      content: rec.content as GymClientSiteContent,
+      content: withLegacyHeroBackgroundMigrated(rec.content as GymClientSiteContent),
     };
   } catch {
     return null;
@@ -449,6 +456,9 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
 
   base.layout.heroBackgroundImage = form.heroBackgroundImage.trim() || base.layout.heroBackgroundImage;
   base.layout.heroOverlay = Math.min(1, Math.max(0, Number(form.heroOverlay) || 0));
+  const heroTextNorm = normalizeHexColor(form.heroTextColor.trim());
+  if (heroTextNorm) base.layout.heroTextColor = heroTextNorm;
+  else delete base.layout.heroTextColor;
 
   base.logo.src = form.logoUrl.trim() || base.logo.src;
   base.logo.alt = `${gymName} logo`;
@@ -561,7 +571,7 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
 
   base.contacts.whatsappFabHint = form.whatsappFabHint.trim();
   const email = form.contactEmail.trim();
-  const phone = form.contactPhone.trim();
+  const phone = clampPhoneDigitsInput(form.contactPhone);
   const address = form.contactAddress.trim();
   const mapUrlRaw = form.contactLocationMapUrl.trim();
   const ig = form.contactInstagram.trim();
@@ -597,8 +607,9 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
     { id: 'parking', label: 'Parking', value: form.parking.trim() || '—' },
     {
       id: 'slug',
-      label: 'Page',
-      value: slug ? (publicSiteDomain ? publicGymSiteUrl(slug) : `/${slug}`) : '—',
+      label: 'Website',
+      value: slug ? publicGymSiteHostLabel(slug) : '—',
+      href: slug ? publicGymSiteUrl(slug) : undefined,
     },
   ];
 
@@ -664,8 +675,9 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     logoUrl,
     gymName: c.header.title,
     businessDescription: c.description.body,
-    heroBackgroundImage: c.layout.heroBackgroundImage,
+    heroBackgroundImage: normalizeLegacyHeroBackgroundImageUrl(c.layout.heroBackgroundImage ?? ''),
     heroOverlay: c.layout.heroOverlay,
+    heroTextColor: normalizeHexColor((c.layout.heroTextColor ?? '').trim()) ?? '',
     titlePrefix: c.header.titlePrefix,
     tagline1: ti[0] ?? '',
     tagline2: ti[1] ?? '',
@@ -783,7 +795,7 @@ export function createWebsiteFormFromBusinessDetail(detail: BusinessDetail): Cre
       slug,
       gymName: detail.name?.trim() || fromDraft.gymName,
       businessDescription: detail.description?.trim() || fromDraft.businessDescription,
-      contactPhone: detail.phone?.trim() ?? fromDraft.contactPhone,
+      contactPhone: clampPhoneDigitsInput(detail.phone ?? fromDraft.contactPhone),
       contactAddress: detail.address?.trim() ?? fromDraft.contactAddress,
       contactLocationMapUrl: mapUrl || fromDraft.contactLocationMapUrl,
       logoUrl: logoUrl || fromDraft.logoUrl,
@@ -796,7 +808,7 @@ export function createWebsiteFormFromBusinessDetail(detail: BusinessDetail): Cre
     slug,
     gymName: detail.name?.trim() || base.gymName,
     businessDescription: detail.description?.trim() || base.businessDescription,
-    contactPhone: detail.phone?.trim() ?? '',
+    contactPhone: clampPhoneDigitsInput(detail.phone ?? ''),
     contactAddress: detail.address?.trim() ?? '',
     contactLocationMapUrl: mapUrl,
     logoUrl: logoUrl || base.logoUrl,

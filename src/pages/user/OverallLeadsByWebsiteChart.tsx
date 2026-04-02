@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts';
 import type { WebsiteAnalytics } from '../../api/businesses';
 import './OverallLeadsByWebsiteChart.css';
@@ -16,9 +15,9 @@ import './OverallLeadsByWebsiteChart.css';
 const CHART_COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1', '#14b8a6', '#f97316', '#ef4444', '#84cc16'];
 
 const TOOLTIP_STYLE = {
-  borderRadius: 8,
+  borderRadius: 10,
   border: '1px solid #e2e8f0',
-  boxShadow: '0 4px 20px rgba(15, 23, 42, 0.08)',
+  boxShadow: '0 8px 30px rgba(15, 23, 42, 0.1)',
 };
 
 function formatPeriodAxisLabel(iso: string, bucket: string | undefined): string {
@@ -35,6 +34,24 @@ function formatPeriodAxisLabel(iso: string, bucket: string | undefined): string 
 
 function safeSeriesKey(slug: string): string {
   return `ws_${slug.replace(/[^a-zA-Z0-9]/g, '_')}`;
+}
+
+function sitePickerEntries(sites: WebsiteAnalytics[]): { slug: string; label: string }[] {
+  const rows = sites
+    .map((s) => {
+      const slug = s.business?.slug?.trim();
+      if (!slug) return null;
+      return { slug, base: s.business?.name?.trim() || slug };
+    })
+    .filter((x): x is { slug: string; base: string } => x != null);
+  const countByBase = new Map<string, number>();
+  for (const r of rows) {
+    countByBase.set(r.base, (countByBase.get(r.base) ?? 0) + 1);
+  }
+  return rows.map((r) => ({
+    slug: r.slug,
+    label: (countByBase.get(r.base) ?? 0) > 1 ? `${r.base} · /${r.slug}` : r.base,
+  }));
 }
 
 type SiteLineMeta = {
@@ -63,15 +80,13 @@ function buildMergedChart(
   }
   const periods = [...periodSet].sort((a, b) => a.localeCompare(b));
 
-  const meta: SiteLineMeta[] = withSlug.map((s, i) => {
-    const slug = s.business!.slug!.trim();
-    return {
-      slug,
-      label: s.business?.name?.trim() || slug,
-      dataKey: safeSeriesKey(slug),
-      color: CHART_COLORS[i % CHART_COLORS.length],
-    };
-  });
+  const entries = sitePickerEntries(withSlug);
+  const meta: SiteLineMeta[] = entries.map((e, i) => ({
+    slug: e.slug,
+    label: e.label,
+    dataKey: safeSeriesKey(e.slug),
+    color: CHART_COLORS[i % CHART_COLORS.length],
+  }));
 
   const rows = periods.map((period_start) => {
     const row: Record<string, string | number> = {
@@ -96,15 +111,7 @@ export type OverallLeadsByWebsiteChartProps = {
 };
 
 export function OverallLeadsByWebsiteChart({ sites }: OverallLeadsByWebsiteChartProps) {
-  const siteList = useMemo(() => {
-    return sites
-      .map((s) => {
-        const slug = s.business?.slug?.trim();
-        if (!slug) return null;
-        return { slug, label: s.business?.name?.trim() || slug };
-      })
-      .filter((x): x is { slug: string; label: string } => x != null);
-  }, [sites]);
+  const siteList = useMemo(() => sitePickerEntries(sites), [sites]);
 
   const [enabledSlugs, setEnabledSlugs] = useState<Set<string>>(() => new Set());
   const [metric, setMetric] = useState<'events' | 'units'>('events');
@@ -113,7 +120,7 @@ export function OverallLeadsByWebsiteChart({ sites }: OverallLeadsByWebsiteChart
     setEnabledSlugs(new Set(siteList.map((s) => s.slug)));
   }, [siteList]);
 
-  const { rows, meta, bucket } = useMemo(
+  const { rows, meta } = useMemo(
     () => buildMergedChart(sites, metric, enabledSlugs),
     [sites, metric, enabledSlugs]
   );
@@ -132,24 +139,25 @@ export function OverallLeadsByWebsiteChart({ sites }: OverallLeadsByWebsiteChart
 
   if (siteList.length === 0) return null;
 
-  const xAxisBottom = bucket === 'hour' ? 52 : 40;
+  const denseX = rows.length > 14;
+  const chartBottomMargin = denseX ? 52 : 28;
   const hasPoints = rows.length > 0 && meta.length > 0;
 
   return (
-    <Card className="user-page__card user-page__overall-leads-chart mb-3">
-      <Card.Header className="user-page__overall-leads-chart__head py-2 px-3">
-        <span className="small fw-semibold text-uppercase text-muted">All websites — leads over time</span>
-      </Card.Header>
-      <Card.Body className="pt-3">
-        <p className="text-muted small mb-3">
-          Each line is one gym ({metric === 'events' ? 'lead events' : 'units'}). Use filters to compare sites.
+    <Card className="user-page__overall-leads-chart mb-3">
+      <Card.Header className="user-page__overall-leads-chart__head">
+        <h2 className="user-page__overall-leads-chart__title">Leads over time</h2>
+        <p className="user-page__overall-leads-chart__subtitle mb-0">
+          Compare {metric === 'events' ? 'lead events' : 'units'} across your gyms for the selected range.
         </p>
-        <div className="user-page__overall-leads-chart__filters d-flex flex-wrap align-items-end gap-3 mb-3">
-          <div>
-            <Form.Label className="small text-muted mb-1 d-block">Metric</Form.Label>
+      </Card.Header>
+      <Card.Body className="user-page__overall-leads-chart__body">
+        <div className="user-page__overall-leads-chart__toolbar">
+          <div className="user-page__overall-leads-chart__toolbar-metric">
+            <Form.Label className="user-page__overall-leads-chart__field-label">Metric</Form.Label>
             <Form.Select
               size="sm"
-              style={{ minWidth: 140 }}
+              className="user-page__overall-leads-chart__select"
               value={metric}
               onChange={(e) => setMetric(e.target.value as 'events' | 'units')}
               aria-label="Chart metric"
@@ -158,10 +166,10 @@ export function OverallLeadsByWebsiteChart({ sites }: OverallLeadsByWebsiteChart
               <option value="units">Units</option>
             </Form.Select>
           </div>
-          <div className="flex-grow-1" style={{ minWidth: 200 }}>
-            <Form.Label className="small text-muted mb-1 d-block">Websites</Form.Label>
-            <div className="user-page__overall-leads-chart__site-toggles d-flex flex-wrap gap-2 align-items-center">
-              <ButtonGroup size="sm">
+          <div className="user-page__overall-leads-chart__toolbar-sites">
+            <Form.Label className="user-page__overall-leads-chart__field-label">Websites</Form.Label>
+            <div className="user-page__overall-leads-chart__site-toggles">
+              <ButtonGroup size="sm" className="user-page__overall-leads-chart__bulk-btns">
                 <Button variant="outline-secondary" onClick={selectAll} type="button">
                   All
                 </Button>
@@ -169,55 +177,84 @@ export function OverallLeadsByWebsiteChart({ sites }: OverallLeadsByWebsiteChart
                   None
                 </Button>
               </ButtonGroup>
-              {siteList.map(({ slug, label }) => (
-                <Form.Check
-                  key={slug}
-                  type="checkbox"
-                  id={`overall-leads-${slug}`}
-                  className="user-page__overall-leads-chart__check small mb-0"
-                  label={label}
-                  checked={enabledSlugs.has(slug)}
-                  onChange={() => toggleSlug(slug)}
-                />
-              ))}
+              <div className="user-page__overall-leads-chart__checks">
+                {siteList.map(({ slug, label }) => (
+                  <Form.Check
+                    key={slug}
+                    type="checkbox"
+                    id={`overall-leads-${slug}`}
+                    className="user-page__overall-leads-chart__check"
+                    label={label}
+                    checked={enabledSlugs.has(slug)}
+                    onChange={() => toggleSlug(slug)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
         {!hasPoints ?
-          <p className="text-muted small text-center py-4 mb-0">
+          <p className="user-page__overall-leads-chart__empty text-muted small text-center mb-0">
             {meta.length === 0 ? 'Select at least one website to plot.' : 'No time-series points for this range.'}
           </p>
         : (
-          <div className="user-page__overall-leads-chart__wrap">
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={rows} margin={{ top: 8, right: 16, left: 0, bottom: xAxisBottom }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 9, fill: '#64748b' }}
-                  interval="preserveStartEnd"
-                  angle={rows.length > 14 ? -35 : 0}
-                  textAnchor={rows.length > 14 ? 'end' : 'middle'}
-                  height={rows.length > 14 ? 48 : 28}
-                />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} width={44} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ fontWeight: 600 }} />
-                <Legend wrapperStyle={{ fontSize: '11px' }} />
+          <>
+            {meta.length > 0 ?
+              <ul className="user-page__overall-leads-chart__legend" aria-label="Series">
                 {meta.map((m) => (
-                  <Line
-                    key={m.slug}
-                    type="monotone"
-                    dataKey={m.dataKey}
-                    name={m.label}
-                    stroke={m.color}
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    connectNulls
-                  />
+                  <li key={m.slug} className="user-page__overall-leads-chart__legend-item">
+                    <span
+                      className="user-page__overall-leads-chart__legend-swatch"
+                      style={{ backgroundColor: m.color }}
+                    />
+                    <span className="user-page__overall-leads-chart__legend-text">{m.label}</span>
+                  </li>
                 ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+              </ul>
+            : null}
+            <div className="user-page__overall-leads-chart__wrap">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: chartBottomMargin }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e8eef4" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: '#64748b' }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e2e8f0' }}
+                    interval="preserveStartEnd"
+                    angle={denseX ? -40 : 0}
+                    textAnchor={denseX ? 'end' : 'middle'}
+                    height={denseX ? 52 : 28}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    tickLine={false}
+                    axisLine={false}
+                    allowDecimals={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    labelStyle={{ fontWeight: 700, color: '#0f172a' }}
+                    formatter={(value: number) => [value, metric === 'events' ? 'Events' : 'Units']}
+                  />
+                  {meta.map((m) => (
+                    <Line
+                      key={m.slug}
+                      type="monotone"
+                      dataKey={m.dataKey}
+                      name={m.label}
+                      stroke={m.color}
+                      strokeWidth={2}
+                      dot={{ r: 2.5, strokeWidth: 0 }}
+                      activeDot={{ r: 4 }}
+                      connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </>
         )}
       </Card.Body>
     </Card>

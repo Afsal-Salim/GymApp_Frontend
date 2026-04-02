@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { recordGymClientPlanVisitSubmission } from './gymClientLeadTracking';
 import { resolveGymClientBrandLogoSrc } from './gymClientBrandLogo';
+import { clampPhoneDigitsInput } from '../../utils/phoneDigits';
 
 type Props = {
   show: boolean;
@@ -42,8 +43,8 @@ export default function GymClientPlanVisitModal({
     setDone(false);
   }, [show]);
 
-  const digits = phone.replace(/\D/g, '');
-  const canSubmit = name.trim().length >= 2 && digits.length >= 8 && visitDate.trim().length > 0;
+  const digits = clampPhoneDigitsInput(phone);
+  const canSubmit = name.trim().length >= 2 && digits.length === 10 && visitDate.trim().length > 0;
 
   const handleClose = () => onHide();
 
@@ -54,7 +55,7 @@ export default function GymClientPlanVisitModal({
     if (!suppressPublicLeads) {
       recordGymClientPlanVisitSubmission(businessSlug, {
         name: name.trim(),
-        phone: phone.trim(),
+        phone: digits,
         preferredWhen,
         notes: notes.trim(),
       });
@@ -147,10 +148,10 @@ export default function GymClientPlanVisitModal({
                 type="tel"
                 autoComplete="tel"
                 inputMode="tel"
-                placeholder="WhatsApp-friendly number"
+                placeholder="10-digit mobile number"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                maxLength={20}
+                onChange={(e) => setPhone(clampPhoneDigitsInput(e.target.value))}
+                maxLength={10}
                 className="crystal-trial-modal__input"
               />
             </Form.Group>

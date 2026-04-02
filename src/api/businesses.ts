@@ -6,6 +6,15 @@ import { publicApi } from './http/publicApi';
 
 const BASE = '/businesses';
 
+/**
+ * Owner list endpoints accept `search` or `q` with identical behavior (case-insensitive OR across
+ * documented fields). We always send `search` after normalizing.
+ */
+function ownerListSearchQuery(params: { search?: string; q?: string }): { search: string } | Record<string, never> {
+  const term = params.search?.trim() || params.q?.trim();
+  return term ? { search: term } : {};
+}
+
 /** Dummy slug for now – use this when calling the business detail API. */
 export const DUMMY_BUSINESS_SLUG = 'qagym';
 
@@ -39,6 +48,11 @@ export type BusinessDetail = {
   subscriptions?: BusinessSubscription[];
   created_at?: string;
   updated_at?: string;
+  /**
+   * From `GET`/`POST .../record-status/` — soft delete vs live. Use remove/restore actions in the UI;
+   * do not show this as a user-facing “record status” label.
+   */
+  record_status?: 'active' | 'inactive';
   [key: string]: unknown;
 };
 
@@ -69,6 +83,298 @@ type BusinessListApiResponse = {
   next?: string | null;
   previous?: string | null;
 };
+
+const OWNER_LIST_PAGE_SIZE_MAX = 100;
+
+function clampOwnerListPageSize(n: number): number {
+  if (!Number.isFinite(n) || n < 1) return 10;
+  return Math.min(Math.floor(n), OWNER_LIST_PAGE_SIZE_MAX);
+}
+
+/** Parses `{ results, meta: { page, page_size, total, ... } }` (owner list endpoints). */
+function parseMetaResultsList<T>(
+  data: unknown,
+  page: number,
+  pageSize: number
+): { results: T[]; meta: BusinessListMeta; count: number } {
+  const raw = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  const results = Array.isArray(raw.results) ? (raw.results as T[]) : [];
+  const meta = raw.meta as Partial<BusinessListMeta> | undefined;
+  const total =
+    typeof meta?.total === 'number' ? meta.total
+    : typeof raw.count === 'number' ? raw.count
+    : results.length;
+  const totalPages = typeof meta?.total_pages === 'number' ? meta.total_pages : Math.ceil(total / pageSize) || 1;
+  const metaNormalized: BusinessListMeta = {
+    page: typeof meta?.page === 'number' ? meta.page : page,
+    page_size: typeof meta?.page_size === 'number' ? meta.page_size : pageSize,
+    total,
+    total_pages: totalPages,
+    has_next: typeof meta?.has_next === 'boolean' ? meta.has_next : page < totalPages,
+    has_previous: typeof meta?.has_previous === 'boolean' ? meta.has_previous : page > 1,
+  };
+  return { results, meta: metaNormalized, count: total };
+}
+
+// —— Owner modal crystal leads (join_now, book_free_trial, plan_visit only on list) ——
+
+export type ModalCrystalLeadType = 'join_now' | 'book_free_trial' | 'plan_visit';
+
+export type OwnerCrystalLeadItem = {
+  id: number;
+  lead_type: string;
+  /** JSON saved from the public POST; shape depends on client. */
+  payload?: Record<string, unknown>;
+  quantity?: number;
+  submitted_at_ms?: number;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+};
+
+export type OwnerCrystalLeadsListParams = {
+  page?: number;
+  page_size?: number;
+  lead_type?: ModalCrystalLeadType;
+  /** Omit → only active rows (server default). */
+  record_status?: 'active' | 'inactive';
+  /**
+   * Case-insensitive OR across payload `name`, `email`, `message`, and `notes`.
+   * Same as `q` (either query param name is accepted by the API).
+   */
+  search?: string;
+  q?: string;
+};
+
+/**
+ * **GET** `/api/businesses/<slug>/crystal-leads/` — Bearer; owner.
+ *
+ * Query: `lead_type` (join_now | book_free_trial | plan_visit), optional `record_status`,
+ * `search` or `q` (same behavior), `page`, `page_size`. Search applies after type/record filters;
+ * matches string fields in payload: name, email, message, notes.
+ */
+export async function getBusinessCrystalLeadsPaginated(
+  businessSlug: string,
+  params: OwnerCrystalLeadsListParams = {}
+): Promise<{ results: OwnerCrystalLeadItem[]; meta: BusinessListMeta; count: number }> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  const page = params.page && params.page >= 1 ? params.page : 1;
+  const page_size = clampOwnerListPageSize(params.page_size ?? 10);
+  try {
+    const { data } = await privateApi.get(`${BASE}/${encodeURIComponent(key)}/crystal-leads/`, {
+      params: {
+        page,
+        page_size,
+        ...(params.lead_type ? { lead_type: params.lead_type } : {}),
+        ...(params.record_status ? { record_status: params.record_status } : {}),
+        ...ownerListSearchQuery(params),
+      },
+    });
+    return parseMetaResultsList<OwnerCrystalLeadItem>(data, page, page_size);
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Business not found or you do not have access.');
+    }
+    if (axios.isAxiosError(e) && e.response?.status === 400) {
+      const body = e.response?.data as { detail?: string } | undefined;
+      throw new Error(typeof body?.detail === 'string' ? body.detail : 'Invalid filter.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load crystal leads'));
+  }
+}
+
+/**
+ * **GET** `/api/businesses/<slug>/crystal-leads/<id>/` — Bearer; owner.
+ */
+export async function getBusinessCrystalLeadDetail(
+  businessSlug: string,
+  id: number
+): Promise<OwnerCrystalLeadItem> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await privateApi.get<OwnerCrystalLeadItem>(
+      `${BASE}/${encodeURIComponent(key)}/crystal-leads/${id}/`
+    );
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Lead not found or you do not have access.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load lead'));
+  }
+}
+
+export type PatchOwnerCrystalLeadBody = {
+  record_status: 'active' | 'inactive';
+};
+
+/**
+ * **PATCH** `/api/businesses/<slug>/crystal-leads/<id>/` — Bearer; owner.
+ */
+export async function patchBusinessCrystalLead(
+  businessSlug: string,
+  id: number,
+  body: PatchOwnerCrystalLeadBody
+): Promise<OwnerCrystalLeadItem> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await privateApi.patch<OwnerCrystalLeadItem>(
+      `${BASE}/${encodeURIComponent(key)}/crystal-leads/${id}/`,
+      body
+    );
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Lead not found or you do not have access.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to update lead'));
+  }
+}
+
+// —— Owner business enquiries (BusinessEnquiry) ——
+
+export type BusinessEnquiryItem = {
+  id: number;
+  /** Present on create response when the API includes it. */
+  business?: number;
+  name: string;
+  email: string;
+  message: string;
+  enquiry_status: 'open' | 'resolved';
+  created_at: string;
+  updated_at: string;
+};
+
+export type BusinessEnquiriesListParams = {
+  page?: number;
+  page_size?: number;
+  enquiry_status?: 'open' | 'resolved';
+  /** Omit → only active rows (server default). */
+  record_status?: 'active' | 'inactive';
+  /**
+   * Case-insensitive OR across `name`, `email`, and `message`.
+   * Same as `q` (either query param name is accepted by the API).
+   */
+  search?: string;
+  q?: string;
+};
+
+export type PostPublicBusinessEnquiryBody = {
+  name: string;
+  email: string;
+  message: string;
+};
+
+/**
+ * **POST** `/api/businesses/public/<slug>/enquiries/` — no auth.
+ *
+ * Body: JSON `{ name, email, message }` (message min ~3 chars after trim).
+ * **201** — `{ id, business?, name, email, message, enquiry_status, created_at, updated_at }` (no `record_status`).
+ * Inactive slug → **404**.
+ */
+export async function postPublicBusinessEnquiry(
+  slug: string,
+  body: PostPublicBusinessEnquiryBody
+): Promise<BusinessEnquiryItem> {
+  const key = slug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await publicApi.post<BusinessEnquiryItem>(
+      `${BASE}/public/${encodeURIComponent(key)}/enquiries/`,
+      {
+        name: body.name.trim(),
+        email: body.email.trim(),
+        message: body.message.trim(),
+      }
+    );
+    return data;
+  } catch (e) {
+    throw new Error(getAxiosErrorMessage(e, 'Could not send enquiry'));
+  }
+}
+
+/**
+ * **GET** `/api/businesses/<slug>/enquiries/` — Bearer; owner.
+ *
+ * Query: `enquiry_status`, optional `record_status`, `search` or `q` (same behavior), `page`, `page_size`.
+ * Search runs after status/record filters; case-insensitive OR across name, email, message.
+ */
+export async function getBusinessEnquiriesPaginated(
+  businessSlug: string,
+  params: BusinessEnquiriesListParams = {}
+): Promise<{ results: BusinessEnquiryItem[]; meta: BusinessListMeta; count: number }> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  const page = params.page && params.page >= 1 ? params.page : 1;
+  const page_size = clampOwnerListPageSize(params.page_size ?? 10);
+  try {
+    const { data } = await privateApi.get(`${BASE}/${encodeURIComponent(key)}/enquiries/`, {
+      params: {
+        page,
+        page_size,
+        ...(params.enquiry_status ? { enquiry_status: params.enquiry_status } : {}),
+        ...(params.record_status ? { record_status: params.record_status } : {}),
+        ...ownerListSearchQuery(params),
+      },
+    });
+    return parseMetaResultsList<BusinessEnquiryItem>(data, page, page_size);
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Business not found or you do not have access.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load enquiries'));
+  }
+}
+
+/**
+ * **GET** `/api/businesses/<slug>/enquiries/<id>/` — Bearer; owner.
+ */
+export async function getBusinessEnquiryDetail(businessSlug: string, id: number): Promise<BusinessEnquiryItem> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await privateApi.get<BusinessEnquiryItem>(
+      `${BASE}/${encodeURIComponent(key)}/enquiries/${id}/`
+    );
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Enquiry not found or you do not have access.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load enquiry'));
+  }
+}
+
+export type PatchBusinessEnquiryBody = {
+  enquiry_status?: 'open' | 'resolved';
+};
+
+/**
+ * **PATCH** `/api/businesses/<slug>/enquiries/<id>/` — Bearer; owner; partial OK.
+ */
+export async function patchBusinessEnquiry(
+  businessSlug: string,
+  id: number,
+  body: PatchBusinessEnquiryBody
+): Promise<BusinessEnquiryItem> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await privateApi.patch<BusinessEnquiryItem>(
+      `${BASE}/${encodeURIComponent(key)}/enquiries/${id}/`,
+      body
+    );
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Enquiry not found or you do not have access.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to update enquiry'));
+  }
+}
 
 /** Fetch a page of businesses. Uses ?page= & page_size= query params. */
 export async function getBusinessListPaginated(
@@ -103,6 +409,43 @@ export async function getBusinessList(): Promise<BusinessListItem[]> {
 export async function getBusinessDetail(slug: string): Promise<BusinessDetail> {
   const { data } = await privateApi.get<BusinessDetail>(`${BASE}/${slug}/`);
   return data;
+}
+
+/** Starter block from GET `/businesses/<slug>/first-recharge/` (owner only). */
+export type BusinessFirstRechargeStarter = {
+  plan_id: number;
+  list_price: string;
+  first_recharge_price: string | null;
+  currency: string;
+  /** Amount create-order would charge today for Starter. */
+  applicable_price: string;
+};
+
+export type BusinessFirstRechargeResponse = {
+  slug: string;
+  is_first_recharge: boolean;
+  has_had_subscription: boolean;
+  starter: BusinessFirstRechargeStarter | null;
+};
+
+/**
+ * **GET** `/api/businesses/<slug>/first-recharge/` — Bearer; owner only. Inactive site → **404**.
+ * Aligns with create-order first activation vs list pricing.
+ */
+export async function getBusinessFirstRecharge(businessSlug: string): Promise<BusinessFirstRechargeResponse> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await privateApi.get<BusinessFirstRechargeResponse>(
+      `${BASE}/${encodeURIComponent(key)}/first-recharge/`
+    );
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      throw new Error('Business not found or you do not have access.');
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Failed to load billing preview'));
+  }
 }
 
 // —— Owner website analytics (Bearer; must own the business) ——
@@ -376,7 +719,7 @@ export type { CrystalWebsiteSetupPayload };
  * Save the full Crystal website builder payload for the logged-in user.
  *
  * **POST** `/api/businesses/website-setup/` (see `VITE_API_BASE_URL`) — **Authorization: Bearer** required.
- * Request JSON body: {@link CrystalWebsiteSetupPayload}.
+ * Request JSON body: {@link CrystalWebsiteSetupPayload}. Optional `content.layout.heroTextColor` (`#rrggbb`) tints hero copy.
  */
 export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload): Promise<void> {
   try {
@@ -389,6 +732,7 @@ export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayloa
 /**
  * Partial update for a business owned by the current user.
  * JSON merge: omit keys you do not want to change.
+ * `record_status` is **not** accepted here — use {@link postBusinessRecordStatus} instead.
  */
 export type PatchBusinessRequest = {
   name?: string;
@@ -429,5 +773,48 @@ export async function patchWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload
     await privateApi.patch(`${BASE}/website-setup/`, payload);
   } catch (e) {
     throw new Error(getAxiosErrorMessage(e, 'Failed to update website setup'));
+  }
+}
+
+/** **409** when deactivating a business that still has an active subscription (server `code` often `active_subscription_blocks_deactivate`). */
+export class BusinessDeactivateBlockedError extends Error {
+  readonly code: string;
+
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = 'BusinessDeactivateBlockedError';
+    this.code = code;
+  }
+}
+
+export type PostBusinessRecordStatusBody = {
+  record_status: 'active' | 'inactive';
+};
+
+/**
+ * **POST** `/api/businesses/<slug>/record-status/` — Bearer; owner only. Soft-delete (`inactive`) or restore (`active`).
+ * **409** if an active subscription blocks deactivation. `PATCH /businesses/<slug>/` does not accept `record_status`.
+ */
+export async function postBusinessRecordStatus(
+  businessSlug: string,
+  payload: PostBusinessRecordStatusBody
+): Promise<BusinessDetail> {
+  const key = businessSlug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  try {
+    const { data } = await privateApi.post<BusinessDetail>(
+      `${BASE}/${encodeURIComponent(key)}/record-status/`,
+      payload
+    );
+    return data;
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 409) {
+      const d = e.response.data as { detail?: string; code?: string } | undefined;
+      throw new BusinessDeactivateBlockedError(
+        typeof d?.detail === 'string' ? d.detail : 'This gym cannot be removed while it has an active subscription.',
+        typeof d?.code === 'string' ? d.code : 'active_subscription_blocks_deactivate'
+      );
+    }
+    throw new Error(getAxiosErrorMessage(e, 'Could not update website'));
   }
 }

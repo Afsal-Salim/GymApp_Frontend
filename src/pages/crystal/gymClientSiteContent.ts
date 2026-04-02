@@ -1,5 +1,6 @@
 import type { PublicBusinessDetail } from '../../api';
-import { publicGymSiteUrl, publicSiteDomain } from '../../config/env';
+import clientDefaultHeroBackground from '../../assets/clientbg.png';
+import { publicGymSiteHostLabel, publicGymSiteUrl } from '../../config/env';
 import { GYM_CLIENT_BRAND_LOGO_SRC } from './gymClientBrandLogo';
 
 export type GymClientNavItem = {
@@ -74,6 +75,8 @@ export type GymClientDetailRow = {
   id: string;
   label: string;
   value: string;
+  /** When set, the value is shown as this link (e.g. live gym URL while label stays scheme-free). */
+  href?: string;
 };
 
 /** Coach / trainer row for the public site. Empty `trainers.items` hides the section. */
@@ -109,6 +112,8 @@ export type GymClientSiteContent = {
     heroBackgroundImage: string;
     /** 0–1 dark overlay on top of image */
     heroOverlay: number;
+    /** Optional `#rrggbb` for hero headline, taglines, subtitle, and info bar copy. Omit for default white tones. */
+    heroTextColor?: string;
   };
   nav: {
     items: GymClientNavItem[];
@@ -201,6 +206,7 @@ export type GymClientSiteContent = {
  * - **Location / maps:** `content.contacts.locationMapUrl` — optional string, full `https://…` maps link (e.g. Google Maps share URL).
  *   Also persist on the business record as `location_map_url` if your API supports it.
  * - **Discounts:** `content.discountOffers.offers` may be `[]` when there are no deals; the client page hides the deals section.
+ * - **Hero text:** optional `content.layout.heroTextColor` (`#rrggbb`) tints headline, taglines, subtitle, and the address/rating bar.
  */
 export type CrystalWebsiteSetupPayload = {
   slug: string;
@@ -214,8 +220,32 @@ export type CrystalWebsiteSetupPayload = {
   content: GymClientSiteContent;
 };
 
-const DEFAULT_HERO_BG =
-  'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=2000&q=80';
+/** Bundled default hero cover for new sites (website builder + public defaults). */
+const DEFAULT_HERO_BG: string = clientDefaultHeroBackground;
+
+/** Old marketing default gym photo (Unsplash); still appears in saved drafts and API `website_content`. */
+const LEGACY_UNSPLASH_HERO_PHOTO_ID = 'photo-1534438327276';
+
+/**
+ * Replace legacy Unsplash hero URLs with the bundled default. Empty string is unchanged (builder may clear field).
+ */
+export function normalizeLegacyHeroBackgroundImageUrl(url: string | undefined | null): string {
+  const t = (url ?? '').trim();
+  if (!t) return t;
+  if (t.includes('images.unsplash.com') && t.includes(LEGACY_UNSPLASH_HERO_PHOTO_ID)) return DEFAULT_HERO_BG;
+  return t;
+}
+
+/** Migrate stored/API site content so preview and edit flows drop the old Unsplash hero. */
+export function withLegacyHeroBackgroundMigrated(content: GymClientSiteContent): GymClientSiteContent {
+  const raw = (content.layout?.heroBackgroundImage ?? '').trim();
+  const next = normalizeLegacyHeroBackgroundImageUrl(raw);
+  if (next === raw) return content;
+  return {
+    ...content,
+    layout: { ...content.layout, heroBackgroundImage: next },
+  };
+}
 
 export const GYM_CLIENT_SITE_DEFAULTS: GymClientSiteContent = {
   layout: {
@@ -413,7 +443,7 @@ export const GYM_CLIENT_SITE_DEFAULTS: GymClientSiteContent = {
     rows: [
       { id: 'hours', label: 'Hours', value: 'Mon–Fri 6am–10pm · Sat–Sun 8am–8pm' },
       { id: 'parking', label: 'Parking', value: 'Free street parking on Oak Ave' },
-      { id: 'slug', label: 'Page', value: '' },
+      { id: 'slug', label: 'Website', value: '' },
     ],
   },
 };
@@ -538,8 +568,9 @@ export function resolveGymClientSiteContent(business: PublicBusinessDetail): Gym
   if (business.slug) {
     c.details.rows = upsertDetail(c.details.rows, {
       id: 'slug',
-      label: 'Page',
-      value: publicSiteDomain ? publicGymSiteUrl(business.slug) : `/${business.slug}`,
+      label: 'Website',
+      value: publicGymSiteHostLabel(business.slug),
+      href: publicGymSiteUrl(business.slug),
     });
   }
 

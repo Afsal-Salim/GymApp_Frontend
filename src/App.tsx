@@ -17,10 +17,12 @@ import {
   ForgotPasswordPage,
   SignupPage,
   UserPage,
+  AdminDashboardPage,
   ManageBusinessPage,
   CreateWebsitePage,
   CrystalBusinessPage,
   PlansPage,
+  ServiceEnquiryPage,
   UserContentPolicyPage,
   PrivacyPolicyPage,
   SupportFeedbackPage,
@@ -116,6 +118,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/plans/:businessSlug" element={<PlansPage />} />
               <Route path="/plans" element={<PlansPage />} />
+              <Route path="/services/custom" element={<ServiceEnquiryPage />} />
               <Route path="/starter" element={<PaymentPage plan="starter" />} />
               <Route path="/pro" element={<PaymentPage plan="pro" />} />
               <Route path="/login" element={<LoginPage />} />
@@ -128,6 +131,7 @@ function App() {
                 <Route path="/user/create-website" element={<CreateWebsitePage />} />
                 <Route path="/user/business/:slug/manage" element={<ManageBusinessPage />} />
                 <Route path="/user/business/:slug/edit" element={<CreateWebsitePage />} />
+                <Route path="/user/admin" element={<AdminDashboardPage />} />
                 <Route path="/user" element={<UserPage />} />
               </Route>
               <Route path="/:slug/*" element={<PathBasedPublicCrystalRoute />} />

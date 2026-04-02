@@ -70,6 +70,8 @@ import {
   isValidHttpLocationUrl,
   normalizeLocationMapUrl,
 } from '../crystal/gymClientSiteContent';
+import { hexColorsEqual, normalizeHexColor } from '../../utils/hexColor';
+import { clampPhoneDigitsInput, isTenDigitPhone } from '../../utils/phoneDigits';
 import './CreateWebsitePage.css';
 
 const SLUG_REGEX = /^([a-z0-9]+(?:-[a-z0-9]+)*)$/;
@@ -296,26 +298,6 @@ function LabelWithHint({ htmlFor, label, hintId, hint }: { htmlFor: string; labe
       </FieldHint>
     </Form.Label>
   );
-}
-
-function normalizeHexColor(raw: string): string | null {
-  let s = raw.trim();
-  if (!s) return null;
-  if (s.startsWith('#')) s = s.slice(1);
-  if (!/^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(s)) return null;
-  if (s.length === 3) {
-    s = s
-      .split('')
-      .map((c) => c + c)
-      .join('');
-  }
-  return `#${s.toLowerCase()}`;
-}
-
-function hexColorsEqual(a: string, b: string): boolean {
-  const na = normalizeHexColor(a);
-  const nb = normalizeHexColor(b);
-  return na !== null && nb !== null && na === nb;
 }
 
 /** Parse #RRGGBB or #RRGGBBAA (overlay blend). Returns RGB for the picker and opacity 0–1. */
@@ -1069,9 +1051,13 @@ export default function CreateWebsitePage() {
       return;
     }
     const addr = form.contactAddress.trim();
-    const phone = form.contactPhone.trim();
+    const phoneDigits = clampPhoneDigitsInput(form.contactPhone);
     const mapRaw = form.contactLocationMapUrl.trim();
-    if (addr || phone) {
+    if (phoneDigits && !isTenDigitPhone(phoneDigits)) {
+      showToast('Enter a valid 10-digit phone number or clear the phone field.');
+      return;
+    }
+    if (addr || phoneDigits) {
       if (!mapRaw || !isValidHttpLocationUrl(mapRaw)) {
         showToast('Add a valid maps link (https://…) when you include an address or phone number.');
         return;
@@ -1104,7 +1090,7 @@ export default function CreateWebsitePage() {
           name: form.gymName.trim(),
           slug,
           description: form.businessDescription.trim(),
-          phone: form.contactPhone.trim(),
+          phone: phoneDigits,
           address: form.contactAddress.trim(),
           location_map_url: mapNorm,
           is_active: editBusinessActive,
@@ -1281,35 +1267,55 @@ export default function CreateWebsitePage() {
                               </>
                           }
                         />
-                        <InputGroup>
+                        <InputGroup className="create-website__slug-url-group">
                           {publicSiteDomain ?
                             <>
-                              <InputGroup.Text className="text-muted small text-nowrap">https://</InputGroup.Text>
                               <Form.Control
                                 id="cw-slug"
+                                className="create-website__slug-url-input"
                                 value={form.slug}
                                 onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                                 placeholder="my-gym"
                                 autoComplete="off"
                                 spellCheck={false}
-                                aria-describedby="cw-slug-help"
+                                aria-describedby="cw-slug-help cw-slug-full-url"
                               />
-                              <InputGroup.Text className="text-muted small text-nowrap">.{publicSiteDomain}</InputGroup.Text>
+                              <InputGroup.Text className="create-website__slug-url-addon text-muted small text-nowrap">
+                                .{publicSiteDomain}
+                              </InputGroup.Text>
                             </>
                           : <>
-                              <InputGroup.Text className="text-muted small text-nowrap">/</InputGroup.Text>
+                              <InputGroup.Text className="create-website__slug-url-addon text-muted small text-nowrap">
+                                /
+                              </InputGroup.Text>
                               <Form.Control
                                 id="cw-slug"
+                                className="create-website__slug-url-input"
                                 value={form.slug}
                                 onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                                 placeholder="my-gym"
                                 autoComplete="off"
                                 spellCheck={false}
-                                aria-describedby="cw-slug-help"
+                                aria-describedby="cw-slug-help cw-slug-full-url"
                               />
                             </>
                           }
                         </InputGroup>
+                        <div
+                          id="cw-slug-full-url"
+                          className="create-website__slug-full-url mt-2"
+                          aria-live="polite"
+                        >
+                          <span className="create-website__slug-full-url-label text-muted small d-block mb-1">
+                            Public URL preview
+                          </span>
+                          <code className="create-website__slug-full-url-code user-select-all">
+                            {(() => {
+                              const s = (form.slug.trim().toLowerCase() || 'your-slug').replace(/^\/+/, '');
+                              return publicSiteDomain ? `${s}.${publicSiteDomain}/` : `/${s}/`;
+                            })()}
+                          </code>
+                        </div>
                         <Form.Text id="cw-slug-help">{slugHelp}</Form.Text>
                       </Form.Group>
                       {isEditMode ?
@@ -1526,6 +1532,39 @@ export default function CreateWebsitePage() {
                           onChange={(e) => set('heroOverlay', Number(e.target.value))}
                         />
                       </Form.Group>
+                      <Form.Group className="mb-3">
+                        <LabelWithHint
+                          htmlFor="cw-hero-text-color"
+                          label="Hero text color"
+                          hintId="cw-hint-hero-text"
+                          hint="Color for the line above your gym name, the name, taglines, subtitle, and the address / rating row under the buttons. Leave empty for the default white style. Sent as content.layout.heroTextColor."
+                        />
+                        <div className="d-flex flex-wrap align-items-center gap-2">
+                          <Form.Control
+                            id="cw-hero-text-color-native"
+                            type="color"
+                            className="create-website__hero-native-color"
+                            value={normalizeHexColor(form.heroTextColor) ?? '#ffffff'}
+                            onChange={(e) => set('heroTextColor', e.target.value)}
+                            title="Pick hero text color"
+                            aria-label="Hero text color"
+                          />
+                          <Form.Control
+                            id="cw-hero-text-color"
+                            type="text"
+                            className="font-monospace"
+                            style={{ maxWidth: '10rem' }}
+                            value={form.heroTextColor}
+                            onChange={(e) => set('heroTextColor', e.target.value)}
+                            placeholder="#ffffff or empty"
+                            spellCheck={false}
+                            autoComplete="off"
+                          />
+                          <Button type="button" variant="outline-secondary" size="sm" onClick={() => set('heroTextColor', '')}>
+                            Default
+                          </Button>
+                        </div>
+                      </Form.Group>
                       <Form.Group className="mb-2">
                         <Form.Label>Line above gym name</Form.Label>
                         <Form.Control value={form.titlePrefix} onChange={(e) => set('titlePrefix', e.target.value)} />
@@ -1622,6 +1661,10 @@ export default function CreateWebsitePage() {
                           <Form.Control value={form.leadAfter} onChange={(e) => set('leadAfter', e.target.value)} />
                         </Col>
                       </Row>
+                      <Form.Text className="text-muted small d-block mb-2">
+                        The live page adds a space between “accent” and “after” when missing so words don’t run together
+                        (e.g. after <strong>500+ members</strong>).
+                      </Form.Text>
                       <Form.Text className="text-muted d-block mb-3">
                         Main about paragraph comes from <strong>Short description (about)</strong> in Business profile above.
                       </Form.Text>
@@ -1988,7 +2031,16 @@ export default function CreateWebsitePage() {
                         </Col>
                         <Col md={6}>
                           <Form.Label className="small">Phone</Form.Label>
-                          <Form.Control value={form.contactPhone} onChange={(e) => set('contactPhone', e.target.value)} />
+                          <Form.Control
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="tel"
+                            placeholder="10-digit mobile"
+                            maxLength={10}
+                            value={form.contactPhone}
+                            onChange={(e) => set('contactPhone', clampPhoneDigitsInput(e.target.value))}
+                          />
+                          <Form.Text className="text-muted">Digits only, 10 characters.</Form.Text>
                         </Col>
                         <Col md={6}>
                           <Form.Label className="small">Instagram handle (no @)</Form.Label>

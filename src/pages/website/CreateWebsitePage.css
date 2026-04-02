@@ -2,6 +2,15 @@
   max-width: 920px;
 }
 
+.create-website__hero-native-color {
+  width: 3rem;
+  height: 2.35rem;
+  padding: 0.15rem;
+  border-radius: 8px;
+  border: 1px solid var(--bs-border-color);
+  cursor: pointer;
+}
+
 /* Fixed preview — stays visible while editing (below dev banner + navbar when present). */
 .create-website__preview-dock {
   position: fixed;
@@ -874,4 +883,52 @@
 .create-website__image-preview--landscape img {
   object-fit: cover;
   object-position: center;
+}
+
+/* Site slug: aligned addons; slug segment fixed at 15ch (monospace), scroll if longer */
+.create-website__slug-url-group {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.create-website__slug-url-group .create-website__slug-url-addon {
+  display: flex;
+  align-items: center;
+  line-height: 1.5;
+  flex-shrink: 0;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  min-height: calc(1.5em + 0.75rem + 2px);
+}
+
+.create-website__slug-url-group .create-website__slug-url-input {
+  flex: 0 0 15ch;
+  width: 15ch;
+  min-width: 15ch;
+  max-width: 15ch;
+  min-height: calc(1.5em + 0.75rem + 2px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  overflow-x: auto;
+}
+
+.create-website__slug-full-url {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color, #dee2e6) 90%, transparent);
+  background: color-mix(in srgb, var(--bs-secondary, #6c757d) 8%, var(--bs-body-bg, #fff));
+}
+
+.create-website__slug-full-url-code {
+  display: block;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: var(--bs-body-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 }

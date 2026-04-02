@@ -10,7 +10,11 @@ const FOOTER_LINKS = {
     { label: 'Features', hash: 'about' },
     { label: 'Packages', hash: 'packages' },
     { label: 'Pricing', hash: 'packages' },
-  ],
+    { label: 'Services', path: '/services/custom' },
+  ] as (
+    | { label: string; hash: string }
+    | { label: string; path: string }
+  )[],
   company: [
     { label: 'About', hash: 'about' },
     { label: 'Contact', hash: 'contacts' },
@@ -57,12 +61,16 @@ export default function Footer() {
           <Col xs={12} sm={4} md={2} lg={2}>
             <h6 className="crystal-footer__heading">Product</h6>
             <ul className="crystal-footer__list">
-              {FOOTER_LINKS.product.map(({ label, hash }) => (
-                <li key={label}>
-                  {hash ? (
-                    <Link to={footerHref(hash)} onClick={(e) => handleSectionClick(hash, e)}>{label}</Link>
+              {FOOTER_LINKS.product.map((item) => (
+                <li key={item.label}>
+                  {'path' in item ? (
+                    <Link to={item.path}>{item.label}</Link>
+                  ) : item.hash ? (
+                    <Link to={footerHref(item.hash)} onClick={(e) => handleSectionClick(item.hash, e)}>
+                      {item.label}
+                    </Link>
                   ) : (
-                    <a href="#">{label}</a>
+                    <a href="#">{item.label}</a>
                   )}
                 </li>
               ))}
