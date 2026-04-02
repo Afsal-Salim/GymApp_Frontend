@@ -44,7 +44,10 @@ export {
   type LoginRequest,
   type LoginResponse,
   type UserProfile,
+  type Customer,
   type PolicyAcceptanceFlags,
+  CustomerRole,
+  isAdminProfile,
 } from './auth';
 export { getProfileCached, peekProfileCache } from './profileCache';
 export {

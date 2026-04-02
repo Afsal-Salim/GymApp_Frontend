@@ -2,6 +2,7 @@ import { STORAGE_USER_PROFILE_CACHE } from '../config/storageKeys';
 import type { UserProfile } from './auth';
 import { getProfile } from './auth';
 import { getAccessToken } from './tokens';
+import { primeProfileCache } from './profileCacheStorage';
 
 const MAX_AGE_MS = 10 * 60 * 1000;
 
@@ -30,12 +31,7 @@ function readCache(): UserProfile | null {
 }
 
 function writeCache(data: UserProfile): void {
-  if (!getAccessToken()) return;
-  try {
-    localStorage.setItem(STORAGE_USER_PROFILE_CACHE, JSON.stringify({ at: Date.now(), data } satisfies CachedPayload));
-  } catch {
-    /* quota / private mode */
-  }
+  primeProfileCache(data);
 }
 
 /**

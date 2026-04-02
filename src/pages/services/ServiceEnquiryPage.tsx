@@ -19,7 +19,7 @@ const CONTACT_ITEMS = [
 ] as const;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DEFAULT_SERVICE_TOPIC = 'Custom website & services';
+const DEFAULT_SERVICE_TOPIC = 'Custom website for my service business';
 
 export default function ServiceEnquiryPage() {
   const { showToast } = useToast();
@@ -47,7 +47,7 @@ export default function ServiceEnquiryPage() {
     else if (!EMAIL_RE.test(e)) next.email = 'Please enter a valid email address.';
     const phoneDigits = clampPhoneDigitsInput(p);
     if (!isTenDigitPhone(phoneDigits)) next.phone = 'Enter a valid 10-digit mobile number.';
-    if (m.length < 3 || m.length > 5000) next.message = 'Tell us what you need (3–5000 characters).';
+    if (m.length < 3 || m.length > 5000) next.message = 'Describe your requirements (3–5000 characters).';
     setFieldErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -85,14 +85,21 @@ export default function ServiceEnquiryPage() {
           <nav className="service-enquiry-page__crumb small text-muted mb-3">
             <Link to="/">Home</Link>
             <span aria-hidden> / </span>
-            <span>Custom &amp; services</span>
+            <span>Custom build for service businesses</span>
           </nav>
 
           <header className="service-enquiry-page__header text-center mb-4 mb-md-5">
-            <h1 className="service-enquiry-page__title">Custom webpage &amp; services</h1>
-            <p className="service-enquiry-page__lead text-muted mx-auto mb-0">
-              Create a fully customised experience beyond standard plans — extra branding, integrations, or
-              multi-location setups. Tell us what you&apos;re looking for and we&apos;ll follow up.
+            <h1 className="service-enquiry-page__title">We build your website from your requirements</h1>
+            <p className="service-enquiry-page__lead text-muted mx-auto mb-3">
+              This is for <strong>service-based businesses</strong> — consultants, salons, clinics, agencies, trades,
+              and any company where you sell services (not just gyms on our standard plans). You tell us what you need:
+              who you serve, what you offer, and how you want to look online. We scope it together, then{' '}
+              <strong>we design and build the site for you</strong> — you don&apos;t assemble it yourself.
+            </p>
+            <p className="service-enquiry-page__lead service-enquiry-page__lead--compact text-muted mx-auto mb-0 small">
+              Already on Crystal&apos;s gym templates and only need a tweak? Use{' '}
+              <Link to="/#contacts">homepage contact</Link> instead. Use this form when you want a{' '}
+              <strong>custom service-company setup</strong> built to your brief.
             </p>
           </header>
 
@@ -131,9 +138,10 @@ export default function ServiceEnquiryPage() {
             <Col lg={7}>
               <Card className="service-enquiry-page__form-card border-0 shadow-sm">
                 <Card.Body className="p-4 p-md-5">
-                  <h2 className="h5 mb-3">Send a service enquiry</h2>
+                  <h2 className="h5 mb-3">Send your requirements</h2>
                   <p className="text-muted small mb-4">
-                    Required fields help us respond faster. Your details are only used to discuss your project.
+                    Describe your business and what you need on the website. We&apos;ll reply to discuss scope, timeline,
+                    and pricing. Your details are only used for this project conversation.
                   </p>
                   <Form onSubmit={handleSubmit} noValidate>
                     <Row className="g-3">
@@ -184,20 +192,20 @@ export default function ServiceEnquiryPage() {
                       </Col>
                       <Col md={6}>
                         <Form.Group controlId="svc-topic">
-                          <Form.Label>What you&apos;re looking for</Form.Label>
+                          <Form.Label>Summary (one line)</Form.Label>
                           <Form.Control
                             value={serviceTopic}
                             onChange={(e) => setServiceTopic(e.target.value)}
                             disabled={submitting}
                             maxLength={255}
-                            placeholder="e.g. Custom website, API, multi-gym"
+                            placeholder="e.g. Booking site for a dental clinic, portfolio + lead form for consultant"
                           />
-                          <Form.Text className="text-muted">Optional short label (max 255 characters).</Form.Text>
+                          <Form.Text className="text-muted">Optional headline for your request (max 255 characters).</Form.Text>
                         </Form.Group>
                       </Col>
                       <Col xs={12}>
                         <Form.Group controlId="svc-message">
-                          <Form.Label>Details</Form.Label>
+                          <Form.Label>Your requirements</Form.Label>
                           <Form.Control
                             as="textarea"
                             rows={5}
@@ -205,7 +213,7 @@ export default function ServiceEnquiryPage() {
                             onChange={(e) => setMessage(e.target.value)}
                             disabled={submitting}
                             isInvalid={!!fieldErrors.message}
-                            placeholder="Describe goals, timeline, and any must-have features."
+                            placeholder="What does your business do? Who are your customers? Pages or features you need (e.g. services list, booking, contact, pricing). Any brands or sites you like. Rough timeline if you have one."
                             maxLength={5000}
                           />
                           <Form.Control.Feedback type="invalid">{fieldErrors.message}</Form.Control.Feedback>
@@ -240,9 +248,10 @@ export default function ServiceEnquiryPage() {
           </Row>
 
           <Alert variant="light" className="service-enquiry-page__note mt-4 mb-0 border">
-            <strong>General questions?</strong>{' '}
-            <Link to="/#contacts">Use the homepage contact section</Link> or the quick enquiry form — this form is
-            for <strong>service</strong> and custom-build requests (10-digit mobile required).
+            <strong>Not a custom service build?</strong>{' '}
+            <Link to="/#contacts">Homepage contact</Link> is best for general questions or quick gym-product enquiries.
+            This page is specifically for <strong>service-business websites built to your requirements</strong> (10-digit
+            mobile required).
           </Alert>
         </Container>
       </main>

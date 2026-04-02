@@ -120,7 +120,7 @@ function mapPlanToDisplay(
 
 const CUSTOM_PLAN: DisplayPlan = {
   id: 'custom',
-  name: 'Custom',
+  name: 'Custom build',
   listPriceFormatted: 'Custom',
   firstActivationFormatted: null,
   showIntroPrice: false,
@@ -128,13 +128,12 @@ const CUSTOM_PLAN: DisplayPlan = {
   period: '',
   currency: 'INR',
   features: [
-    'Everything in Pro',
-    'Multi-team',
-    'API access',
-    'Dedicated success manager',
-    'Bespoke webpage & integrations',
+    'For service-based businesses — not limited to gyms',
+    'You describe goals & requirements; we build the website for you',
+    'Custom layout, branding, and integrations to match how you work',
+    'Dedicated scoping, build, and launch support',
   ],
-  cta: 'Contact our team',
+  cta: 'Tell us what you need',
   paymentSlug: null,
   popular: false,
   comingSoon: false,
@@ -284,8 +283,10 @@ export default function PlansPage() {
                             <span className="plans-page__price plans-page__price--custom">Custom</span>
                           </div>
                           <p className="plans-page__custom-teaser small text-muted mb-3">
-                            Create your own customised webpage — we shape layouts, branding, and features with you.
-                            Reach our team to scope your build.
+                            <strong>Service-based companies:</strong> this option is for businesses that want a site
+                            built around their offering — you share what you need (services, audience, must-haves), and
+                            our team designs and delivers it. Standard plans are great for gyms; this path is for
+                            custom service setups.
                           </p>
                         </>
                       : (
@@ -314,7 +315,7 @@ export default function PlansPage() {
                       <div className="plans-page__card-cta mt-auto pt-2">
                         {pkg.id === 'custom' ?
                           <Link to={SERVICES_CUSTOM_PATH} className="btn btn-primary w-100">
-                            Contact our team
+                            {pkg.cta}
                           </Link>
                         : pkg.paymentSlug ?
                           <Button

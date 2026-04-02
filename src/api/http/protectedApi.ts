@@ -4,6 +4,7 @@
  */
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import { apiBaseUrl, authRefreshPath } from '../../config/env';
+import { primeProfileCache } from '../profileCacheStorage';
 import {
   getAccessToken,
   getRefreshToken,
@@ -72,6 +73,11 @@ protectedApi.interceptors.response.use(
       const newRefresh = data.refresh ?? data.refresh_token ?? data.refreshToken;
       if (newRefresh) {
         setTokens(newAccessToken, newRefresh);
+      }
+
+      const refreshedCustomer = data.customer;
+      if (refreshedCustomer && typeof refreshedCustomer === 'object') {
+        primeProfileCache(refreshedCustomer as object);
       }
 
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;

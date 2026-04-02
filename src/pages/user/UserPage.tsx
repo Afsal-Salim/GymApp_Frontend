@@ -12,6 +12,7 @@ import {
   getAllWebsitesAnalytics,
   getUserInfo,
   setUserInfo,
+  isAdminProfile,
   ANALYTICS_RANGE_OPTIONS,
   postBusinessRecordStatus,
   BusinessDeactivateBlockedError,
@@ -26,7 +27,7 @@ import type {
   AnalyticsRangePreset,
 } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
-import { isEmailAllowedAdmin, visitPublicGymSite } from '../../config/env';
+import { visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
 import { OverallLeadsByWebsiteChart } from './OverallLeadsByWebsiteChart';
@@ -328,7 +329,7 @@ export default function UserPage() {
         }
       })
       .catch(() => {
-        if (!cancelled) setProfile({});
+        if (!cancelled) setProfile(null);
       })
       .finally(() => {
         if (!cancelled) setProfileLoading(false);
@@ -338,11 +339,10 @@ export default function UserPage() {
 
   useEffect(() => {
     if (asMemberDashboard || profileLoading) return;
-    const email = profile?.email;
-    if (email && isEmailAllowedAdmin(email)) {
+    if (isAdminProfile(profile)) {
       navigate('/user/admin', { replace: true });
     }
-  }, [asMemberDashboard, profileLoading, profile?.email, navigate]);
+  }, [asMemberDashboard, profileLoading, profile, navigate]);
 
   useEffect(() => {
     let cancelled = false;

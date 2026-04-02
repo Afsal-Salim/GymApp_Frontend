@@ -89,11 +89,30 @@ export async function signup(payload: SignupRequest): Promise<SignupResponse> {
   }
 }
 
-export type UserProfile = {
-  username?: string;
-  email?: string;
-  [key: string]: unknown;
+/** Matches backend `CustomerSerializer.role`: 0 = admin, 1 = client (default), 2 = client_customer. */
+export const CustomerRole = {
+  Admin: 0,
+  Client: 1,
+  ClientCustomer: 2,
+} as const;
+
+export type Customer = {
+  id: number;
+  email: string;
+  username: string;
+  role: number;
+  user_content_policy_accepted: boolean;
+  privacy_policy_accepted: boolean;
+  created_at: string;
+  updated_at: string;
 };
+
+/** Session profile from GET `/auth/me/` (same shape as `customer` in login / refresh). */
+export type UserProfile = Customer;
+
+export function isAdminProfile(p: Pick<UserProfile, 'role'> | null | undefined): boolean {
+  return p?.role === CustomerRole.Admin;
+}
 
 export async function getProfile(): Promise<UserProfile> {
   const { data } = await privateApi.get<UserProfile>(ME_URL);
@@ -105,13 +124,14 @@ export type LoginRequest = {
   password: string;
 };
 
-/** Login response: tokens saved to localStorage and used by the protected API client. */
+/** Login / signup / Google: tokens plus embedded customer (same serializer as `/auth/me/`). */
 export type LoginResponse = {
   access?: string;
   refresh?: string;
   access_token?: string;
   refresh_token?: string;
   token?: string;
+  customer?: Customer;
   [key: string]: unknown;
 };
 

@@ -1,5 +1,5 @@
 /**
- * Admin-only REST: `/api/admin/...` — Bearer token; backend allows only emails in server `ADMIN` env.
+ * Admin-only REST: `/api/admin/...` — Bearer token; backend authorizes admin accounts (e.g. `customer.role === 0`).
  */
 import { protectedApi } from './http/protectedApi';
 import { getAxiosErrorMessage } from './http/axiosErrorMessage';
@@ -79,9 +79,32 @@ export type PatchAdminSupportFeedbackBody = {
   record_status?: 'active' | 'inactive';
 };
 
+/**
+ * Backend rule: for `kind === support` do not send non-null `feedback_status`; for `kind === feedback` do not send
+ * non-null `support_status`. Builds a minimal PATCH body so we never violate that (avoids 400/500 on strict views).
+ */
+function buildSupportFeedbackPatchPayload(
+  kind: 'support' | 'feedback',
+  body: PatchAdminSupportFeedbackBody
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (body.record_status !== undefined) {
+    out.record_status = body.record_status;
+  }
+  if (kind === 'support') {
+    if ('support_status' in body) {
+      out.support_status = body.support_status;
+    }
+  } else if ('feedback_status' in body) {
+    out.feedback_status = body.feedback_status;
+  }
+  return out;
+}
+
 export type AdminEnquiryItem = {
   id: number;
   enquiry_status?: 'open' | 'resolved';
+  enquiry_kind?: 'general' | 'service';
   record_status?: 'active' | 'inactive';
   created_at?: string;
   updated_at?: string;
@@ -93,6 +116,8 @@ export type AdminEnquiryListParams = {
   page_size?: number;
   enquiry_status?: 'open' | 'resolved';
   record_status?: 'active' | 'inactive';
+  /** If set, must be `general` or `service` (backend validates). */
+  enquiry_kind?: 'general' | 'service';
 };
 
 export type PatchAdminEnquiryBody = {
@@ -122,6 +147,8 @@ export type AdminUserItem = {
   id: number;
   username: string;
   email: string;
+  /** 0 = admin — same as `CustomerSerializer.role`; used to hide destructive record edits in the admin UI. */
+  role?: number;
   auth_provider: 'email' | 'google' | string;
   record_status: 'active' | 'inactive' | string;
   created_at: string;
@@ -163,12 +190,14 @@ export async function getAdminSupportFeedbackList(
 
 export async function patchAdminSupportFeedback(
   id: number,
+  kind: 'support' | 'feedback',
   body: PatchAdminSupportFeedbackBody
 ): Promise<AdminSupportFeedbackItem> {
   try {
+    const payload = buildSupportFeedbackPatchPayload(kind, body);
     const { data } = await protectedApi.patch<AdminSupportFeedbackItem>(
       `${ADMIN_SUPPORT}${id}/`,
-      body
+      payload
     );
     return data;
   } catch (e) {
@@ -188,6 +217,7 @@ export async function getAdminEnquiriesList(
         page_size,
         ...(params.enquiry_status ? { enquiry_status: params.enquiry_status } : {}),
         ...(params.record_status ? { record_status: params.record_status } : {}),
+        ...(params.enquiry_kind ? { enquiry_kind: params.enquiry_kind } : {}),
       },
     });
     return normalizeAdminList<AdminEnquiryItem>(data);

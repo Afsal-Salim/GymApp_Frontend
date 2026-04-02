@@ -277,15 +277,22 @@ html {
   max-width: 220px;
   border-radius: 12px !important;
   border: 1px solid #e2e8f0;
+  background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition:
     transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.35s ease;
+    box-shadow 0.35s ease,
+    border-color 0.3s ease,
+    background 0.35s ease;
 }
 
 .crystal-scroll-inner .crystal-scroll-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+  transform: translateY(-6px) scale(1.03);
+  border-color: rgba(14, 165, 233, 0.35);
+  background: linear-gradient(165deg, #fff 0%, #f0f9ff 55%, #e0f2fe 100%);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(14, 165, 233, 0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -294,6 +301,10 @@ html {
   }
 
   .crystal-scroll-inner .crystal-scroll-card:hover {
+    transform: none;
+  }
+
+  .crystal-scroll-inner .crystal-scroll-card:hover .crystal-scroll-icon {
     transform: none;
   }
 }
@@ -312,6 +323,12 @@ html {
 .crystal-scroll-icon {
   font-size: 1.5rem;
   color: #0ea5e9;
+  transition: color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.crystal-scroll-inner .crystal-scroll-card:hover .crystal-scroll-icon {
+  color: #0284c7;
+  transform: scale(1.08);
 }
 
 .crystal-testimonial {
@@ -445,13 +462,15 @@ html {
   transition:
     transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
     background 0.25s ease,
-    box-shadow 0.25s ease;
+    box-shadow 0.25s ease,
+    color 0.25s ease;
 }
 
 .crystal-value-badge:hover {
-  transform: translateY(-2px);
-  background: rgba(14, 165, 233, 0.2);
-  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.2);
+  transform: translateY(-2px) scale(1.04);
+  background: rgba(14, 165, 233, 0.22);
+  color: #0284c7;
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.22);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -542,19 +561,22 @@ html {
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 14px 44px -14px rgba(15, 23, 42, 0.1);
   transition:
-    border-color 0.2s ease,
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
+    border-color 0.25s ease,
+    box-shadow 0.28s ease,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.3s ease;
   min-height: 228px;
   height: 100%;
 }
 
 .crystal-contact-card:hover {
-  border-color: rgba(14, 165, 233, 0.4);
+  border-color: rgba(14, 165, 233, 0.45);
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 45%, #f0f9ff 100%);
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
-    0 22px 50px -18px rgba(14, 165, 233, 0.14);
-  transform: translateY(-3px);
+    0 22px 50px -18px rgba(14, 165, 233, 0.16),
+    0 0 0 1px rgba(14, 165, 233, 0.05);
+  transform: translateY(-4px) scale(1.02);
 }
 
 .crystal-contact-card__icon-wrap {
@@ -710,17 +732,22 @@ html {
 .crystal-how-card {
   border: 1px solid #e2e8f0;
   border-radius: 14px;
+  background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition:
-    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.3s ease,
-    border-color 0.2s ease;
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.25s ease,
+    background 0.35s ease;
 }
 
 .crystal-how-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.12);
-  border-color: color-mix(in srgb, #0ea5e9 35%, #e2e8f0);
+  transform: translateY(-5px) scale(1.02);
+  box-shadow:
+    0 12px 32px rgba(14, 165, 233, 0.14),
+    0 0 0 1px rgba(14, 165, 233, 0.07);
+  border-color: color-mix(in srgb, #0ea5e9 42%, #e2e8f0);
+  background: linear-gradient(160deg, #fff 0%, #f8fafc 40%, #f0f9ff 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -753,12 +780,16 @@ html {
   overflow: hidden;
   transition:
     transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.45s ease;
+    box-shadow 0.45s ease,
+    border-color 0.35s ease;
 }
 
 .crystal-video-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 20px 40px rgba(14, 165, 233, 0.15);
+  transform: translateY(-5px) scale(1.02);
+  border-color: rgba(14, 165, 233, 0.4);
+  box-shadow:
+    0 20px 44px rgba(14, 165, 233, 0.18),
+    0 0 0 1px rgba(14, 165, 233, 0.08);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -857,9 +888,10 @@ html {
     0 4px 12px rgba(15, 23, 42, 0.06),
     0 16px 42px rgba(15, 23, 42, 0.07);
   transition:
-    transform 0.28s ease,
-    box-shadow 0.28s ease,
-    border-color 0.2s ease;
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s ease,
+    border-color 0.25s ease,
+    background 0.35s ease;
 }
 
 @media (min-width: 992px) {
@@ -885,20 +917,24 @@ html {
 }
 
 .crystal-package-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(148, 163, 184, 0.55) !important;
+  transform: translateY(-6px) scale(1.02);
+  border-color: rgba(14, 165, 233, 0.38) !important;
+  background: linear-gradient(180deg, #fff 0%, #fafcff 35%, #f0f9ff 100%) !important;
   box-shadow:
-    0 4px 8px rgba(15, 23, 42, 0.05),
-    0 14px 32px rgba(15, 23, 42, 0.1),
-    0 28px 64px rgba(14, 165, 233, 0.1);
+    0 8px 16px rgba(15, 23, 42, 0.06),
+    0 18px 40px rgba(15, 23, 42, 0.09),
+    0 32px 72px rgba(14, 165, 233, 0.12),
+    0 0 0 1px rgba(14, 165, 233, 0.06);
 }
 
 .crystal-package-card.border-primary:hover {
-  border-color: rgba(14, 165, 233, 0.65) !important;
+  border-color: rgba(14, 165, 233, 0.72) !important;
+  background: linear-gradient(180deg, #fff 0%, #f0f9ff 40%, #e0f2fe 100%) !important;
   box-shadow:
-    0 6px 12px rgba(14, 165, 233, 0.12),
-    0 18px 40px rgba(14, 165, 233, 0.16),
-    0 36px 72px rgba(14, 165, 233, 0.14);
+    0 8px 18px rgba(14, 165, 233, 0.12),
+    0 22px 48px rgba(14, 165, 233, 0.16),
+    0 40px 80px rgba(14, 165, 233, 0.14),
+    0 0 0 1px rgba(14, 165, 233, 0.1);
 }
 
 .crystal-package-badge {
@@ -944,6 +980,18 @@ html {
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.02em;
+}
+
+.crystal-package-custom-teaser {
+  line-height: 1.45;
+  text-align: center;
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.crystal-package-custom-cta {
+  flex-shrink: 0;
 }
 
 .crystal-package-features-wrapper {

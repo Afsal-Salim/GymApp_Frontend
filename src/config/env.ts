@@ -29,26 +29,6 @@ export const whatsappDefaultMessage =
   (import.meta.env.VITE_WHATSAPP_MESSAGE ?? '').trim() ||
   'Hello I am interested in your service';
 
-/**
- * Comma-separated emails that may use the in-app admin dashboard (`/user/admin`).
- * Must mirror the server `ADMIN` env list so UI gating matches `/api/admin/*` authorization.
- */
-function parseAdminEmailSet(raw: string): Set<string> {
-  return new Set(
-    raw
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
-
-export const adminAllowedEmails = parseAdminEmailSet(import.meta.env.VITE_ADMIN_EMAILS ?? '');
-
-export function isEmailAllowedAdmin(email: string | undefined | null): boolean {
-  if (!email?.trim()) return false;
-  return adminAllowedEmails.has(email.trim().toLowerCase());
-}
-
 export const homepageTutorialVideoUrl =
   (import.meta.env.VITE_HOMEPAGE_TUTORIAL_VIDEO_URL ?? '').trim() ||
   'https://www.youtube.com/watch?v=dQw4w9WgXcQ';

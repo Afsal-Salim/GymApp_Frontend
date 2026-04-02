@@ -158,14 +158,19 @@ const TESTIMONIALS_SCROLL = [
   
 const CUSTOM_PLAN: DisplayPlan = {
   id: 'custom',
-  name: 'Custom',
+  name: 'Custom build',
   listPriceFormatted: 'Custom',
   firstActivationFormatted: null,
   showIntroPrice: false,
   period: '',
   currency: 'INR',
-  features: ['Everything in Pro', 'Multi-team', 'API access', 'Dedicated success manager'],
-  cta: 'Contact sales',
+  features: [
+    'For service-based businesses — salons, clinics, consultants, local services, and more',
+    'You tell us what you need; we design and build the website for you',
+    'Custom layout, branding, and features beyond standard templates',
+    'We scope, build, and launch with you step by step',
+  ],
+  cta: 'Tell us what you need',
   paymentSlug: null,
   popular: false,
   comingSoon: false,
@@ -748,8 +753,12 @@ export default function HomePage() {
                     <Card.Body className="text-center crystal-package-card__body">
                       <Card.Title className="h5">{pkg.name}</Card.Title>
                       {pkg.id === 'custom' ?
-                        <div className="mb-3 crystal-package-price-wrap">
+                        <div className="mb-2 crystal-package-price-wrap">
                           <span className="crystal-package-custom-price">Custom</span>
+                          <p className="crystal-package-custom-teaser small text-muted mb-0 mt-2 px-1">
+                            For <strong>service-based</strong> companies: share your requirements and we&apos;ll build a
+                            site tailored to your business — not a DIY template.
+                          </p>
                         </div>
                       : (
                         <div className="mb-3 crystal-package-price-wrap">
@@ -765,6 +774,14 @@ export default function HomePage() {
                       )}
                       {pkg.features.length > 0 && (
                         <PlanFeatures planId={pkg.id} features={pkg.features} />
+                      )}
+                      {pkg.id === 'custom' && (
+                        <Link
+                          to="/services/custom"
+                          className="btn btn-outline-primary btn-sm w-100 mt-3 crystal-package-custom-cta"
+                        >
+                          {pkg.cta}
+                        </Link>
                       )}
                     </Card.Body>
                   </Card>

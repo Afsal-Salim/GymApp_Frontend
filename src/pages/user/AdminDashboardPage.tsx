@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Alert,
   Badge,
   Card,
   Container,
@@ -13,11 +12,13 @@ import {
 } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import {
+  CustomerRole,
   getAdminEnquiriesList,
   getAdminSupportFeedbackList,
   getAdminUsersList,
   getAdminWebsitesList,
   getProfileCached,
+  isAdminProfile,
   patchAdminEnquiry,
   patchAdminSupportFeedback,
   patchAdminUser,
@@ -29,13 +30,16 @@ import type {
   AdminUserItem,
   AdminWebsiteItem,
 } from '../../api';
-import { isEmailAllowedAdmin } from '../../config/env';
 import { useToast } from '../../contexts/ToastContext';
 import './AdminDashboardPage.css';
 
 type AdminTab = 'support' | 'enquiries' | 'websites' | 'users';
 
 const PAGE_SIZE = 15;
+
+function isAdminRoleUserRow(r: AdminUserItem): boolean {
+  return Number(r.role) === CustomerRole.Admin;
+}
 
 function formatWhen(s: string | undefined): string {
   if (!s) return '—';
@@ -59,6 +63,115 @@ function extrasPreview(row: Record<string, unknown>, omit: string[]): string {
   if (keys.length === 0) return '—';
   const s = JSON.stringify(o);
   return s.length > 140 ? `${s.slice(0, 137)}…` : s;
+}
+
+const ENQUIRY_ROW_META = new Set([
+  'id',
+  'enquiry_status',
+  'enquiry_kind',
+  'record_status',
+  'created_at',
+  'updated_at',
+]);
+
+const ENQUIRY_FIELD_LABELS: Record<string, string> = {
+  name: 'Name',
+  email: 'Email',
+  phone: 'Phone',
+  service_topic: 'Service topic',
+  message: 'Message',
+  subject: 'Subject',
+  company: 'Company',
+  notes: 'Notes',
+};
+
+const ENQUIRY_FIELD_ORDER = [
+  'name',
+  'email',
+  'phone',
+  'service_topic',
+  'message',
+  'subject',
+  'company',
+  'notes',
+];
+
+function formatEnquiryFieldValue(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function parsePayloadObject(raw: unknown): Record<string, unknown> | null {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function enquiryPayloadEntries(row: Record<string, unknown>): { key: string; label: string; value: string }[] {
+  const fromNested =
+    parsePayloadObject(row.payload) ??
+    parsePayloadObject(row.body) ??
+    parsePayloadObject(row.data);
+  const source: Record<string, unknown> = fromNested ?? {};
+  if (!fromNested) {
+    for (const [k, v] of Object.entries(row)) {
+      if (ENQUIRY_ROW_META.has(k)) continue;
+      source[k] = v;
+    }
+  }
+
+  const entries = Object.entries(source).map(([key, val]) => ({
+    key,
+    label: ENQUIRY_FIELD_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    value: formatEnquiryFieldValue(val).trim(),
+  }));
+
+  entries.sort((a, b) => {
+    const ia = ENQUIRY_FIELD_ORDER.indexOf(a.key);
+    const ib = ENQUIRY_FIELD_ORDER.indexOf(b.key);
+    const aKnown = ia !== -1;
+    const bKnown = ib !== -1;
+    if (aKnown && bKnown) return ia - ib;
+    if (aKnown) return -1;
+    if (bKnown) return 1;
+    return a.key.localeCompare(b.key);
+  });
+
+  return entries;
+}
+
+function EnquiryPayloadDetails({ row }: { row: Record<string, unknown> }) {
+  const entries = enquiryPayloadEntries(row);
+  if (entries.length === 0) {
+    return <span className="text-muted small">—</span>;
+  }
+  return (
+    <div className="admin-dash__enquiry-payload">
+      {entries.map(({ key, label, value }) => (
+        <div key={key} className="admin-dash__enquiry-payload__row">
+          <span className="admin-dash__enquiry-payload__label">{label}</span>
+          <span className="admin-dash__enquiry-payload__value">{value ? value : '—'}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function AdminPager({
@@ -137,10 +250,14 @@ function SupportFeedbackSection() {
     load();
   }, [load]);
 
-  const patchOne = async (id: number, body: Parameters<typeof patchAdminSupportFeedback>[1]) => {
+  const patchOne = async (
+    id: number,
+    kind: 'support' | 'feedback',
+    body: Parameters<typeof patchAdminSupportFeedback>[2]
+  ) => {
     setSavingId(id);
     try {
-      await patchAdminSupportFeedback(id, body);
+      await patchAdminSupportFeedback(id, kind, body);
       showToast('Saved.');
       await load();
     } catch (e) {
@@ -206,7 +323,6 @@ function SupportFeedbackSection() {
         : <Table responsive hover className="admin-dash__table mb-0">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Kind</th>
                 <th>Subject / message</th>
                 <th>Support</th>
@@ -218,7 +334,6 @@ function SupportFeedbackSection() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td className="admin-dash__mono">{r.id}</td>
                   <td>
                     <Badge bg={r.kind === 'support' ? 'primary' : 'info'}>{r.kind}</Badge>
                   </td>
@@ -240,7 +355,7 @@ function SupportFeedbackSection() {
                         value={(r.support_status as string) ?? ''}
                         onChange={(e) => {
                           const v = e.target.value;
-                          patchOne(r.id, {
+                          patchOne(r.id, 'support', {
                             support_status:
                               v === '' ? null : (v as 'open' | 'in_progress' | 'resolved'),
                           });
@@ -263,7 +378,7 @@ function SupportFeedbackSection() {
                         value={(r.feedback_status as string) ?? ''}
                         onChange={(e) => {
                           const v = e.target.value;
-                          patchOne(r.id, {
+                          patchOne(r.id, 'feedback', {
                             feedback_status: v === '' ? null : (v as 'open' | 'resolved'),
                           });
                         }}
@@ -282,7 +397,7 @@ function SupportFeedbackSection() {
                       disabled={savingId === r.id}
                       value={(r.record_status as string) ?? 'active'}
                       onChange={(e) => {
-                        patchOne(r.id, {
+                        patchOne(r.id, r.kind, {
                           record_status: e.target.value as 'active' | 'inactive',
                         });
                       }}
@@ -309,6 +424,7 @@ function EnquiriesSection() {
   const { showToast } = useToast();
   const [page, setPage] = useState(1);
   const [enquiryStatus, setEnquiryStatus] = useState('');
+  const [enquiryKind, setEnquiryKind] = useState('');
   const [recordStatus, setRecordStatus] = useState('');
   const [rows, setRows] = useState<AdminEnquiryItem[]>([]);
   const [count, setCount] = useState(0);
@@ -323,6 +439,9 @@ function EnquiriesSection() {
         page_size: PAGE_SIZE,
         ...(enquiryStatus ? { enquiry_status: enquiryStatus as 'open' | 'resolved' } : {}),
         ...(recordStatus ? { record_status: recordStatus as 'active' | 'inactive' } : {}),
+        ...(enquiryKind === 'general' || enquiryKind === 'service' ?
+          { enquiry_kind: enquiryKind }
+        : {}),
       });
       setRows(res.results);
       setCount(res.count);
@@ -333,7 +452,7 @@ function EnquiriesSection() {
     } finally {
       setLoading(false);
     }
-  }, [page, enquiryStatus, recordStatus, showToast]);
+  }, [page, enquiryStatus, enquiryKind, recordStatus, showToast]);
 
   useEffect(() => {
     load();
@@ -367,6 +486,17 @@ function EnquiriesSection() {
           </Form.Select>
         </div>
         <div className="admin-dash__filter-field">
+          <Form.Label>Kind</Form.Label>
+          <Form.Select
+            value={enquiryKind}
+            onChange={(e) => { setPage(1); setEnquiryKind(e.target.value); }}
+          >
+            <option value="">All</option>
+            <option value="general">general</option>
+            <option value="service">service</option>
+          </Form.Select>
+        </div>
+        <div className="admin-dash__filter-field">
           <Form.Label>Record</Form.Label>
           <Form.Select
             value={recordStatus}
@@ -388,8 +518,7 @@ function EnquiriesSection() {
         : <Table responsive hover className="admin-dash__table mb-0">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Payload</th>
+                <th>Details</th>
                 <th>Enquiry status</th>
                 <th>Record</th>
                 <th>Created</th>
@@ -398,17 +527,8 @@ function EnquiriesSection() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td className="admin-dash__mono">{r.id}</td>
-                  <td>
-                    <pre className="admin-dash__json mb-0">
-                      {extrasPreview(r as Record<string, unknown>, [
-                        'id',
-                        'enquiry_status',
-                        'record_status',
-                        'created_at',
-                        'updated_at',
-                      ])}
-                    </pre>
+                  <td className="admin-dash__enquiry-cell">
+                    <EnquiryPayloadDetails row={r as Record<string, unknown>} />
                   </td>
                   <td>
                     <Form.Select
@@ -650,7 +770,6 @@ function UsersSection() {
         : <Table responsive hover className="admin-dash__table mb-0">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Username</th>
                 <th>Email</th>
                 <th>Auth</th>
@@ -661,28 +780,30 @@ function UsersSection() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td className="admin-dash__mono">{r.id}</td>
                   <td>{r.username}</td>
                   <td className="small">{r.email}</td>
                   <td>
                     <Badge bg="secondary">{r.auth_provider}</Badge>
                   </td>
                   <td>
-                    <Form.Select
-                      size="sm"
-                      className="admin-dash__mono"
-                      style={{ minWidth: 100 }}
-                      disabled={savingId === r.id}
-                      value={r.record_status}
-                      onChange={(e) => {
-                        patchOne(r.id, {
-                          record_status: e.target.value as 'active' | 'inactive',
-                        });
-                      }}
-                    >
-                      <option value="active">active</option>
-                      <option value="inactive">inactive</option>
-                    </Form.Select>
+                    {isAdminRoleUserRow(r) ?
+                      <span className="text-muted small text-capitalize">{String(r.record_status)}</span>
+                    : <Form.Select
+                        size="sm"
+                        className="admin-dash__mono"
+                        style={{ minWidth: 100 }}
+                        disabled={savingId === r.id}
+                        value={r.record_status}
+                        onChange={(e) => {
+                          patchOne(r.id, {
+                            record_status: e.target.value as 'active' | 'inactive',
+                          });
+                        }}
+                      >
+                        <option value="active">active</option>
+                        <option value="inactive">inactive</option>
+                      </Form.Select>
+                    }
                   </td>
                   <td className="small text-muted">{formatWhen(r.created_at)}</td>
                 </tr>
@@ -709,7 +830,7 @@ export default function AdminDashboardPage() {
     getProfileCached()
       .then((p) => {
         if (cancelled) return;
-        if (!isEmailAllowedAdmin(p.email)) {
+        if (!isAdminProfile(p)) {
           setGate('denied');
           navigate('/user?as=member', { replace: true });
           return;
@@ -749,7 +870,7 @@ export default function AdminDashboardPage() {
               <p className="admin-dash__lead">
                 Support & feedback, enquiries, websites, and users from{' '}
                 <code className="admin-dash__mono">/api/admin/</code>. Updates save immediately; the API returns 403 if
-                your login email is not in the server <code className="admin-dash__mono">ADMIN</code> list.
+                your account does not have the admin role.
               </p>
             </div>
             <div className="d-flex flex-wrap gap-2">
@@ -761,11 +882,6 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
           </header>
-
-          <Alert variant="light" className="border mb-4 small">
-            Frontend access uses <code className="admin-dash__mono">VITE_ADMIN_EMAILS</code> (same addresses as backend{' '}
-            <code className="admin-dash__mono">ADMIN</code>). Change both when adding admins.
-          </Alert>
 
           <Nav variant="pills" className="admin-dash__nav flex-wrap gap-2 mb-4">
             <Nav.Item>

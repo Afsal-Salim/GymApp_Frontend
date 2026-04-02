@@ -28,6 +28,11 @@
   font-size: 1.02rem;
 }
 
+.service-enquiry-page__lead--compact {
+  max-width: 36rem;
+  line-height: 1.5;
+}
+
 .service-enquiry-page__contact-card,
 .service-enquiry-page__form-card {
   border-radius: 16px !important;
