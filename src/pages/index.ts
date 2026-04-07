@@ -12,3 +12,4 @@ export { CreateWebsitePage } from './website';
 export { Welcome } from './welcome';
 export { CrystalBusinessPage } from './crystal';
 export { UserContentPolicyPage, PrivacyPolicyPage, SupportFeedbackPage } from './legal';
+export { default as NotFoundPage } from './NotFound';

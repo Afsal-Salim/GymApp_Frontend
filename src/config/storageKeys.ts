@@ -31,6 +31,12 @@ export const CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL = 'crystal_website_previe
 /** Older session-only draft key (Create Website wizard). */
 export const CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY = 'crystal_website_setup_draft_v1';
 
+/**
+ * When set, returning to `/user/create-website` via the browser back button (after preview / “view site”)
+ * should redirect to `/user` instead of showing the editor again.
+ */
+export const SESSION_CRYSTAL_CREATE_SKIP_ON_BACK = 'crystal_create_skip_on_back_v1';
+
 // —— Anonymous analytics-style persistence ——
 /** Per-slug lead / engagement counters for the public gym page. */
 export const GYM_CRYSTAL_LEAD_STATS_STORAGE_KEY = 'gymCrystal_leadStats_v1';

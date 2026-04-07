@@ -194,6 +194,13 @@ export type GymClientSiteContent = {
     sectionTitle: string;
     rows: GymClientDetailRow[];
   };
+  /** Optional gallery captions (URLs come from GET `/businesses/<slug>/images/`). Paid plans only in the builder. */
+  gallery?: {
+    sectionTitle: string;
+    captionsByUrl?: Record<string, string>;
+    /** `image_url` values from GET `/businesses/<slug>/images/` in display order (builder + public strip). */
+    imageOrder?: string[];
+  };
 };
 
 /**
@@ -582,6 +589,45 @@ export function resolveGymClientSiteContent(business: PublicBusinessDetail): Gym
   }
 
   return c;
+}
+
+/**
+ * Merge persisted `website_content` fragments from the API onto resolved public content (e.g. gallery captions).
+ */
+export function applyPublicWebsiteContentOverlay(
+  base: GymClientSiteContent,
+  raw: Record<string, unknown> | undefined | null
+): GymClientSiteContent {
+  if (!raw || typeof raw !== 'object') return base;
+  const g = raw.gallery;
+  if (!g || typeof g !== 'object') return base;
+  const ge = g as { sectionTitle?: unknown; captionsByUrl?: unknown; imageOrder?: unknown };
+  const sectionTitle = typeof ge.sectionTitle === 'string' && ge.sectionTitle.trim() ? ge.sectionTitle.trim() : 'Gallery';
+  const capsRaw = ge.captionsByUrl;
+  let captionsByUrl: Record<string, string> | undefined;
+  if (capsRaw && typeof capsRaw === 'object' && !Array.isArray(capsRaw)) {
+    captionsByUrl = {};
+    for (const [k, v] of Object.entries(capsRaw)) {
+      if (typeof v === 'string' && v.trim()) captionsByUrl[k] = v.trim();
+    }
+    if (Object.keys(captionsByUrl).length === 0) captionsByUrl = undefined;
+  }
+  const orderRaw = ge.imageOrder;
+  let imageOrder: string[] | undefined;
+  if (Array.isArray(orderRaw)) {
+    const arr = orderRaw
+      .filter((u): u is string => typeof u === 'string' && u.trim() !== '')
+      .map((u) => u.trim());
+    imageOrder = arr.length > 0 ? arr : undefined;
+  }
+  return {
+    ...base,
+    gallery: {
+      sectionTitle,
+      ...(captionsByUrl ? { captionsByUrl } : {}),
+      ...(imageOrder ? { imageOrder } : {}),
+    },
+  };
 }
 
 /** Normalize pasted maps links (add https when missing). */

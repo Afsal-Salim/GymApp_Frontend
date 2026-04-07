@@ -1,19 +1,29 @@
 import { useState, useEffect, useMemo, useRef, type RefObject, type CSSProperties } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Container, Row, Col, Card, Navbar, Nav } from 'react-bootstrap';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Button, Container, Row, Col, Card, Modal, Navbar, Nav } from 'react-bootstrap';
 import { PageContainer, WhatsAppLogoIcon, GymLoadingScreen } from '../../components';
 import {
   fetchPublicGymBundle,
   getAccessToken,
+  getActiveSubscription,
+  getBusinessDetail,
   invalidatePublicGymBundleCache,
+  listBusinessImages,
   peekPublicGymBundle,
   PublicBusinessNotFoundError,
+  resolveBusinessImageDisplayUrl,
 } from '../../api';
-import type { PublicBusinessDetail } from '../../api';
+import type {
+  ActiveSubscriptionPlanTier,
+  ActiveSubscriptionResponse,
+  BusinessUploadedImage,
+  PublicBusinessDetail,
+} from '../../api';
 import CrystalServiceUnavailable from './CrystalServiceUnavailable';
 import GymClientBookTrialModal from './GymClientBookTrialModal';
 import GymClientPlanVisitModal from './GymClientPlanVisitModal';
 import {
+  applyPublicWebsiteContentOverlay,
   cloneGymClientSiteDefaults,
   resolveGymClientSiteContent,
   getHeroRatingDisplayText,
@@ -24,13 +34,12 @@ import {
   type GymClientAboutFeature,
   type GymClientSiteContent,
 } from './gymClientSiteContent';
+import { crystalMarketingAbsoluteUrl, getPublicGymSlugFromHost } from '../../config/env';
+import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import {
-  crystalMarketingAbsoluteUrl,
-  getPublicGymSlugFromHost,
-  publicGymSiteUrl,
-  publicSiteDomain,
-} from '../../config/env';
-import { CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL } from '../../config/storageKeys';
+  CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL,
+  STORAGE_ACCESS_TOKEN,
+} from '../../config/storageKeys';
 import {
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
   GYM_CLIENT_DEFAULT_TEXT_HEX,
@@ -40,7 +49,7 @@ import { withBundledDefaultClientLogo } from './gymClientBrandLogo';
 import { buildGymClientWhatsAppHref } from './gymClientWhatsApp';
 import { recordGymClientLeadCta, recordGymClientWhatsAppClick } from './gymClientLeadTracking';
 import GymClientJoinLeadModal from './GymClientJoinLeadModal';
-import { GymClientMapsPinIcon, GymClientMetaRowDisk, GymClientMidCtaIcon } from './GymClientDecorIcons';
+import { GymClientMetaRowDisk, GymClientMidCtaIcon } from './GymClientDecorIcons';
 import { normalizeHexColor } from '../../utils/hexColor';
 import './CrystalBusinessPage.css';
 
@@ -469,6 +478,7 @@ function GymClientSiteView({
   businessSlug,
   themeCssVars,
   suppressPublicLeads = false,
+  galleryStrip,
 }: {
   content: GymClientSiteContent;
   businessSlug: string;
@@ -476,6 +486,8 @@ function GymClientSiteView({
   themeCssVars: CSSProperties;
   /** True on `/preview` — no lead API or local lead stats; gym is not published. */
   suppressPublicLeads?: boolean;
+  /** Paid-plan gym photos from GET `/businesses/<slug>/images/` (hidden for trial). */
+  galleryStrip?: { url: string; caption?: string }[];
 }) {
   const shellRef = useRef<HTMLDivElement>(null);
   const [joinLeadModalOpen, setJoinLeadModalOpen] = useState(false);
@@ -745,6 +757,43 @@ function GymClientSiteView({
           ) : null}
         </Container>
       </section>
+
+      {galleryStrip && galleryStrip.length > 0 ? (
+        <section
+          className="crystal-client__section crystal-client__section--gallery"
+          id="gallery"
+          aria-labelledby="crystal-client-gallery"
+        >
+          <Container fluid className="px-0">
+            <h2 id="crystal-client-gallery" className="crystal-client__section-title text-center px-3 mb-3" data-reveal>
+              {content.gallery?.sectionTitle?.trim() || 'Gallery'}
+            </h2>
+            <div className="crystal-client__gallery-scroller px-3" data-reveal>
+              <div className="crystal-client__gallery-track">
+                {galleryStrip.map((item, idx) => (
+                  <figure key={`${item.url}-${idx}`} className="crystal-client__gallery-card">
+                    <div className="crystal-client__gallery-card-img-wrap">
+                      <img
+                        src={item.url}
+                        alt={item.caption || 'Gym photo'}
+                        className="crystal-client__gallery-card-img"
+                        loading="lazy"
+                        width={400}
+                        height={280}
+                      />
+                    </div>
+                    {item.caption?.trim() ?
+                      <figcaption className="crystal-client__gallery-card-caption small text-muted mt-2 mb-0 px-1">
+                        {item.caption.trim()}
+                      </figcaption>
+                    : null}
+                  </figure>
+                ))}
+              </div>
+            </div>
+          </Container>
+        </section>
+      ) : null}
 
       <GymClientMidCtaStrip
         businessSlug={businessSlug}
@@ -1034,19 +1083,15 @@ function GymClientSiteView({
                               </div>
                             </div>
                           ) : item.id === 'address' && locationMapUrl ? (
-                            <div className="crystal-client__address-with-maps">
-                              <p className="crystal-client__contact-value crystal-client__address-text mb-0">{item.value}</p>
-                              <a
-                                href={locationMapUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="crystal-client__maps-link-btn crystal-client__maps-link-btn--labeled"
-                                aria-label="Open location in Google Maps"
-                              >
-                                <GymClientMapsPinIcon className="crystal-client__maps-pin-icon" />
-                                <span className="crystal-client__maps-link-btn-text">Directions</span>
-                              </a>
-                            </div>
+                            <a
+                              href={locationMapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="crystal-client__link crystal-client__contact-line crystal-client__address-text crystal-client__address-map-link mb-0"
+                              aria-label={`Open map: ${item.value}`}
+                            >
+                              {item.value}
+                            </a>
                           ) : item.href ? (
                             <a href={item.href} className="crystal-client__link crystal-client__contact-line">
                               {item.value}
@@ -1224,30 +1269,99 @@ function CrystalPreviewEmpty() {
   );
 }
 
-function CrystalBusinessNotFound({ slug }: { slug: string }) {
-  const urlLabel = publicGymSiteUrl(slug);
+function formatSubscriptionEndDateLabel(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { dateStyle: 'long' });
+  } catch {
+    return iso;
+  }
+}
+
+function resolvePlanTier(sub: ActiveSubscriptionResponse): ActiveSubscriptionPlanTier | null {
+  if (sub.plan_tier) return sub.plan_tier;
+  const nested = sub.subscription?.plan_tier;
+  if (!nested) return null;
+  const lc = String(nested).trim().toLowerCase();
+  if (lc === 'trial' || lc === 'starter' || lc === 'pro' || lc === 'other') return lc;
+  return 'other';
+}
+
+function resolveSubscriptionEndDate(sub: ActiveSubscriptionResponse): string | null {
+  return sub.subscription_end_date ?? sub.subscription?.subscription_end_date ?? null;
+}
+
+/** Public gym is “off” for visitors when the subscription API says no access. */
+function subscriptionPublicGateInactive(sub: ActiveSubscriptionResponse): boolean {
+  return !sub.has_active_subscription || sub.is_active === false;
+}
+
+/** Live client “Recharge now” modal: logged-in owner on a **trial** plan (`GET …/active-subscription/` tier). */
+function ownerIsOnTrialForClientRechargeModal(sub: ActiveSubscriptionResponse): boolean {
+  return resolvePlanTier(sub) === 'trial';
+}
+
+function CrystalOwnerRechargeModal({
+  show,
+  onHide,
+  businessSlug,
+  subscription,
+  themeCssVars,
+}: {
+  show: boolean;
+  onHide: () => void;
+  businessSlug: string;
+  subscription: ActiveSubscriptionResponse;
+  themeCssVars: CSSProperties;
+}) {
   const onGymSubdomain = Boolean(getPublicGymSlugFromHost());
+  const slugEnc = encodeURIComponent(businessSlug);
+  const plansPath = `${PLANS_PAGE_PATH}/${slugEnc}`;
+  const plansHref = onGymSubdomain ? crystalMarketingAbsoluteUrl(plansPath) : plansPath;
+
+  const endRaw = resolveSubscriptionEndDate(subscription);
+  const endLabel = endRaw ? formatSubscriptionEndDateLabel(endRaw) : null;
+  const inactive = subscriptionPublicGateInactive(subscription);
+  const trialActive =
+    subscription.has_active_subscription &&
+    subscription.is_active !== false &&
+    resolvePlanTier(subscription) === 'trial';
+
+  const lead =
+    trialActive && endLabel ?
+      `Your free trial is active and ends on ${endLabel}. Recharge now to choose a paid plan and keep your gym site online.`
+    : trialActive ?
+      "You're on a free trial. Recharge now to move to a paid plan and extend your service."
+    : inactive && endLabel ?
+      `Your subscription is no longer active. It ended on ${endLabel}. Recharge now to bring your gym site back online.`
+    : inactive ?
+      'Your subscription is not active. Recharge now to restore service for your gym site.'
+    : endLabel ?
+      `Your current subscription ends on ${endLabel}. Recharge now for extended, uninterrupted service.`
+    : 'Recharge now to extend your service.';
+
   return (
-    <PageContainer className="crystal-business-page crystal-business-page--not-found">
-      <main className="crystal-business-page__main">
-        <div className="crystal-business-page__content">
-          <h1 className="crystal-business-page__heading">Page not found</h1>
-          <p className="crystal-business-page__lead">
-            No business exists for{' '}
-            <code className="crystal-business-page__slug-code">{publicSiteDomain ? urlLabel : `/${slug}`}</code>.
-          </p>
-          {onGymSubdomain ? (
-            <a href={crystalMarketingAbsoluteUrl('/')} className="btn btn-primary mt-4 crystal-business-page__back">
-              Back to Crystal home
-            </a>
-          ) : (
-            <Link to="/" className="btn btn-primary mt-4 crystal-business-page__back">
-              Back to Crystal home
-            </Link>
-          )}
-        </div>
-      </main>
-    </PageContainer>
+    <Modal show={show} onHide={onHide} centered backdrop="static" className="crystal-owner-recharge-modal" style={themeCssVars}>
+      <Modal.Header closeButton>
+        <Modal.Title>Recharge now</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <p className="mb-0">{lead}</p>
+      </Modal.Body>
+      <Modal.Footer className="border-0 pt-0">
+        <Button variant="outline-secondary" onClick={onHide}>
+          Later
+        </Button>
+        {onGymSubdomain ? (
+          <Button variant="primary" href={plansHref} as="a" onClick={onHide}>
+            Recharge now
+          </Button>
+        ) : (
+          <Link to={plansHref} className="btn btn-primary" onClick={onHide}>
+            Recharge now
+          </Link>
+        )}
+      </Modal.Footer>
+    </Modal>
   );
 }
 
@@ -1270,10 +1384,32 @@ export default function CrystalBusinessPage() {
   const [subscriptionInactive, setSubscriptionInactive] = useState(() => {
     if (!slug || slug === 'preview') return false;
     const hit = peekPublicGymBundle(slug);
-    return hit ? !hit.subscription.has_active_subscription : false;
+    return hit ? subscriptionPublicGateInactive(hit.subscription) : false;
   });
+  const [publicSubscription, setPublicSubscription] = useState<ActiveSubscriptionResponse | null>(() => {
+    if (!slug || slug === 'preview') return null;
+    return peekPublicGymBundle(slug)?.subscription ?? null;
+  });
+  /** Whether the logged-in user owns this business (`null` while verifying with the API). */
+  const [isOwner, setIsOwner] = useState<boolean | null>(() =>
+    !slug || slug === 'preview' || !getAccessToken() ? false : null
+  );
+  const [rechargeModalDismissed, setRechargeModalDismissed] = useState(false);
+  const [publicGalleryImages, setPublicGalleryImages] = useState<BusinessUploadedImage[]>([]);
   /** Bumped when another tab writes the preview draft so we re-read localStorage. */
   const [previewStorageRev, setPreviewStorageRev] = useState(0);
+  /** Bumped on cross-tab login/logout (`storage` event) so we re-check gym ownership. */
+  const [authSessionRev, setAuthSessionRev] = useState(0);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_ACCESS_TOKEN || e.key === null) {
+        setAuthSessionRev((n) => n + 1);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const previewDraft = useMemo(() => {
     if (slug !== 'preview' || isMarketingPreview) return null;
@@ -1285,10 +1421,15 @@ export default function CrystalBusinessPage() {
     [isMarketingPreview]
   );
 
-  const siteContentFromBusiness = useMemo(
-    () => (business ? resolveGymClientSiteContent(business) : null),
-    [business]
-  );
+  const siteContentFromBusiness = useMemo(() => {
+    if (!business) return null;
+    const base = resolveGymClientSiteContent(business);
+    const wc = business.website_content;
+    if (wc && typeof wc === 'object') {
+      return applyPublicWebsiteContentOverlay(base, wc as Record<string, unknown>);
+    }
+    return base;
+  }, [business]);
 
   const siteContent = useMemo(() => {
     if (slug !== 'preview') return siteContentFromBusiness;
@@ -1298,6 +1439,30 @@ export default function CrystalBusinessPage() {
     }
     return null;
   }, [slug, isMarketingPreview, marketingDemoContent, previewDraft, siteContentFromBusiness]);
+
+  const clientGalleryStrip = useMemo(() => {
+    if (!slug || slug === 'preview' || !publicSubscription || !siteContent) return undefined;
+    if (resolvePlanTier(publicSubscription) === 'trial') return undefined;
+    const rows = publicGalleryImages.filter((i) => !i.asset || i.asset === 'gallery');
+    if (rows.length === 0) return undefined;
+    const caps = siteContent.gallery?.captionsByUrl;
+    const order = siteContent.gallery?.imageOrder;
+    const withIndex = rows.map((r, i) => ({ r, i }));
+    if (order && order.length > 0) {
+      const idx = new Map(order.map((u, j) => [u, j]));
+      withIndex.sort((a, b) => {
+        const ia = idx.get(a.r.image_url);
+        const ib = idx.get(b.r.image_url);
+        const va = ia !== undefined ? ia : 10_000 + a.i;
+        const vb = ib !== undefined ? ib : 10_000 + b.i;
+        return va - vb;
+      });
+    }
+    return withIndex.map(({ r: i }) => ({
+      url: resolveBusinessImageDisplayUrl(slug, i),
+      caption: caps?.[i.image_url]?.trim() || undefined,
+    }));
+  }, [slug, publicSubscription, publicGalleryImages, siteContent]);
 
   /** Same tokens on viewport + portaled modals (navbar, hero, modal header gradient, etc.). */
   const resolvedGymClientTheme = useMemo(() => {
@@ -1332,6 +1497,7 @@ export default function CrystalBusinessPage() {
       setBusiness(null);
       setNotFound(false);
       setSubscriptionInactive(false);
+      setPublicSubscription(null);
       setError(null);
       return;
     }
@@ -1340,6 +1506,7 @@ export default function CrystalBusinessPage() {
       setBusiness(null);
       setNotFound(false);
       setSubscriptionInactive(false);
+      setPublicSubscription(null);
       setError(null);
       return;
     }
@@ -1348,12 +1515,14 @@ export default function CrystalBusinessPage() {
     const hit = peekPublicGymBundle(slug);
     if (hit) {
       setBusiness(hit.business);
-      setSubscriptionInactive(!hit.subscription.has_active_subscription);
+      setPublicSubscription(hit.subscription);
+      setSubscriptionInactive(subscriptionPublicGateInactive(hit.subscription));
       setLoading(false);
     } else {
       setLoading(true);
       setBusiness(null);
       setSubscriptionInactive(false);
+      setPublicSubscription(null);
     }
 
     let cancelled = false;
@@ -1361,7 +1530,8 @@ export default function CrystalBusinessPage() {
       .then((bundle) => {
         if (cancelled) return;
         setBusiness(bundle.business);
-        setSubscriptionInactive(!bundle.subscription.has_active_subscription);
+        setPublicSubscription(bundle.subscription);
+        setSubscriptionInactive(subscriptionPublicGateInactive(bundle.subscription));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -1379,6 +1549,53 @@ export default function CrystalBusinessPage() {
       cancelled = true;
     };
   }, [slug]);
+
+  /**
+   * Fresh subscription from `GET /businesses/<slug>/active-subscription/` on load and whenever we learn
+   * the viewer owns this gym — keeps `is_active` / `plan_tier` aligned for the owner recharge modal.
+   */
+  useEffect(() => {
+    if (!slug || slug === 'preview') return;
+    let cancelled = false;
+    getActiveSubscription(slug)
+      .then((data) => {
+        if (cancelled) return;
+        setPublicSubscription(data);
+        setSubscriptionInactive(subscriptionPublicGateInactive(data));
+      })
+      .catch(() => {
+        /* keep bundle-derived subscription state */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, isOwner]);
+
+  useEffect(() => {
+    if (!slug || slug === 'preview') {
+      setPublicGalleryImages([]);
+      return;
+    }
+    if (!publicSubscription) {
+      setPublicGalleryImages([]);
+      return;
+    }
+    if (resolvePlanTier(publicSubscription) === 'trial') {
+      setPublicGalleryImages([]);
+      return;
+    }
+    let cancelled = false;
+    listBusinessImages(slug)
+      .then((res) => {
+        if (!cancelled) setPublicGalleryImages(res.images);
+      })
+      .catch(() => {
+        if (!cancelled) setPublicGalleryImages([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, publicSubscription]);
 
   useEffect(() => {
     if (slug !== 'preview') return;
@@ -1403,17 +1620,71 @@ export default function CrystalBusinessPage() {
     };
   }, [slug]);
 
+  useEffect(() => {
+    if (!slug || slug === 'preview') {
+      setIsOwner(false);
+      return;
+    }
+    if (!getAccessToken()) {
+      setIsOwner(false);
+      return;
+    }
+    let cancelled = false;
+    setIsOwner(null);
+    getBusinessDetail(slug)
+      .then(() => {
+        if (!cancelled) setIsOwner(true);
+      })
+      .catch(() => {
+        if (!cancelled) setIsOwner(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, authSessionRev]);
+
+  useEffect(() => {
+    setRechargeModalDismissed(false);
+  }, [slug]);
+
   if (slug === 'preview' && !siteContent) {
     return <CrystalPreviewEmpty />;
   }
 
   if (slug && slug !== 'preview' && !loading && notFound) {
-    return <CrystalBusinessNotFound slug={slug} />;
+    return <Navigate to="/404" replace />;
   }
 
+  const ownerCheckPending = Boolean(
+    slug && slug !== 'preview' && subscriptionInactive && getAccessToken() && isOwner === null
+  );
+
   if (slug && slug !== 'preview' && !loading && !error && subscriptionInactive) {
-    return <CrystalServiceUnavailable slug={slug} businessName={business?.name} />;
+    if (ownerCheckPending) {
+      return (
+        <PageContainer className="crystal-business-page crystal-business-page--client">
+          <main className="crystal-business-page__main crystal-business-page__main--flush">
+            <div className="crystal-client-viewport crystal-client-viewport--loading" style={clientThemeCssVars}>
+              <GymLoadingScreen active variant="embed" message="Loading your gym…" />
+            </div>
+          </main>
+        </PageContainer>
+      );
+    }
+    if (isOwner !== true) {
+      return <CrystalServiceUnavailable slug={slug} businessName={business?.name} />;
+    }
   }
+
+  const showCrystalOwnerRechargeModal = Boolean(
+    slug &&
+      slug !== 'preview' &&
+      Boolean(getAccessToken()) &&
+      isOwner === true &&
+      publicSubscription &&
+      ownerIsOnTrialForClientRechargeModal(publicSubscription) &&
+      !rechargeModalDismissed
+  );
 
   return (
     <PageContainer className="crystal-business-page crystal-business-page--client">
@@ -1486,8 +1757,18 @@ export default function CrystalBusinessPage() {
                   }
                   themeCssVars={clientThemeCssVars}
                   suppressPublicLeads={slug === 'preview'}
+                  galleryStrip={slug !== 'preview' ? clientGalleryStrip : undefined}
                 />
               </div>
+              {showCrystalOwnerRechargeModal && publicSubscription && slug !== 'preview' ? (
+                <CrystalOwnerRechargeModal
+                  show
+                  onHide={() => setRechargeModalDismissed(true)}
+                  businessSlug={slug}
+                  subscription={publicSubscription}
+                  themeCssVars={clientThemeCssVars}
+                />
+              ) : null}
             </>
           ) : null}
         </div>

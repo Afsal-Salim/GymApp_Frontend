@@ -1,5 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate, useNavigationType, useParams } from 'react-router-dom';
 import {
   Accordion,
   Alert,
@@ -19,15 +19,26 @@ import {
 import { PageContainer } from '../../components';
 import {
   checkBusinessSlugAvailability,
+  deleteBusinessGalleryImage,
+  getActiveSubscription,
   getBusinessDetail,
   invalidateUserBusinessListCache,
+  listBusinessImages,
   patchBusiness,
+  resolveBusinessImageDisplayUrl,
   submitWebsiteSetupDraft,
+  uploadBusinessImage,
+  type ActiveSubscriptionResponse,
+  type BusinessUploadedImage,
+  type ListBusinessImagesResponse,
 } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
+import { crystalPreviewAbsoluteUrl, publicSiteDomain, visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
-import { crystalPreviewAbsoluteUrl, publicSiteDomain } from '../../config/env';
-import { CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY } from '../../config/storageKeys';
+import {
+  CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY,
+  SESSION_CRYSTAL_CREATE_SKIP_ON_BACK,
+} from '../../config/storageKeys';
 import {
   CREATE_WEBSITE_MAX_COACHES,
   CREATE_WEBSITE_MAX_OFFERS,
@@ -78,6 +89,112 @@ const SLUG_REGEX = /^([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
 const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024; // 1 MB
 
+const GALLERY_IMAGE_ACCEPT =
+  'image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif';
+
+const GALLERY_DND_TYPE = 'application/x-gym-gallery-key';
+
+const GALLERY_KEY_PREFIX_SERVER = 's|';
+const GALLERY_KEY_PREFIX_PENDING = 'p|';
+
+function galleryServerKey(imageUrl: string): string {
+  return `${GALLERY_KEY_PREFIX_SERVER}${imageUrl}`;
+}
+
+function galleryPendingKey(localId: string): string {
+  return `${GALLERY_KEY_PREFIX_PENDING}${localId}`;
+}
+
+function reconcileGalleryVisualKeys(
+  prev: string[],
+  serverUrls: string[],
+  pendingIds: string[],
+  savedServerOrder: string[]
+): string[] {
+  const valid = new Set([
+    ...serverUrls.map(galleryServerKey),
+    ...pendingIds.map(galleryPendingKey),
+  ]);
+  const filteredPrev = prev.filter((k) => valid.has(k));
+  const used = new Set(filteredPrev);
+  const out = [...filteredPrev];
+  for (const url of savedServerOrder) {
+    const k = galleryServerKey(url);
+    if (valid.has(k) && !used.has(k)) {
+      out.push(k);
+      used.add(k);
+    }
+  }
+  for (const url of serverUrls) {
+    const k = galleryServerKey(url);
+    if (!used.has(k)) {
+      out.push(k);
+      used.add(k);
+    }
+  }
+  for (const id of pendingIds) {
+    const k = galleryPendingKey(id);
+    if (!used.has(k)) {
+      out.push(k);
+      used.add(k);
+    }
+  }
+  return out;
+}
+
+function galleryKeysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
+
+function orderFromGalleryVisualKeys(keys: string[]): string[] {
+  return keys
+    .filter((k) => k.startsWith(GALLERY_KEY_PREFIX_SERVER))
+    .map((k) => k.slice(GALLERY_KEY_PREFIX_SERVER.length));
+}
+
+async function uploadPendingGalleryInVisualOrder(
+  slug: string,
+  visualKeys: string[],
+  pendingRows: { localId: string; file: File; previewUrl: string }[],
+  uploadFn: typeof uploadBusinessImage
+): Promise<Map<string, string>> {
+  const pendingById = new Map(pendingRows.map((r) => [r.localId, r]));
+  const urlByLocalId = new Map<string, string>();
+  for (const key of visualKeys) {
+    if (!key.startsWith(GALLERY_KEY_PREFIX_PENDING)) continue;
+    const id = key.slice(GALLERY_KEY_PREFIX_PENDING.length);
+    const row = pendingById.get(id);
+    if (!row || urlByLocalId.has(id)) continue;
+    const res = await uploadFn(slug, row.file, 'gallery');
+    urlByLocalId.set(id, res.image_url);
+  }
+  for (const row of pendingRows) {
+    if (urlByLocalId.has(row.localId)) continue;
+    const res = await uploadFn(slug, row.file, 'gallery');
+    urlByLocalId.set(row.localId, res.image_url);
+  }
+  return urlByLocalId;
+}
+
+function mergedGalleryOrderFromKeys(visualKeys: string[], urlByLocalId: Map<string, string>): string[] {
+  return visualKeys
+    .map((key) => {
+      if (key.startsWith(GALLERY_KEY_PREFIX_SERVER)) return key.slice(GALLERY_KEY_PREFIX_SERVER.length);
+      if (key.startsWith(GALLERY_KEY_PREFIX_PENDING)) {
+        return urlByLocalId.get(key.slice(GALLERY_KEY_PREFIX_PENDING.length));
+      }
+      return undefined;
+    })
+    .filter((u): u is string => typeof u === 'string' && u.length > 0);
+}
+
+function planTierIsTrial(sub: ActiveSubscriptionResponse | null): boolean {
+  if (!sub) return false;
+  const t = (sub.plan_tier ?? sub.subscription?.plan_tier ?? '').toString().trim().toLowerCase();
+  return t === 'trial';
+}
+
 function isDataImageUrl(s: string): boolean {
   return s.trim().startsWith('data:image/');
 }
@@ -94,7 +211,15 @@ function canPreviewImageSrc(s: string): boolean {
   }
 }
 
-function RemoveRowTrashButton({ ariaLabel, onClick }: { ariaLabel: string; onClick: () => void }) {
+function RemoveRowTrashButton({
+  ariaLabel,
+  onClick,
+  disabled,
+}: {
+  ariaLabel: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <Button
       variant="outline-danger"
@@ -103,6 +228,7 @@ function RemoveRowTrashButton({ ariaLabel, onClick }: { ariaLabel: string; onCli
       className="create-website__remove-row-btn"
       aria-label={ariaLabel}
       title={ariaLabel}
+      disabled={disabled}
       onClick={onClick}
     >
       <svg className="create-website__trash-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
@@ -670,11 +796,15 @@ function initialFormFromStorageOrDefaults(): CreateWebsiteFormState {
 
 export default function CreateWebsitePage() {
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const location = useLocation();
   const { slug: editRouteSlug } = useParams<{ slug?: string }>();
   const isEditMode = Boolean(editRouteSlug);
   const { showToast } = useToast();
-  const [form, setForm] = useState<CreateWebsiteFormState>(() => initialFormFromStorageOrDefaults());
+  /** Edit flow must not seed from preview localStorage — wrong slug debounces and triggers a false “taken” check. */
+  const [form, setForm] = useState<CreateWebsiteFormState>(() =>
+    editRouteSlug ? initCreateWebsiteForm() : initialFormFromStorageOrDefaults()
+  );
   const formRef = useRef(form);
   formRef.current = form;
   const set = useCallback(<K extends keyof CreateWebsiteFormState>(key: K, value: CreateWebsiteFormState[K]) => {
@@ -682,6 +812,21 @@ export default function CreateWebsitePage() {
   }, []);
 
   const [themeManualOpen, setThemeManualOpen] = useState(false);
+  /** After first-time save: modal prompts recharge (pricing) instead of a toast. */
+  const [postSaveRechargeModalSlug, setPostSaveRechargeModalSlug] = useState<string | null>(null);
+  /** Create flow: business slug exists after first successful save (enables S3 gallery uploads). */
+  const [committedBusinessSlug, setCommittedBusinessSlug] = useState<string | null>(null);
+  const [galleryList, setGalleryList] = useState<ListBusinessImagesResponse | null>(null);
+  const [galleryListLoading, setGalleryListLoading] = useState(false);
+  /** Staged files — uploaded only when the main Save button runs. */
+  const [galleryPending, setGalleryPending] = useState<{ localId: string; file: File; previewUrl: string }[]>([]);
+  const [galleryVisualKeys, setGalleryVisualKeys] = useState<string[]>([]);
+  const [galleryFileDragOver, setGalleryFileDragOver] = useState(false);
+  const [builderSubscription, setBuilderSubscription] = useState<ActiveSubscriptionResponse | null>(null);
+  const [galleryPreviewSrc, setGalleryPreviewSrc] = useState<string | null>(null);
+  const [galleryDeletingUrl, setGalleryDeletingUrl] = useState<string | null>(null);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
+  const editGalleryHydratedForSlug = useRef<string | null>(null);
 
   const applyThemePreset = useCallback((preset: WebsiteThemePreset) => {
     setForm((f) => ({
@@ -917,7 +1062,7 @@ export default function CreateWebsitePage() {
     getBusinessDetail(editRouteSlug)
       .then((d) => {
         if (cancelled) return;
-        setForm(createWebsiteFormFromBusinessDetail(d));
+        setForm(createWebsiteFormFromBusinessDetail(d, editRouteSlug));
         setEditBaselineSlug(d.slug?.trim().toLowerCase() ?? editRouteSlug.trim().toLowerCase());
         const ia = d.is_active;
         setEditBusinessActive(typeof ia === 'boolean' ? ia : true);
@@ -941,6 +1086,26 @@ export default function CreateWebsitePage() {
     const draft = readCrystalWebsitePreviewFromStorage();
     if (draft) setForm(draftPayloadToFormState(draft));
   }, [location.state, isEditMode]);
+
+  /**
+   * After “Preview in this tab” or “View my site” from the save modal, the history stack can return here on Back.
+   * Send the user to profile instead of trapping them in the wizard again.
+   */
+  useEffect(() => {
+    if (isEditMode) return;
+    try {
+      if (navigationType === 'POP' && sessionStorage.getItem(SESSION_CRYSTAL_CREATE_SKIP_ON_BACK) === '1') {
+        sessionStorage.removeItem(SESSION_CRYSTAL_CREATE_SKIP_ON_BACK);
+        navigate('/user', { replace: true });
+        return;
+      }
+      if (navigationType !== 'POP') {
+        sessionStorage.removeItem(SESSION_CRYSTAL_CREATE_SKIP_ON_BACK);
+      }
+    } catch {
+      /* sessionStorage unavailable */
+    }
+  }, [navigationType, isEditMode, navigate]);
 
   /** Another tab updated the preview draft; keep this tab’s form in sync. */
   useEffect(() => {
@@ -1000,12 +1165,10 @@ export default function CreateWebsitePage() {
       setSlugDetail(undefined);
       return;
     }
-    /** Route param is the gym being edited; baseline from API may arrive later — both mean “unchanged slug”. */
-    const unchangedEditSlug =
-      isEditMode ?
-        (editBaselineSlug ?? editRouteSlug?.trim().toLowerCase() ?? null)
-      : null;
-    if (unchangedEditSlug && debouncedSlug === unchangedEditSlug) {
+    /** Route + API baseline: any match means “still this gym’s slug” (handles null baseline before detail loads). */
+    const reservedEditSlugNorm =
+      isEditMode ? (editBaselineSlug || editRouteSlug || '').trim().toLowerCase() : '';
+    if (reservedEditSlugNorm && debouncedSlug === reservedEditSlugNorm) {
       setSlugStatus('available');
       setSlugDetail(undefined);
       return;
@@ -1013,12 +1176,272 @@ export default function CreateWebsitePage() {
     const id = ++reqId.current;
     setSlugStatus('checking');
     setSlugDetail(undefined);
-    void checkBusinessSlugAvailability(debouncedSlug).then((r) => {
+    void checkBusinessSlugAvailability(debouncedSlug, {
+      reservedSlug: reservedEditSlugNorm || undefined,
+    }).then((r) => {
       if (reqId.current !== id) return;
       setSlugStatus(r.available ? 'available' : 'unavailable');
       setSlugDetail(r.message);
     });
   }, [debouncedSlug, isEditMode, editBaselineSlug, editRouteSlug]);
+
+  const galleryUploadSlug = useMemo(() => {
+    if (isEditMode) {
+      return (editBaselineSlug ?? editRouteSlug?.trim().toLowerCase() ?? '').trim();
+    }
+    return (committedBusinessSlug ?? '').trim();
+  }, [isEditMode, editBaselineSlug, editRouteSlug, committedBusinessSlug]);
+
+  useEffect(() => {
+    if (!galleryUploadSlug || (isEditMode && !editReady)) {
+      setBuilderSubscription(null);
+      return;
+    }
+    let cancelled = false;
+    getActiveSubscription(galleryUploadSlug)
+      .then((d) => {
+        if (!cancelled) setBuilderSubscription(d);
+      })
+      .catch(() => {
+        if (!cancelled) setBuilderSubscription(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [galleryUploadSlug, isEditMode, editReady]);
+
+  useEffect(() => {
+    if (!galleryUploadSlug || (isEditMode && !editReady)) {
+      setGalleryList(null);
+      return;
+    }
+    let cancelled = false;
+    setGalleryListLoading(true);
+    listBusinessImages(galleryUploadSlug)
+      .then((res) => {
+        if (!cancelled) setGalleryList(res);
+      })
+      .catch(() => {
+        if (!cancelled) setGalleryList(null);
+      })
+      .finally(() => {
+        if (!cancelled) setGalleryListLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [galleryUploadSlug, isEditMode, editReady]);
+
+  const effectiveGalleryLimit = useMemo(() => {
+    if (galleryList && galleryList.slots_limit === 0 && (galleryList.images?.length ?? 0) === 0) {
+      return 0;
+    }
+    if (galleryList && galleryList.slots_limit > 0) {
+      return galleryList.slots_limit;
+    }
+    if (builderSubscription) {
+      return planTierIsTrial(builderSubscription) ? 5 : 10;
+    }
+    /** Subscription or image list still loading — stay conservative until `slots_limit` or plan resolves. */
+    return 5;
+  }, [galleryList, builderSubscription]);
+
+  /**
+   * Slots “used” for this UI = actual gallery rows returned by GET …/images/ (plus pending files).
+   * Do not rely on `slots_used` alone — some APIs omit it or return 0 while `images` still lists files,
+   * which incorrectly showed “0 / 5” with photos already on the gym.
+   */
+  const serverGalleryImageCount = useMemo(() => {
+    const list = galleryList?.images;
+    if (!list?.length) return 0;
+    return list.filter((img) => !img.asset || img.asset === 'gallery').length;
+  }, [galleryList]);
+
+  const galleryStagedCount = serverGalleryImageCount + galleryPending.length;
+  const galleryAtCapacity =
+    effectiveGalleryLimit > 0 ? galleryStagedCount >= effectiveGalleryLimit : effectiveGalleryLimit === 0;
+
+  const serverGalleryUrls = useMemo(
+    () =>
+      (galleryList?.images ?? [])
+        .filter((img) => !img.asset || img.asset === 'gallery')
+        .map((img) => img.image_url),
+    [galleryList]
+  );
+
+  const pendingLocalIds = useMemo(() => galleryPending.map((r) => r.localId), [galleryPending]);
+
+  useEffect(() => {
+    setGalleryVisualKeys((prev) =>
+      reconcileGalleryVisualKeys(prev, serverGalleryUrls, pendingLocalIds, formRef.current.galleryImageOrder)
+    );
+  }, [serverGalleryUrls, pendingLocalIds]);
+
+  useEffect(() => {
+    editGalleryHydratedForSlug.current = null;
+  }, [editRouteSlug]);
+
+  useEffect(() => {
+    if (!isEditMode || !editRouteSlug || !editReady) return;
+    if (editGalleryHydratedForSlug.current === editRouteSlug) return;
+    editGalleryHydratedForSlug.current = editRouteSlug;
+    setGalleryVisualKeys(
+      reconcileGalleryVisualKeys([], serverGalleryUrls, pendingLocalIds, formRef.current.galleryImageOrder)
+    );
+  }, [isEditMode, editRouteSlug, editReady, serverGalleryUrls, pendingLocalIds]);
+
+  useEffect(() => {
+    if (!isEditMode) editGalleryHydratedForSlug.current = null;
+  }, [isEditMode]);
+
+  useEffect(() => {
+    const urls = orderFromGalleryVisualKeys(galleryVisualKeys);
+    setForm((f) => {
+      if (galleryKeysEqual(f.galleryImageOrder, urls)) return f;
+      return { ...f, galleryImageOrder: urls };
+    });
+  }, [galleryVisualKeys]);
+
+  const addGalleryFilesFromList = useCallback(
+    (files: FileList | File[] | null) => {
+      if (!files?.length) return;
+      if (isEditMode && !editReady) return;
+      if (effectiveGalleryLimit <= 0) {
+        showToast('Image storage is not available right now.');
+        return;
+      }
+      const okMime = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      const toAppend: { localId: string; file: File; previewUrl: string }[] = [];
+      let wouldBeCount = galleryStagedCount;
+      for (const file of Array.from(files)) {
+        if (wouldBeCount >= effectiveGalleryLimit) {
+          if (toAppend.length === 0) {
+            showToast(`You can have up to ${effectiveGalleryLimit} images on your current plan.`);
+          } else {
+            showToast(`Added ${toAppend.length} image(s). Gallery is full — remaining files were skipped.`);
+          }
+          break;
+        }
+        if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+          showToast('Each image must be 1 MB or smaller.');
+          continue;
+        }
+        if (!okMime.includes(file.type.toLowerCase())) {
+          showToast('Use JPG, PNG, WebP, or GIF.');
+          continue;
+        }
+        const localId =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ?
+            crypto.randomUUID()
+          : `g-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        toAppend.push({ localId, file, previewUrl: URL.createObjectURL(file) });
+        wouldBeCount += 1;
+      }
+      if (toAppend.length > 0) {
+        setGalleryPending((rows) => [...rows, ...toAppend]);
+      }
+    },
+    [isEditMode, editReady, effectiveGalleryLimit, galleryStagedCount, showToast]
+  );
+
+  const handleGalleryFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const list = e.target.files;
+      e.target.value = '';
+      addGalleryFilesFromList(list);
+    },
+    [addGalleryFilesFromList]
+  );
+
+  const removeGalleryPendingRow = useCallback((localId: string) => {
+    setGalleryPending((rows) => {
+      const row = rows.find((r) => r.localId === localId);
+      if (row) URL.revokeObjectURL(row.previewUrl);
+      return rows.filter((r) => r.localId !== localId);
+    });
+  }, []);
+
+  const moveGalleryVisualKey = useCallback((draggedKey: string, targetKey: string) => {
+    if (draggedKey === targetKey) return;
+    setGalleryVisualKeys((keys) => {
+      const from = keys.indexOf(draggedKey);
+      const to = keys.indexOf(targetKey);
+      if (from < 0 || to < 0) return keys;
+      const next = [...keys];
+      next.splice(from, 1);
+      next.splice(to, 0, draggedKey);
+      return next;
+    });
+  }, []);
+
+  const serverImageByUrl = useMemo(() => {
+    const m = new Map<string, BusinessUploadedImage>();
+    for (const img of galleryList?.images ?? []) {
+      if (!img.asset || img.asset === 'gallery') m.set(img.image_url, img);
+    }
+    return m;
+  }, [galleryList]);
+
+  const pendingByLocalId = useMemo(() => new Map(galleryPending.map((r) => [r.localId, r])), [galleryPending]);
+
+  const openGalleryPreview = useCallback((src: string) => {
+    setGalleryPreviewSrc(src);
+  }, []);
+
+  const removeServerGalleryImage = useCallback(
+    async (img: BusinessUploadedImage) => {
+      const slug = galleryUploadSlug;
+      if (!slug) return;
+      if (!window.confirm('Remove this image from your gym? The file will be deleted from your account.')) {
+        return;
+      }
+      const imageUrl = img.image_url;
+      if (img.id == null || !Number.isFinite(img.id) || img.id <= 0) {
+        showToast('Cannot remove this image (missing id). Try refreshing the page.');
+        return;
+      }
+      setGalleryDeletingUrl(imageUrl);
+      try {
+        await deleteBusinessGalleryImage(slug, img.id);
+        setForm((f) => {
+          const next = { ...f.galleryCaptions };
+          delete next[imageUrl];
+          return {
+            ...f,
+            galleryCaptions: next,
+            galleryImageOrder: f.galleryImageOrder.filter((u) => u !== imageUrl),
+          };
+        });
+        try {
+          setGalleryList(await listBusinessImages(slug));
+        } catch {
+          setGalleryList((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              images: prev.images.filter((i) => i.image_url !== imageUrl),
+              slots_used: Math.max(0, prev.slots_used - 1),
+            };
+          });
+        }
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : 'Could not remove image.');
+      } finally {
+        setGalleryDeletingUrl(null);
+      }
+    },
+    [galleryUploadSlug, showToast]
+  );
+
+  const galleryPendingRef = useRef(galleryPending);
+  galleryPendingRef.current = galleryPending;
+  useEffect(() => {
+    return () => {
+      for (const row of galleryPendingRef.current) {
+        URL.revokeObjectURL(row.previewUrl);
+      }
+    };
+  }, []);
 
   const slugHelp =
     slugStatus === 'checking' ? (
@@ -1063,16 +1486,31 @@ export default function CreateWebsitePage() {
         return;
       }
     }
-    const draft = mapFormToWebsiteDraft({ ...form, slug });
-
     if (isEditMode) {
       const baseline = editBaselineSlug ?? editRouteSlug?.trim().toLowerCase();
       if (!editRouteSlug?.trim() || !baseline) {
         showToast('Missing business to edit.');
         return;
       }
+      const pendingSnapshot = [...galleryPending];
+      const visualKeysSnapshot = [...galleryVisualKeys];
       setSaving(true);
       try {
+        const urlByLocalId =
+          pendingSnapshot.length > 0 ?
+            await uploadPendingGalleryInVisualOrder(
+              baseline,
+              visualKeysSnapshot,
+              pendingSnapshot,
+              uploadBusinessImage
+            )
+          : new Map<string, string>();
+        const mergedGalleryImageOrder = mergedGalleryOrderFromKeys(visualKeysSnapshot, urlByLocalId);
+        const draft = mapFormToWebsiteDraft({
+          ...form,
+          slug,
+          galleryImageOrder: mergedGalleryImageOrder,
+        });
         const logoTrim = form.logoUrl.trim();
         const logoUrlForApi =
           !logoTrim || isDataImageUrl(logoTrim) ?
@@ -1103,6 +1541,18 @@ export default function CreateWebsitePage() {
           },
           website_content: draft.content,
         });
+        for (const row of pendingSnapshot) {
+          URL.revokeObjectURL(row.previewUrl);
+        }
+        if (pendingSnapshot.length > 0) {
+          setGalleryPending([]);
+          setForm((f) => ({ ...f, galleryImageOrder: mergedGalleryImageOrder }));
+        }
+        try {
+          setGalleryList(await listBusinessImages(baseline));
+        } catch {
+          /* list refresh is best-effort */
+        }
       } catch (err) {
         showToast(err instanceof Error ? err.message : 'Could not save changes. Try again.');
         return;
@@ -1115,23 +1565,54 @@ export default function CreateWebsitePage() {
       return;
     }
 
+    const draft = mapFormToWebsiteDraft({ ...form, slug });
     setSaving(true);
     try {
       await submitWebsiteSetupDraft(draft);
+      const pendingSnapshot = [...galleryPending];
+      const visualKeysSnapshot = [...galleryVisualKeys];
+      const urlByLocalId =
+        pendingSnapshot.length > 0 ?
+          await uploadPendingGalleryInVisualOrder(slug, visualKeysSnapshot, pendingSnapshot, uploadBusinessImage)
+        : new Map<string, string>();
+      const mergedGalleryImageOrder = mergedGalleryOrderFromKeys(visualKeysSnapshot, urlByLocalId);
+      if (pendingSnapshot.length > 0) {
+        const draftWithGallery = mapFormToWebsiteDraft({
+          ...form,
+          slug,
+          galleryImageOrder: mergedGalleryImageOrder,
+        });
+        await patchBusiness(slug, { website_content: draftWithGallery.content });
+      }
+      for (const row of pendingSnapshot) {
+        URL.revokeObjectURL(row.previewUrl);
+      }
+      if (pendingSnapshot.length > 0) {
+        setGalleryPending([]);
+        setForm((f) => ({ ...f, galleryImageOrder: mergedGalleryImageOrder }));
+      }
+      try {
+        setGalleryList(await listBusinessImages(slug));
+      } catch {
+        /* list refresh is best-effort */
+      }
+      const draftForStorage =
+        pendingSnapshot.length > 0 ?
+          mapFormToWebsiteDraft({ ...form, slug, galleryImageOrder: mergedGalleryImageOrder })
+        : draft;
+      try {
+        sessionStorage.setItem(CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY, JSON.stringify(draftForStorage));
+      } catch {
+        /* quota */
+      }
+      invalidateUserBusinessListCache();
+      setCommittedBusinessSlug(slug);
+      setPostSaveRechargeModalSlug(slug);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Could not save website setup. Try again.');
-      return;
     } finally {
       setSaving(false);
     }
-    try {
-      sessionStorage.setItem(CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY, JSON.stringify(draft));
-    } catch {
-      /* quota */
-    }
-    showToast('Website details saved. Continue with your plan to go live.', 'success');
-    invalidateUserBusinessListCache();
-    navigate(PLANS_PAGE_PATH);
   };
 
   const savePreviewDraftToStorage = (): boolean => {
@@ -1155,7 +1636,12 @@ export default function CreateWebsitePage() {
       return;
     }
     setPreviewTargetModalOpen(false);
-    navigate('/preview');
+    try {
+      sessionStorage.setItem(SESSION_CRYSTAL_CREATE_SKIP_ON_BACK, '1');
+    } catch {
+      /* quota */
+    }
+    navigate('/preview', { replace: true });
   };
 
   const iconOpts = (
@@ -1769,6 +2255,215 @@ export default function CreateWebsitePage() {
                     </Accordion.Body>
                   </Accordion.Item>
 
+                  <Accordion.Item eventKey="gallery" className="create-website__accordion-item">
+                    <Accordion.Header>Gym gallery (photos)</Accordion.Header>
+                    <Accordion.Body>
+                      <p className="small text-muted mb-3">
+                        JPG, PNG, WebP, or GIF — max 1 MB each. Add photos with the button below or by dropping files onto
+                        the dashed area. Drag tiles by the handle to change order on your public site (saved with{' '}
+                        <strong>Save</strong>). Trial: up to 5 images; Starter/Pro: up to 10. Live gallery strip is hidden
+                        on trial public pages.
+                      </p>
+                      {(isEditMode && !editReady) ?
+                        <Alert variant="info" className="mb-0 py-2 small">
+                          Loading business…
+                        </Alert>
+                      : galleryUploadSlug && galleryListLoading ?
+                        <div className="d-flex align-items-center gap-2 text-muted small">
+                          <Spinner animation="border" size="sm" /> Loading gallery…
+                        </div>
+                      : <>
+                          <Form.Group className="mb-3">
+                            <Form.Label>Gallery section title (public site)</Form.Label>
+                            <Form.Control
+                              value={form.gallerySectionTitle}
+                              onChange={(e) => set('gallerySectionTitle', e.target.value)}
+                              placeholder="Gallery"
+                            />
+                          </Form.Group>
+                          {galleryList != null && galleryList.slots_limit === 0 && galleryList.slots_used === 0 ?
+                            <Alert variant="warning" className="py-2 small mb-3">
+                              Image storage is not available right now (server configuration). Try again later.
+                            </Alert>
+                          : null}
+                          {!galleryUploadSlug && !isEditMode ?
+                            <p className="small text-muted mb-3">
+                              Slot count uses a trial limit until your gym exists; it will match your plan after the first
+                              save.
+                            </p>
+                          : null}
+                          <input
+                            ref={galleryFileInputRef}
+                            type="file"
+                            accept={GALLERY_IMAGE_ACCEPT}
+                            className="d-none"
+                            multiple
+                            onChange={handleGalleryFileChange}
+                          />
+                          <div
+                            className={`create-website__gallery-dropzone mb-3${galleryFileDragOver ? ' create-website__gallery-dropzone--active' : ''}`}
+                            onDragEnter={(e) => {
+                              e.preventDefault();
+                              if (e.dataTransfer.types.includes('Files')) setGalleryFileDragOver(true);
+                            }}
+                            onDragLeave={(e) => {
+                              e.preventDefault();
+                              if (!e.currentTarget.contains(e.relatedTarget as Node)) setGalleryFileDragOver(false);
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              if (e.dataTransfer.types.includes('Files')) {
+                                e.dataTransfer.dropEffect = 'copy';
+                                setGalleryFileDragOver(true);
+                              }
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setGalleryFileDragOver(false);
+                              if (e.dataTransfer.files?.length) addGalleryFilesFromList(e.dataTransfer.files);
+                            }}
+                          >
+                            <div className="create-website__gallery-dropzone-inner text-center py-4 px-3">
+                              <p className="small text-muted mb-2 mb-md-3">
+                                <strong>{galleryStagedCount}</strong> /{' '}
+                                {effectiveGalleryLimit > 0 ? effectiveGalleryLimit : '—'} photos
+                                {galleryPending.length > 0 ?
+                                  <span className="text-muted"> · {galleryPending.length} not saved yet</span>
+                                : null}
+                              </p>
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                className="create-website__gallery-choose-btn mb-2"
+                                disabled={galleryAtCapacity || (isEditMode && !editReady)}
+                                onClick={() => galleryFileInputRef.current?.click()}
+                              >
+                                <span className="create-website__gallery-upload-icon" aria-hidden>
+                                  ↥
+                                </span>{' '}
+                                Choose photos
+                              </Button>
+                              <p className="small text-muted mb-0">or drop images here — you can select several at once</p>
+                            </div>
+                            {galleryVisualKeys.length > 0 ?
+                              <div className="create-website__gallery-grid px-3 pb-3">
+                                {galleryVisualKeys.map((gKey) => {
+                                  const isPending = gKey.startsWith(GALLERY_KEY_PREFIX_PENDING);
+                                  const localId = isPending ? gKey.slice(GALLERY_KEY_PREFIX_PENDING.length) : '';
+                                  const url = isPending ? '' : gKey.slice(GALLERY_KEY_PREFIX_SERVER.length);
+                                  const row = isPending ? pendingByLocalId.get(localId) : undefined;
+                                  const img = !isPending ? serverImageByUrl.get(url) : undefined;
+                                  const previewSrc =
+                                    row?.previewUrl ??
+                                    (galleryUploadSlug && img ?
+                                      resolveBusinessImageDisplayUrl(galleryUploadSlug, img)
+                                    : url);
+                                  if (!row && !img) return null;
+                                  const isStaged = Boolean(row);
+                                  return (
+                                    <div
+                                      key={gKey}
+                                      className={`create-website__gallery-tile${isStaged ? ' create-website__gallery-tile--staged' : ''}`}
+                                      draggable
+                                      onDragStart={(e) => {
+                                        e.dataTransfer.setData(GALLERY_DND_TYPE, gKey);
+                                        e.dataTransfer.setData('text/plain', gKey);
+                                        e.dataTransfer.effectAllowed = 'move';
+                                      }}
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                        if (
+                                          e.dataTransfer.types.includes(GALLERY_DND_TYPE) ||
+                                          e.dataTransfer.types.includes('text/plain')
+                                        ) {
+                                          e.dataTransfer.dropEffect = 'move';
+                                        }
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        const from =
+                                          e.dataTransfer.getData(GALLERY_DND_TYPE) ||
+                                          e.dataTransfer.getData('text/plain');
+                                        if (from) moveGalleryVisualKey(from, gKey);
+                                      }}
+                                    >
+                                      <div className="create-website__gallery-tile-top">
+                                        <span
+                                          className="create-website__gallery-drag-hint text-muted"
+                                          aria-hidden
+                                          title="Drag to reorder"
+                                        >
+                                          ⠿
+                                        </span>
+                                        {isStaged ?
+                                          <span className="badge bg-primary-subtle text-primary-emphasis small">
+                                            Unsaved
+                                          </span>
+                                        : null}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="create-website__gallery-thumb-btn"
+                                        onClick={() => openGalleryPreview(previewSrc)}
+                                        aria-label={isStaged ? 'Preview staged image' : 'Preview gallery image'}
+                                      >
+                                        <span className="create-website__gallery-thumb-square">
+                                          <img src={previewSrc} alt="" />
+                                        </span>
+                                      </button>
+                                      <div className="create-website__gallery-tile-actions">
+                                        <Button
+                                          type="button"
+                                          variant="outline-secondary"
+                                          size="sm"
+                                          className="create-website__remove-row-btn"
+                                          aria-label={isStaged ? 'Preview staged image' : 'Preview gallery image'}
+                                          title="Preview"
+                                          onClick={() => openGalleryPreview(previewSrc)}
+                                        >
+                                          <svg
+                                            className="create-website__eye-icon"
+                                            viewBox="0 0 24 24"
+                                            width="18"
+                                            height="18"
+                                            fill="currentColor"
+                                            aria-hidden
+                                          >
+                                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+                                          </svg>
+                                        </Button>
+                                        {isStaged ?
+                                          <RemoveRowTrashButton
+                                            ariaLabel="Remove staged image"
+                                            onClick={() => removeGalleryPendingRow(localId)}
+                                          />
+                                        : img ?
+                                          <RemoveRowTrashButton
+                                            ariaLabel="Remove image from gym"
+                                            disabled={
+                                              galleryDeletingUrl === img.image_url ||
+                                              !galleryUploadSlug ||
+                                              img.id == null ||
+                                              !Number.isFinite(img.id)
+                                            }
+                                            onClick={() => void removeServerGalleryImage(img)}
+                                          />
+                                        : null}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            : (
+                              <p className="small text-muted text-center px-3 pb-3 mb-0">No photos yet — add some above.</p>
+                            )}
+                          </div>
+                        </>
+                      }
+                    </Accordion.Body>
+                  </Accordion.Item>
+
                   <Accordion.Item eventKey="offers" className="create-website__accordion-item">
                     <Accordion.Header>Discount offers ({form.discountOffers.length})</Accordion.Header>
                     <Accordion.Body>
@@ -2112,7 +2807,7 @@ export default function CreateWebsitePage() {
                       ) : isEditMode ?
                         <>Save changes</>
                       : (
-                        <>Save &amp; continue to plans</>
+                        <>Save website</>
                       )}
                     </Button>
                   </div>
@@ -2173,6 +2868,72 @@ export default function CreateWebsitePage() {
             onClick={() => setPreviewTargetModalOpen(false)}
           >
             Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={galleryPreviewSrc !== null}
+        onHide={() => setGalleryPreviewSrc(null)}
+        centered
+        size="lg"
+        aria-labelledby="create-website-gallery-preview-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="create-website-gallery-preview-title" as="h2" className="h5 mb-0">
+            Image preview
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center pb-4">
+          {galleryPreviewSrc ?
+            <img
+              src={galleryPreviewSrc}
+              alt=""
+              className="img-fluid rounded shadow-sm"
+              style={{ maxHeight: 'min(75vh, 720px)', width: 'auto', maxWidth: '100%' }}
+            />
+          : null}
+        </Modal.Body>
+      </Modal>
+
+      <Modal
+        show={postSaveRechargeModalSlug !== null}
+        onHide={() => setPostSaveRechargeModalSlug(null)}
+        centered
+        backdrop="static"
+        aria-labelledby="create-website-recharge-modal-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="create-website-recharge-modal-title">Website saved</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-0">
+            Your gym page is ready. <strong>Recharge now</strong> on the pricing page to keep your site available to the
+            public and extend your service.
+          </p>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button
+            type="button"
+            variant="outline-secondary"
+            onClick={() => {
+              const s = postSaveRechargeModalSlug;
+              setPostSaveRechargeModalSlug(null);
+              if (s) visitPublicGymSite(s, navigate, { replace: true });
+            }}
+          >
+            View my site first
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => {
+              const s = postSaveRechargeModalSlug;
+              setPostSaveRechargeModalSlug(null);
+              if (s) navigate(`${PLANS_PAGE_PATH}/${encodeURIComponent(s)}`);
+            }}
+          >
+            Recharge now
           </Button>
         </Modal.Footer>
       </Modal>

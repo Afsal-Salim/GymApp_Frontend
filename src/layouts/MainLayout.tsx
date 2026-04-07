@@ -5,12 +5,23 @@ import { getPublicGymSlugFromHost, MARKETING_APP_PATH_FIRST_SEGMENTS } from '../
 import { RouteTransitionLoader } from './RouteTransitionLoader';
 import './MainLayout.css';
 
+/** Dedicated app 404 — no navbar, footer, or dev chrome. */
+function isDedicatedNotFoundPath(pathname: string): boolean {
+  const path = pathname.split('?')[0];
+  return path === '/404' || path.startsWith('/404/');
+}
+
 /** Hide navbar/footer on public gym pages (e.g. `/my-gym`, `/preview`, or `{slug}.domain`). */
 function isGymPublicSitePath(pathname: string): boolean {
   if (getPublicGymSlugFromHost()) return true;
   const seg = pathname.split('/').filter(Boolean)[0];
   if (!seg) return false;
   return !MARKETING_APP_PATH_FIRST_SEGMENTS.has(seg);
+}
+
+/** Navbar/footer hidden for gym-style URLs and the global `/404` screen. */
+function shouldHideMainLayoutChrome(pathname: string): boolean {
+  return isDedicatedNotFoundPath(pathname) || isGymPublicSitePath(pathname);
 }
 
 /**
@@ -24,6 +35,7 @@ const CLIENT_GYM_ROUTE_LOADER_EXCLUDED_SEGMENTS = new Set<string>([
 ]);
 
 function shouldShowClientGymRouteLoader(pathname: string): boolean {
+  if (isDedicatedNotFoundPath(pathname)) return false;
   if (getPublicGymSlugFromHost()) return true;
   const seg = pathname.split('/').filter(Boolean)[0];
   if (!seg) return false;
@@ -34,7 +46,8 @@ function shouldShowClientGymRouteLoader(pathname: string): boolean {
 export default function MainLayout() {
   const location = useLocation();
   const [showRouteLoader, setShowRouteLoader] = useState(false);
-  const hideMarketingChrome = isGymPublicSitePath(location.pathname);
+  const hideMarketingChrome = shouldHideMainLayoutChrome(location.pathname);
+  const notFoundLayout = isDedicatedNotFoundPath(location.pathname);
 
   useEffect(() => {
     if (!shouldShowClientGymRouteLoader(location.pathname)) {
@@ -47,7 +60,7 @@ export default function MainLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="main-layout">
+    <div className={`main-layout${notFoundLayout ? ' main-layout--not-found' : ''}`}>
       <RouteTransitionLoader active={showRouteLoader} />
       {!hideMarketingChrome && <Navbar />}
       <div className="main-layout__content">

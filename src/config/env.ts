@@ -5,6 +5,8 @@
  * Do not put API secrets or private keys here — they would be visible in the bundle.
  */
 
+import { SESSION_CRYSTAL_CREATE_SKIP_ON_BACK } from './storageKeys';
+
 export const appMode = import.meta.env.MODE;
 export const isDev = import.meta.env.DEV;
 export const isProd = import.meta.env.PROD;
@@ -97,6 +99,7 @@ export const MARKETING_APP_PATH_FIRST_SEGMENTS = new Set([
   'user',
   'support',
   'services',
+  '404',
 ]);
 
 const RESERVED_PUBLIC_SITE_SUBDOMAINS = new Set([
@@ -180,10 +183,26 @@ export function crystalMarketingAbsoluteUrl(path = '/'): string {
  *
  * Legacy bookmarks `/crystal/...` are handled separately in the router (stripped to `/...`).
  */
-export function visitPublicGymSite(slug: string, navigate: (to: string) => void): void {
+
+/** Matches React Router `navigate` for string paths (plus optional `replace`). */
+type NavigatePathFn = (to: string, opts?: { replace?: boolean }) => void;
+
+/**
+ * @param options.replace — use browser history replace so “back” from the gym page does not return to the editor.
+ * On subdomain routing, sets {@link SESSION_CRYSTAL_CREATE_SKIP_ON_BACK} so a later back navigation can send the user to profile.
+ */
+export function visitPublicGymSite(slug: string, navigate: NavigatePathFn, options?: { replace?: boolean }): void {
+  const replace = options?.replace === true;
   if (isPublicSiteSubdomainRoutingActive()) {
+    if (replace && typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(SESSION_CRYSTAL_CREATE_SKIP_ON_BACK, '1');
+      } catch {
+        /* quota / private mode */
+      }
+    }
     window.location.assign(publicGymSiteUrl(slug));
   } else {
-    navigate(`/${slug}/`);
+    navigate(`/${slug}/`, { replace });
   }
 }

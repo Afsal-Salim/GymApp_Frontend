@@ -912,6 +912,25 @@
   box-shadow: 0 -1px 0 rgba(148, 163, 184, 0.12);
 }
 
+/* Icon-only edit in business details modal (paired with remove; clear tap target) */
+.user-page__modal-edit-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.55rem;
+  min-width: 2.5rem;
+  line-height: 1;
+  border-radius: 10px;
+  font-weight: 600;
+  border-width: 1.5px;
+}
+
+.user-page__modal-edit-icon-btn svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
 /* Icon-only remove in business details modal (matches card trash FAB pattern) */
 .user-page__modal-remove-icon-btn {
   display: inline-flex;

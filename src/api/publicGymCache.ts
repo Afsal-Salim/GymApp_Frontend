@@ -1,6 +1,6 @@
 import { STORAGE_PUBLIC_GYM_BUNDLE_CACHE } from '../config/storageKeys';
 import type { ActiveSubscriptionResponse, PublicBusinessDetail } from './businesses';
-import { getActiveSubscription, getPublicBusinessBySlug } from './businesses';
+import { getActiveSubscription, getPublicBusinessBySlug, normalizeActiveSubscriptionResponse } from './businesses';
 
 const MAX_AGE_MS = 10 * 60 * 1000;
 const MAX_SLUGS = 32;
@@ -63,7 +63,10 @@ export function peekPublicGymBundle(slug: string): Bundle | null {
   const { entries } = readStore();
   const ent = entries[key];
   if (!ent || Date.now() - ent.at > MAX_AGE_MS) return null;
-  return { business: ent.business, subscription: ent.subscription };
+  return {
+    business: ent.business,
+    subscription: normalizeActiveSubscriptionResponse(ent.subscription, key),
+  };
 }
 
 /**

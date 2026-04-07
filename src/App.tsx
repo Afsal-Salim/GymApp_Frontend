@@ -26,6 +26,7 @@ import {
   UserContentPolicyPage,
   PrivacyPolicyPage,
   SupportFeedbackPage,
+  NotFoundPage,
 } from './pages';
 import './App.css';
 
@@ -33,7 +34,10 @@ import './App.css';
 const SHOW_IN_DEVELOPMENT_BANNER = true;
 
 function InDevelopmentBanner() {
+  const { pathname } = useLocation();
   if (!SHOW_IN_DEVELOPMENT_BANNER) return null;
+  const pathOnly = pathname.split('?')[0];
+  if (pathOnly === '/404' || pathOnly.startsWith('/404/')) return null;
   return (
     <div
       role="status"
@@ -111,7 +115,10 @@ function App() {
       <Routes>
         <Route element={<MainLayout />}>
           {gymHostSlug ? (
-            <Route path="*" element={<CrystalBusinessPage />} />
+            <>
+              <Route path="/404" element={<NotFoundPage />} />
+              <Route path="*" element={<CrystalBusinessPage />} />
+            </>
           ) : (
             <>
               <Route path="/crystal/*" element={<LegacyCrystalPathRedirect />} />
@@ -127,6 +134,7 @@ function App() {
               <Route path="/legal/user-content" element={<UserContentPolicyPage />} />
               <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/support" element={<SupportFeedbackPage />} />
+              <Route path="/404" element={<NotFoundPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/user/create-website" element={<CreateWebsitePage />} />
                 <Route path="/user/business/:slug/manage" element={<ManageBusinessPage />} />

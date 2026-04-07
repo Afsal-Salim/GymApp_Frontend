@@ -212,6 +212,12 @@ export type CreateWebsiteFormState = {
   parking: string;
   footerTagline: string;
   footerFinePrint: string;
+  /** Section heading for the horizontal gallery on the public site (non-trial). */
+  gallerySectionTitle: string;
+  /** Captions keyed by image URL; Starter/Pro only — trial gyms cannot edit descriptions in the builder. */
+  galleryCaptions: Record<string, string>;
+  /** Gallery `image_url` order (saved in `website_content.gallery.imageOrder`). */
+  galleryImageOrder: string[];
 };
 
 export function initCreateWebsiteForm(): CreateWebsiteFormState {
@@ -287,6 +293,9 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
     parking: detail('parking'),
     footerTagline: d.footer.tagline,
     footerFinePrint: d.footer.finePrint ?? '',
+    gallerySectionTitle: 'Gallery',
+    galleryCaptions: {},
+    galleryImageOrder: [],
   };
 }
 
@@ -613,6 +622,21 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
     },
   ];
 
+  const galleryCaps: Record<string, string> = {};
+  for (const [url, text] of Object.entries(form.galleryCaptions)) {
+    const t = text?.trim();
+    if (t) galleryCaps[url] = t;
+  }
+  const gTitle = form.gallerySectionTitle.trim();
+  const imageOrder = form.galleryImageOrder.map((u) => u.trim()).filter(Boolean);
+  if (gTitle || Object.keys(galleryCaps).length > 0 || imageOrder.length > 0) {
+    base.gallery = {
+      sectionTitle: gTitle || 'Gallery',
+      ...(Object.keys(galleryCaps).length > 0 ? { captionsByUrl: galleryCaps } : {}),
+      ...(imageOrder.length > 0 ? { imageOrder } : {}),
+    };
+  }
+
   return {
     slug,
     theme: {
@@ -749,6 +773,18 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     parking: parkingRow === '—' ? '' : parkingRow,
     footerTagline: c.footer.tagline,
     footerFinePrint: c.footer.finePrint ?? '',
+    gallerySectionTitle: c.gallery?.sectionTitle?.trim() || 'Gallery',
+    galleryCaptions:
+      c.gallery?.captionsByUrl && typeof c.gallery.captionsByUrl === 'object' ?
+        { ...c.gallery.captionsByUrl }
+      : {},
+    galleryImageOrder: (() => {
+      const raw = c.gallery?.imageOrder;
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .filter((u): u is string => typeof u === 'string' && u.trim() !== '')
+        .map((u) => u.trim());
+    })(),
   };
 }
 
@@ -773,9 +809,15 @@ function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPay
 /**
  * Map an owned business from GET `/businesses/<slug>/` into the website builder form (edit flow).
  * Uses `website_theme` + `website_content` when the API returns them so colors and layout match saved data.
+ * @param routeSlugForFallback — URL segment used to load the detail (e.g. `/user/business/:slug/edit`) when `detail.slug` is missing.
  */
-export function createWebsiteFormFromBusinessDetail(detail: BusinessDetail): CreateWebsiteFormState {
-  const slug = detail.slug?.trim().toLowerCase() ?? '';
+export function createWebsiteFormFromBusinessDetail(
+  detail: BusinessDetail,
+  routeSlugForFallback?: string
+): CreateWebsiteFormState {
+  const fromApi = detail.slug?.trim().toLowerCase() ?? '';
+  const fromRoute = routeSlugForFallback?.trim().toLowerCase() ?? '';
+  const slug = fromApi || fromRoute;
   const mapUrl = typeof detail.location_map_url === 'string' ? detail.location_map_url.trim() : '';
   const logoUrl =
     typeof (detail as { logo_url?: unknown }).logo_url === 'string' ?

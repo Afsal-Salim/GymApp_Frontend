@@ -307,7 +307,8 @@
   line-height: 0;
 }
 
-.create-website__trash-icon {
+.create-website__trash-icon,
+.create-website__eye-icon {
   display: block;
   flex-shrink: 0;
 }
@@ -931,4 +932,110 @@
   white-space: pre-wrap;
   color: var(--bs-body-color);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/* Gallery: drop zone + square tile grid */
+.create-website__gallery-dropzone {
+  border-radius: 12px;
+  border: 2px dashed color-mix(in srgb, var(--bs-primary) 28%, var(--bs-border-color));
+  background: color-mix(in srgb, var(--bs-primary) 4%, var(--bs-body-bg, #fff));
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.create-website__gallery-dropzone--active {
+  border-color: color-mix(in srgb, var(--bs-primary) 55%, var(--bs-border-color));
+  background: color-mix(in srgb, var(--bs-primary) 10%, var(--bs-body-bg, #fff));
+}
+
+.create-website__gallery-dropzone-inner {
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 85%, transparent);
+}
+
+.create-website__gallery-upload-icon {
+  display: inline-block;
+  font-weight: 700;
+  margin-right: 0.15em;
+  transform: translateY(-1px);
+}
+
+.create-website__gallery-choose-btn {
+  font-weight: 600;
+}
+
+.create-website__gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 0.85rem;
+}
+
+.create-website__gallery-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg, #fff);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--bs-body-color) 6%, transparent);
+  min-width: 0;
+  cursor: grab;
+}
+
+.create-website__gallery-tile:active {
+  cursor: grabbing;
+}
+
+.create-website__gallery-tile--staged {
+  border-color: color-mix(in srgb, var(--bs-primary) 35%, var(--bs-border-color));
+}
+
+.create-website__gallery-tile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-height: 1.25rem;
+}
+
+.create-website__gallery-drag-hint {
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  user-select: none;
+  cursor: grab;
+}
+
+.create-website__gallery-thumb-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.create-website__gallery-thumb-square {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.create-website__gallery-thumb-square img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.create-website__gallery-tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
 }

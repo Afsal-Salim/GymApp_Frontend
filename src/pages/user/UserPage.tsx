@@ -311,6 +311,8 @@ export default function UserPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeSubscriptionApi, setActiveSubscriptionApi] = useState<ActiveSubscriptionResponse | null>(null);
   const [visitCheckLoading, setVisitCheckLoading] = useState(false);
+  /** Shown when “Visit website” is blocked by missing subscription (modal instead of toast + redirect). */
+  const [visitNeedsRechargeSlug, setVisitNeedsRechargeSlug] = useState<string | null>(null);
   const [removeConfirmBusiness, setRemoveConfirmBusiness] = useState<BusinessListItem | null>(null);
   const [recordActionSlug, setRecordActionSlug] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'businesses' | 'analytics'>('businesses');
@@ -442,6 +444,7 @@ export default function UserPage() {
     setDetailLoading(true);
     setSelectedBusiness(null);
     setActiveSubscriptionApi(null);
+    setVisitNeedsRechargeSlug(null);
     getBusinessDetail(slug)
       .then((data) => {
         setSelectedBusiness(data);
@@ -457,6 +460,7 @@ export default function UserPage() {
     setSelectedBusiness(null);
     setDetailLoading(false);
     setActiveSubscriptionApi(null);
+    setVisitNeedsRechargeSlug(null);
   }, []);
 
   const confirmRemoveBusiness = useCallback(async () => {
@@ -486,13 +490,11 @@ export default function UserPage() {
     setVisitCheckLoading(true);
     getActiveSubscription(slug)
       .then((data) => {
-        if (data.has_active_subscription) {
+        if (data.has_active_subscription && data.is_active !== false) {
           closeModal();
           visitPublicGymSite(slug, navigate);
         } else {
-          closeModal();
-          navigate(`${PLANS_PAGE_PATH}/${encodeURIComponent(slug)}`);
-          showToast('No active subscription. Choose a plan to continue.');
+          setVisitNeedsRechargeSlug(slug);
         }
       })
       .catch(() => showToast('Could not check subscription status.'))
@@ -790,8 +792,17 @@ export default function UserPage() {
                 </div>
               </div>
               {activeSubscriptionApi != null && (
-                <Badge bg={activeSubscriptionApi.has_active_subscription ? 'success' : 'secondary'} className="user-page__modal-header-status">
-                  {activeSubscriptionApi.has_active_subscription ? 'Active' : 'Inactive'}
+                <Badge
+                  bg={
+                    activeSubscriptionApi.has_active_subscription && activeSubscriptionApi.is_active !== false ?
+                      'success'
+                    : 'secondary'
+                  }
+                  className="user-page__modal-header-status"
+                >
+                  {activeSubscriptionApi.has_active_subscription && activeSubscriptionApi.is_active !== false ?
+                    'Active'
+                  : 'Inactive'}
                 </Badge>
               )}
             </>
@@ -923,10 +934,12 @@ export default function UserPage() {
               </Link>
               <Link
                 to={`/user/business/${encodeURIComponent(selectedBusiness.slug)}/edit`}
-                className="btn btn-outline-secondary btn-sm user-page__modal-edit-btn"
+                className="btn btn-outline-primary btn-sm user-page__modal-edit-icon-btn"
                 onClick={closeModal}
+                aria-label="Edit website content and design"
+                title="Edit website content & design"
               >
-                Edit website
+                <BusinessCardEditIcon />
               </Link>
               <Button
                 variant="outline-danger"
@@ -940,6 +953,43 @@ export default function UserPage() {
               </Button>
             </>
           : null}
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={visitNeedsRechargeSlug !== null}
+        onHide={() => setVisitNeedsRechargeSlug(null)}
+        centered
+        backdrop="static"
+        aria-labelledby="user-page-recharge-modal-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="user-page-recharge-modal-title">Recharge to view your live site</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-0">
+            This gym does not have an active subscription right now. Go to the pricing page to recharge and restore
+            public access.
+          </p>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button type="button" variant="outline-secondary" onClick={() => setVisitNeedsRechargeSlug(null)}>
+            Not now
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => {
+              const s = visitNeedsRechargeSlug;
+              setVisitNeedsRechargeSlug(null);
+              if (s) {
+                closeModal();
+                navigate(`${PLANS_PAGE_PATH}/${encodeURIComponent(s)}`);
+              }
+            }}
+          >
+            Recharge now
+          </Button>
         </Modal.Footer>
       </Modal>
 

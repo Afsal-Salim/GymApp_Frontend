@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Container, Row, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
-import { getPlanList, formatPlanPrice, type PlanListItem } from '../../api';
+import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { PlanPriceDisplay } from '../../components';
 import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
 import { homepageTutorialVideoUrl, whatsappDefaultMessage, whatsappPhone } from '../../config/env';
@@ -21,39 +20,53 @@ type DisplayPlan = {
   paymentSlug: 'starter' | 'pro' | null;
   popular: boolean;
   comingSoon: boolean;
+  /** When true, omit price UI (e.g. Pro while features are in development). */
+  hidePrice?: boolean;
+  /** Shown under the plan title when `hidePrice` is true. */
+  priceStatusMessage?: string;
 };
 
-function mapPlanToDisplay(apiPlan: PlanListItem): DisplayPlan {
-  const slug = apiPlan.name.toLowerCase() as string;
-  const comingSoon = apiPlan.coming_soon === true;
-  const paymentSlug =
-    comingSoon ? null : slug === 'starter' || slug === 'pro' ? (slug as 'starter' | 'pro') : null;
-  const listPriceFormatted = formatPlanPrice(apiPlan.price, apiPlan.currency);
-  const firstRaw = apiPlan.first_activation_price?.trim();
-  const firstNum = firstRaw ? Number(firstRaw) : NaN;
-  const firstActivationFormatted =
-    firstRaw && Number.isFinite(firstNum) && firstNum > 0 ?
-      formatPlanPrice(firstRaw, apiPlan.currency)
-    : null;
-  const showIntroPrice = Boolean(firstActivationFormatted) && !comingSoon;
-  const period = apiPlan.duration ? ` / ${apiPlan.duration} days` : '';
-  const primaryDisplay =
-    showIntroPrice && firstActivationFormatted ? firstActivationFormatted : listPriceFormatted;
-  return {
-    id: String(apiPlan.id),
-    name: apiPlan.name,
-    listPriceFormatted,
-    firstActivationFormatted,
-    showIntroPrice,
-    period,
-    currency: apiPlan.currency ?? 'INR',
-    features: apiPlan.features?.map((f) => f.name) ?? [],
-    cta: paymentSlug ? `Get now for ${primaryDisplay}` : 'Contact sales',
-    paymentSlug,
-    popular: slug === 'pro' && !comingSoon,
-    comingSoon,
-  };
-}
+const STARTER_FEATURE_LIST = [
+  'Dynamic website for your gym — Showcase your services, timings, and facilities with a modern, responsive page.',
+  '5 ready-made themes (fully customizable) — Match your brand with colors and style that fit your gym’s vibe.',
+  'WhatsApp integration — Let potential members contact you instantly—no missed leads.',
+  'Basic client analytics — Understand who’s visiting your page and what they’re interested in.',
+  'Upload up to 10 images — Highlight your equipment, space, and transformations.',
+  'Email notifications for enquiries — Get notified instantly when someone shows interest.',
+  'User activity insights — Track how visitors interact with your page to improve conversions.',
+];
+
+const STARTER_PLAN: DisplayPlan = {
+  id: 'starter',
+  name: 'Starter',
+  listPriceFormatted: '₹499',
+  firstActivationFormatted: '₹299',
+  showIntroPrice: true,
+  period: ' / 28 days',
+  currency: 'INR',
+  features: STARTER_FEATURE_LIST,
+  cta: 'Get now for ₹299',
+  paymentSlug: 'starter',
+  popular: false,
+  comingSoon: false,
+};
+
+const PRO_PLAN: DisplayPlan = {
+  id: 'pro',
+  name: 'Pro',
+  listPriceFormatted: '',
+  firstActivationFormatted: null,
+  showIntroPrice: false,
+  period: '',
+  currency: 'INR',
+  features: [],
+  cta: 'Coming soon',
+  paymentSlug: null,
+  popular: true,
+  comingSoon: true,
+  hidePrice: true,
+  priceStatusMessage: 'Coming soon',
+};
 
 const HERO_BADGE = 'Website builder';
 const HERO_TITLE = 'Create Your Gym Website in Minutes';
@@ -175,6 +188,8 @@ const CUSTOM_PLAN: DisplayPlan = {
   popular: false,
   comingSoon: false,
 };
+
+const HOMEPAGE_PACKAGES: DisplayPlan[] = [STARTER_PLAN, PRO_PLAN, CUSTOM_PLAN];
 
 const TUTORIAL_VIDEO_URL = homepageTutorialVideoUrl;
 
@@ -298,9 +313,6 @@ const TESTIMONIALS_AUTOPLAY_MS = 3000;
 
 export default function HomePage() {
   const { openEnquiryModal } = useEnquiryModal();
-  const [plans, setPlans] = useState<DisplayPlan[]>([]);
-  const [plansLoading, setPlansLoading] = useState(true);
-  const [plansError, setPlansError] = useState<string | null>(null);
   const [packagesScrollMode, setPackagesScrollMode] = useState(false);
   const packagesAutoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const packagesPausedRef = useRef(false);
@@ -337,23 +349,6 @@ export default function HomePage() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    getPlanList()
-      .then((data) => {
-        if (cancelled) return;
-        const mapped = data.map((p) => mapPlanToDisplay(p));
-        setPlans([...mapped, CUSTOM_PLAN]);
-      })
-      .catch((err) => {
-        if (!cancelled) setPlansError(err instanceof Error ? err.message : 'Failed to load plans');
-      })
-      .finally(() => {
-        if (!cancelled) setPlansLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
   /* Always open homepage from the top; clear any saved scroll position and hash. */
   useEffect(() => {
     sessionStorage.removeItem('crystalReturnScroll');
@@ -388,7 +383,7 @@ export default function HomePage() {
   /* Packages carousel: auto-scroll, loop back to start when at end (only in horizontal scroll mode) */
   useEffect(() => {
     const el = packagesScrollRef.current;
-    if (!el || !packagesScrollMode || plans.length === 0) return;
+    if (!el || !packagesScrollMode || HOMEPAGE_PACKAGES.length === 0) return;
 
     const step = () => {
       const firstCard = el.querySelector('.crystal-package-card') as HTMLElement | null;
@@ -434,9 +429,9 @@ export default function HomePage() {
       el.removeEventListener('mouseleave', onLeave);
       stopAutoplay();
     };
-  }, [packagesScrollMode, plans.length]);
+  }, [packagesScrollMode]);
 
-  const packagesToRender = plans;
+  const packagesToRender = HOMEPAGE_PACKAGES;
 
   const featuresAutoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const testimonialsAutoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -718,77 +713,76 @@ export default function HomePage() {
             <span className="crystal-trust-sep" aria-hidden>·</span>
             <span className="crystal-trust-item fw-semibold">Cancel anytime</span>
           </div>
-          {plansError && (
-            <Alert variant="warning" className="mb-4">
-              {plansError}
-            </Alert>
-          )}
-          {plansLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" role="status" />
-              <p className="mt-2 text-muted small">Loading plans...</p>
-            </div>
-          ) : (
-            <div
-              ref={packagesScrollRef}
-              className="crystal-packages-scroll"
-              role="region"
-              aria-label="Payment plans carousel"
-            >
-              <div className="crystal-packages-inner">
-                {packagesToRender.map((pkg) => (
-                  <Card
-                    key={pkg.id}
-                    data-plan-id={pkg.id}
-                    className={`crystal-package-card flex-shrink-0 ${pkg.popular && !pkg.comingSoon ? 'border-primary' : ''}`}
-                  >
-                    {pkg.popular && !pkg.comingSoon && (
-                      <div className="crystal-package-badge bg-primary text-white small py-1">Popular</div>
-                    )}
-                    {pkg.comingSoon && (
-                      <div className="crystal-package-badge crystal-package-badge--soon text-white small py-1">
-                        Soon
+          <div className="text-center mb-4" data-crystal-reveal>
+            <Link to="/user/create-website" className="crystal-pricing-trial-cta">
+              Start 7 day free trial now
+            </Link>
+          </div>
+          <div
+            ref={packagesScrollRef}
+            className="crystal-packages-scroll"
+            role="region"
+            aria-label="Payment plans carousel"
+          >
+            <div className="crystal-packages-inner">
+              {packagesToRender.map((pkg) => (
+                <Card
+                  key={pkg.id}
+                  data-plan-id={pkg.id}
+                  className={`crystal-package-card flex-shrink-0 ${pkg.popular ? 'border-primary' : ''}`}
+                >
+                  {pkg.popular && !pkg.comingSoon && (
+                    <div className="crystal-package-badge bg-primary text-white small py-1">Popular</div>
+                  )}
+                  {pkg.comingSoon && (
+                    <div className="crystal-package-badge crystal-package-badge--soon text-white small py-1">
+                      Coming soon
+                    </div>
+                  )}
+                  <Card.Body className="text-center crystal-package-card__body">
+                    <Card.Title className="h5">{pkg.name}</Card.Title>
+                    {pkg.id === 'custom' ?
+                      <div className="mb-2 crystal-package-price-wrap">
+                        <span className="crystal-package-custom-price">Custom</span>
+                        <p className="crystal-package-custom-teaser small text-muted mb-0 mt-2 px-1">
+                          For <strong>service-based</strong> companies: share your requirements and we&apos;ll build a
+                          site tailored to your business — not a DIY template.
+                        </p>
+                      </div>
+                    : pkg.hidePrice ?
+                      <div className="mb-3 crystal-package-price-wrap crystal-package-price-wrap--pro-soon">
+                        <p className="crystal-package-pro-soon-title fw-bold text-primary mb-0">
+                          {pkg.priceStatusMessage ?? 'Coming soon'}
+                        </p>
+                      </div>
+                    : (
+                      <div className="mb-3 crystal-package-price-wrap">
+                        <PlanPriceDisplay
+                          listFormatted={pkg.listPriceFormatted}
+                          firstFormatted={pkg.firstActivationFormatted}
+                          period={pkg.period}
+                          showIntro={pkg.showIntroPrice}
+                          size="lg"
+                          className="text-center w-100"
+                        />
                       </div>
                     )}
-                    <Card.Body className="text-center crystal-package-card__body">
-                      <Card.Title className="h5">{pkg.name}</Card.Title>
-                      {pkg.id === 'custom' ?
-                        <div className="mb-2 crystal-package-price-wrap">
-                          <span className="crystal-package-custom-price">Custom</span>
-                          <p className="crystal-package-custom-teaser small text-muted mb-0 mt-2 px-1">
-                            For <strong>service-based</strong> companies: share your requirements and we&apos;ll build a
-                            site tailored to your business — not a DIY template.
-                          </p>
-                        </div>
-                      : (
-                        <div className="mb-3 crystal-package-price-wrap">
-                          <PlanPriceDisplay
-                            listFormatted={pkg.listPriceFormatted}
-                            firstFormatted={pkg.firstActivationFormatted}
-                            period={pkg.period}
-                            showIntro={pkg.showIntroPrice}
-                            size="lg"
-                            className="text-center w-100"
-                          />
-                        </div>
-                      )}
-                      {pkg.features.length > 0 && (
-                        <PlanFeatures planId={pkg.id} features={pkg.features} />
-                      )}
-                      {pkg.id === 'custom' && (
-                        <Link
-                          to="/services/custom"
-                          className="btn btn-outline-primary btn-sm w-100 mt-3 crystal-package-custom-cta"
-                        >
-                          {pkg.cta}
-                        </Link>
-                      )}
-                    </Card.Body>
-                  </Card>
-                ))}
-              </div>
+                    {pkg.features.length > 0 && (
+                      <PlanFeatures planId={pkg.id} features={pkg.features} />
+                    )}
+                    {pkg.id === 'custom' && (
+                      <Link
+                        to="/services/custom"
+                        className="btn btn-outline-primary btn-sm w-100 mt-3 crystal-package-custom-cta"
+                      >
+                        {pkg.cta}
+                      </Link>
+                    )}
+                  </Card.Body>
+                </Card>
+              ))}
             </div>
-          )}
+          </div>
           <p className="text-center mt-4 mb-0">
             <Link to="/plans" className="crystal-packages-seemore">
               See more →

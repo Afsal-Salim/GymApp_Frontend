@@ -583,6 +583,8 @@ export type PublicBusinessDetail = {
   logo_url?: string;
   /** When the API returns it, Crystal theme for the public page (accent / dark / text / light hex). */
   website_theme?: CrystalWebsiteSetupPayload['theme'] | Record<string, unknown>;
+  /** Saved Crystal page JSON (nav, gallery captions, etc.) when the public profile includes it. */
+  website_content?: CrystalWebsiteSetupPayload['content'] | Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
@@ -611,26 +613,124 @@ export async function getPublicBusinessBySlug(slug: string): Promise<PublicBusin
   }
 }
 
-/** Response from GET /businesses/:slug/active-subscription/ (no auth). */
+/** `plan_tier` on GET `/businesses/<slug>/active-subscription/` (public). */
+export type ActiveSubscriptionPlanTier = 'trial' | 'starter' | 'pro' | 'other';
+
+export type ActiveSubscriptionPlanFeature = { id: number; name: string };
+
+export type ActiveSubscriptionPlanDetail = {
+  id: number;
+  name: string;
+  tier: string;
+  duration_days: number;
+  currency: string;
+  price: string;
+  features: ActiveSubscriptionPlanFeature[];
+};
+
+export type ActiveSubscriptionNested = {
+  id: number;
+  plan_name: string;
+  plan_tier?: ActiveSubscriptionPlanTier | string;
+  subscription_start_date: string;
+  subscription_end_date: string;
+  plan?: ActiveSubscriptionPlanDetail;
+};
+
+/** Response from GET `/businesses/<slug>/active-subscription/` (public, no auth). */
 export type ActiveSubscriptionResponse = {
   slug: string;
+  is_active: boolean;
   has_active_subscription: boolean;
-  subscription?: {
-    id: number;
-    plan_name: string;
-    subscription_start_date: string;
-    subscription_end_date: string;
-  };
+  subscription_end_date: string | null;
+  plan_tier: ActiveSubscriptionPlanTier | null;
+  subscription: ActiveSubscriptionNested | null;
+  detail?: string;
 };
+
+function inactiveActiveSubscriptionResponse(slug: string, detail?: string): ActiveSubscriptionResponse {
+  const s = slug.trim();
+  return {
+    slug: s,
+    is_active: false,
+    has_active_subscription: false,
+    subscription_end_date: null,
+    plan_tier: null,
+    subscription: null,
+    ...(detail ? { detail } : {}),
+  };
+}
+
+/**
+ * Normalizes current and legacy API/cache shapes into {@link ActiveSubscriptionResponse}.
+ */
+export function normalizeActiveSubscriptionResponse(raw: unknown, fallbackSlug: string): ActiveSubscriptionResponse {
+  if (!raw || typeof raw !== 'object') {
+    return inactiveActiveSubscriptionResponse(fallbackSlug);
+  }
+  const o = raw as Record<string, unknown>;
+  const s = String(o.slug ?? fallbackSlug).trim() || fallbackSlug.trim();
+  const hasSub = o.has_active_subscription === true;
+  const isActive =
+    typeof o.is_active === 'boolean' ? o.is_active
+    : hasSub ? true
+    : false;
+  const nestedRaw = o.subscription;
+  const nested =
+    nestedRaw && typeof nestedRaw === 'object' ?
+      (nestedRaw as ActiveSubscriptionNested)
+    : null;
+
+  const planFromNested =
+    nested && typeof nested.plan === 'object' && nested.plan !== null ?
+      (nested.plan as ActiveSubscriptionPlanDetail)
+    : undefined;
+
+  const planTierRaw =
+    (o.plan_tier as string | null | undefined) ??
+    nested?.plan_tier ??
+    planFromNested?.tier ??
+    null;
+  const tierLc = typeof planTierRaw === 'string' ? planTierRaw.trim().toLowerCase() : '';
+  const planTier: ActiveSubscriptionResponse['plan_tier'] =
+    tierLc === 'trial' || tierLc === 'starter' || tierLc === 'pro' || tierLc === 'other' ? tierLc
+    : tierLc ? 'other'
+    : null;
+
+  const endTop = o.subscription_end_date;
+  const endTopStr = typeof endTop === 'string' && endTop.trim() ? endTop : null;
+  const endNested = nested?.subscription_end_date;
+  const endNestedStr = typeof endNested === 'string' && endNested.trim() ? endNested : null;
+  const subscription_end_date = endTopStr ?? endNestedStr ?? null;
+
+  const detail = typeof o.detail === 'string' ? o.detail : undefined;
+
+  return {
+    slug: s,
+    is_active: isActive,
+    has_active_subscription: hasSub,
+    subscription_end_date,
+    plan_tier: planTier as ActiveSubscriptionResponse['plan_tier'],
+    subscription: nested,
+    ...(detail ? { detail } : {}),
+  };
+}
 
 /** Check if a business has an active subscription. Public endpoint, no auth. */
 export async function getActiveSubscription(slug: string): Promise<ActiveSubscriptionResponse> {
+  const key = slug.trim();
+  if (!key) throw new Error('Business slug is required.');
   try {
-    const { data } = await publicApi.get<ActiveSubscriptionResponse>(
-      `${BASE}/${encodeURIComponent(slug)}/active-subscription/`
-    );
-    return data;
+    const { data } = await publicApi.get<unknown>(`${BASE}/${encodeURIComponent(key)}/active-subscription/`);
+    return normalizeActiveSubscriptionResponse(data, key);
   } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      const body = e.response?.data;
+      if (body && typeof body === 'object') {
+        return normalizeActiveSubscriptionResponse(body, key);
+      }
+      return inactiveActiveSubscriptionResponse(key, 'Not found.');
+    }
     throw new Error(getAxiosErrorMessage(e, 'Failed to check subscription'));
   }
 }
@@ -662,13 +762,25 @@ export async function getPublicCheckSlug(slug: string): Promise<PublicCheckSlugR
   }
 }
 
+export type CheckBusinessSlugAvailabilityOptions = {
+  /**
+   * When editing an existing gym, the slug that business already uses. If the typed slug matches this
+   * (after trim/lowercase), it is treated as **available** without calling the public check — the public
+   * “exists” APIs cannot exclude the current business, which otherwise yields a false “taken” result.
+   */
+  reservedSlug?: string;
+};
+
 /**
  * Whether `slug` is free for a new gym public URL (`/:slug/`).
  *
  * 1) GET /businesses/check-slug/?slug= (public).
  * 2) On failure, falls back to GET /businesses/public/:slug/ (404 ⇒ available).
  */
-export async function checkBusinessSlugAvailability(slug: string): Promise<{
+export async function checkBusinessSlugAvailability(
+  slug: string,
+  options?: CheckBusinessSlugAvailabilityOptions
+): Promise<{
   available: boolean;
   message?: string;
 }> {
@@ -684,6 +796,11 @@ export async function checkBusinessSlugAvailability(slug: string): Promise<{
   }
   if (normalized.length < 2 || normalized.length > 48) {
     return { available: false, message: 'Use between 2 and 48 characters.' };
+  }
+
+  const reserved = options?.reservedSlug?.trim().toLowerCase();
+  if (reserved && normalized === reserved) {
+    return { available: true };
   }
 
   try {

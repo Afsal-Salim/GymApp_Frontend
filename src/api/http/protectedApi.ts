@@ -28,6 +28,14 @@ protectedApi.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    /**
+     * Instance default is `application/json`. That forces JSON serialization of the body, which turns
+     * `FormData` into useless objects like `{ file: {}, asset_type: "gallery" }` and breaks uploads.
+     * Omit Content-Type so the runtime sets `multipart/form-data` with the correct boundary.
+     */
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      config.headers.delete('Content-Type');
+    }
     return config;
   },
   (error) => Promise.reject(error)

@@ -61,6 +61,15 @@ export {
   invalidatePublicGymBundleCache,
 } from './publicGymCache';
 export {
+  deleteBusinessGalleryImage,
+  listBusinessImages,
+  resolveBusinessImageDisplayUrl,
+  uploadBusinessImage,
+  type BusinessUploadedImage,
+  type BusinessUploadedImageAsset,
+  type ListBusinessImagesResponse,
+} from './businessImages';
+export {
   getBusinessDetail,
   getBusinessFirstRecharge,
   getBusinessList,
@@ -68,6 +77,7 @@ export {
   getAllWebsitesAnalytics,
   getBusinessWebsiteAnalytics,
   getActiveSubscription,
+  normalizeActiveSubscriptionResponse,
   getPublicBusinessBySlug,
   checkBusinessSlugAvailability,
   getPublicCheckSlug,
@@ -88,6 +98,9 @@ export {
   type BusinessListItem,
   type BusinessSubscription,
   type ActiveSubscriptionResponse,
+  type ActiveSubscriptionPlanTier,
+  type ActiveSubscriptionNested,
+  type ActiveSubscriptionPlanDetail,
   type BusinessListPaginatedResponse,
   type BusinessListMeta,
   type PublicBusinessDetail,
