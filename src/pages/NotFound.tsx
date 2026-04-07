@@ -11,16 +11,17 @@ const float = keyframes`
   100% { transform: translateY(0px); }
 `;
 
-/** Flat bright strokes (no glow filters). */
-const strokeNeon = '#f8fafc';
-const strokeCore = '#e0f2fe';
+const NEON_GRAD_ID = 'notfoundEmojiNeon';
+const NEON_FLOOR_ID = 'notfoundEmojiNeonFloor';
 
 /**
- * Sad face mark: bright flat strokes, no filters — ring, brows, eyes, frown, stress lines, four + sparkles.
+ * 404-style face: same neon treatment as the app mascot, but X eyes (lost / dead link), worried brows, and a frown.
  */
 function NotFoundEmojiMark({ size = 200 }: { size?: number }) {
   const w = (size * 280) / 200;
   const h = (size * 220) / 200;
+  const g = `url(#${NEON_GRAD_ID})`;
+  const gf = `url(#${NEON_FLOOR_ID})`;
   return (
     <svg
       width={w}
@@ -29,11 +30,23 @@ function NotFoundEmojiMark({ size = 200 }: { size?: number }) {
       aria-hidden
       style={{ overflow: 'visible', display: 'block' }}
     >
-      {/* Soft tint under face — flat color only */}
-      <ellipse cx="140" cy="188" rx="84" ry="20" fill="rgba(125, 211, 252, 0.22)" />
+      <defs>
+        <linearGradient id={NEON_GRAD_ID} x1="52" y1="36" x2="228" y2="198" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#f0fdff" />
+          <stop offset="22%" stopColor="#cffafe" />
+          <stop offset="48%" stopColor="#22d3ee" />
+          <stop offset="78%" stopColor="#06b6d4" />
+          <stop offset="100%" stopColor="#0e7490" />
+        </linearGradient>
+        <linearGradient id={NEON_FLOOR_ID} x1="70" y1="178" x2="210" y2="200" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#a5f3fc" stopOpacity={0.45} />
+          <stop offset="100%" stopColor="#0891b2" stopOpacity={0.25} />
+        </linearGradient>
+      </defs>
 
-      {/* Four sparkles: + shapes */}
-      <g stroke={strokeNeon} strokeWidth={6} strokeLinecap="round" fill="none">
+      <ellipse cx="140" cy="188" rx="84" ry="20" fill={gf} />
+
+      <g stroke={g} strokeWidth={6} strokeLinecap="round" fill="none">
         <g transform="translate(34, 112)">
           <line x1="0" y1="-9" x2="0" y2="9" />
           <line x1="-9" y1="0" x2="9" y2="0" />
@@ -52,37 +65,32 @@ function NotFoundEmojiMark({ size = 200 }: { size?: number }) {
         </g>
       </g>
 
-      {/* Stress lines — above top-left of head */}
-      <g stroke={strokeCore} strokeWidth={7} strokeLinecap="round">
+      <g stroke={g} strokeWidth={7} strokeLinecap="round">
         <line x1="78" y1="48" x2="78" y2="66" />
         <line x1="90" y1="44" x2="90" y2="64" />
       </g>
 
-      {/* Head ring */}
-      <circle
-        cx="140"
-        cy="118"
-        r="56"
-        fill="none"
-        stroke={strokeNeon}
-        strokeWidth={6}
-      />
+      <circle cx="140" cy="118" r="56" fill="none" stroke={g} strokeWidth={6} />
 
-      {/* Eyebrows: curve inward / worried */}
-      <g fill="none" stroke={strokeNeon} strokeWidth={5.5} strokeLinecap="round">
-        <path d="M 106 94 Q 118 82 130 92" />
-        <path d="M 174 94 Q 162 82 150 92" />
+      {/* Worried / sad brows — steeper inward slump */}
+      <g fill="none" stroke={g} strokeWidth={5.5} strokeLinecap="round">
+        <path d="M 102 96 Q 118 76 134 90" />
+        <path d="M 178 96 Q 162 76 146 90" />
       </g>
 
-      {/* Eyes */}
-      <circle cx="122" cy="112" r="7.5" fill={strokeNeon} />
-      <circle cx="158" cy="112" r="7.5" fill={strokeNeon} />
+      {/* X eyes — reads clearly as “not found / broken” on a 404 */}
+      <g stroke={g} strokeWidth={5.5} strokeLinecap="round">
+        <line x1="115" y1="107" x2="129" y2="121" />
+        <line x1="115" y1="121" x2="129" y2="107" />
+        <line x1="151" y1="107" x2="165" y2="121" />
+        <line x1="151" y1="121" x2="165" y2="107" />
+      </g>
 
-      {/* Frown */}
+      {/* Deep frown */}
       <path
-        d="M 116 136 Q 140 156 164 136"
+        d="M 110 128 Q 140 176 170 128"
         fill="none"
-        stroke={strokeNeon}
+        stroke={g}
         strokeWidth={5.5}
         strokeLinecap="round"
       />
@@ -171,8 +179,13 @@ export default function NotFound() {
           <Box
             component="span"
             sx={{
-              color: '#7dd3fc',
+              display: 'inline-block',
               fontWeight: 800,
+              background:
+                'linear-gradient(135deg, #ffffff 0%, #ecfeff 18%, #67e8f9 40%, #22d3ee 62%, #06b6d4 82%, #14b8a6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
             }}
           >
             wrong route

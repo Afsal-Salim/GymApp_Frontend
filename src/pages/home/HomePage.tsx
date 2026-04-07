@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { PlanPriceDisplay } from '../../components';
 import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
@@ -524,12 +525,19 @@ export default function HomePage() {
                 {HERO_TAGLINE}
               </p>
               <div className="crystal-hero-seq crystal-hero-seq--4 d-flex flex-wrap gap-2 justify-content-center">
-                <Link to="/preview?from=marketing" className="btn btn-primary btn-lg crystal-cta">
+              <Link to="/user/create-website" className="btn btn-primary btn-lg crystal-cta">
+               Create Free
+              </Link>
+              <Link
+                  to="/preview?from=marketing"
+                  className="btn btn-outline-light btn-lg crystal-cta-outline d-inline-flex align-items-center gap-2"
+                >
+                  <VisibilityOutlinedIcon
+                    sx={{ fontSize: '1.35rem', color: 'inherit' }}
+                    aria-hidden
+                  />
                   Preview
                 </Link>
-                <Button href="#tutorial" variant="outline-light" size="lg" className="crystal-cta-outline">
-                  Watch tutorial
-                </Button>
               </div>
               <div className="crystal-hero-points crystal-hero-seq crystal-hero-seq--5 mt-4">
                 {HERO_POINTS.map((point) => (
