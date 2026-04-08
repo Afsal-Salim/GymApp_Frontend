@@ -1,0 +1,1893 @@
+/* Crystal – custom styles on top of Bootstrap */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Home marketing: Bootstrap primary + links match hero v2 blue; section backgrounds unchanged */
+.crystal-home {
+  overflow-x: hidden;
+  --crystal-brand-primary: #0084ff;
+  --crystal-brand-primary-rgb: 0, 132, 255;
+  --crystal-brand-soft: #4dc3ff;
+  --bs-primary: #0084ff;
+  --bs-primary-rgb: 0, 132, 255;
+  --bs-link-color: #0084ff;
+  --bs-link-hover-color: #006edc;
+}
+
+/* —— Scroll-triggered section reveals —— */
+.crystal-home [data-crystal-reveal] {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.crystal-home [data-crystal-reveal].crystal-reveal-visible {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* —— Hero stagger (load) —— */
+@keyframes crystal-home-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.crystal-hero .crystal-hero-seq {
+  opacity: 0;
+  animation: crystal-home-fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.crystal-hero .crystal-hero-seq--1 {
+  animation-delay: 0.05s;
+}
+.crystal-hero .crystal-hero-seq--2 {
+  animation-delay: 0.14s;
+}
+.crystal-hero .crystal-hero-seq--3 {
+  animation-delay: 0.24s;
+}
+.crystal-hero .crystal-hero-seq--4 {
+  animation-delay: 0.34s;
+}
+.crystal-hero .crystal-hero-seq--5 {
+  animation-delay: 0.44s;
+}
+
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point {
+  opacity: 0;
+  animation: crystal-home-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point:nth-child(1) {
+  animation-delay: 0.52s;
+}
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point:nth-child(2) {
+  animation-delay: 0.6s;
+}
+.crystal-hero .crystal-hero-seq--5 .crystal-hero-point:nth-child(3) {
+  animation-delay: 0.68s;
+}
+
+.crystal-hero .crystal-hero-seq--6 {
+  animation-delay: 0.52s;
+}
+
+@keyframes crystal-home-float-btn-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Floating scroll-down button – no scrollbar needed to go down */
+.crystal-scroll-down-btn {
+  position: fixed;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  right: max(1.5rem, env(safe-area-inset-right));
+  z-index: 50;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #0084ff, #4dc3ff);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 132, 255, 0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+  animation: crystal-home-float-btn-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.85s both;
+}
+
+.crystal-scroll-down-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 132, 255, 0.6);
+}
+
+.crystal-scroll-down-btn:active {
+  transform: translateY(0);
+}
+
+.crystal-scroll-down-btn__chevron {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: block;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.crystal-scroll-down-btn--up .crystal-scroll-down-btn__chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-scroll-down-btn__chevron {
+    transition: none;
+  }
+
+  .crystal-home [data-crystal-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+
+  .crystal-hero .crystal-hero-seq,
+  .crystal-hero .crystal-hero-seq--5 .crystal-hero-point {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .crystal-scroll-down-btn {
+    animation: none;
+  }
+}
+
+/* Hero section – full-height with background image */
+.crystal-hero {
+  position: relative;
+  min-height: 85vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fafc;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.82) 50%, rgba(0, 132, 255, 0.75) 100%),
+    url('https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1600&q=80') center center / cover no-repeat;
+  background-attachment: scroll;
+}
+
+@media (min-width: 768px) {
+  .crystal-hero:not(.crystal-hero-v2) {
+    background-attachment: fixed;
+  }
+}
+
+.crystal-hero .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* —— Hero v2 (marketing mock + layered backgrounds) —— */
+.crystal-hero-v2 {
+  --crystal-hero-accent: #0084ff;
+  --crystal-hero-accent-soft: #4dc3ff;
+  min-height: min(100vh, 1024px);
+  padding-top: 0;
+  background: #050a12 !important;
+  background-image: none !important;
+  background-attachment: scroll !important;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  .crystal-hero-v2 {
+    min-height: min(100dvh, 1024px);
+  }
+}
+
+/* Single common background for the whole hero (mobile + desktop) */
+.crystal-hero-v2__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  filter: saturate(0.7) brightness(0.46) blur(0.5px);
+}
+
+.crystal-hero-v2__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* Single shared darkening (no opaque copy “card”); left stays readable, right opens for mockup */
+  background: linear-gradient(
+    105deg,
+    rgba(5, 10, 18, 0.9) 0%,
+    rgba(5, 10, 18, 0.78) 24%,
+    rgba(5, 10, 18, 0.5) 42%,
+    rgba(5, 10, 18, 0.2) 60%,
+    rgba(5, 10, 18, 0.09) 76%,
+    rgba(5, 10, 18, 0.03) 100%
+  );
+}
+
+.crystal-hero-v2__main {
+  position: relative;
+  z-index: 2;
+}
+
+.crystal-hero-v2__stage {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+  overflow-x: clip;
+}
+
+@media (min-width: 1200px) {
+  /* Let mockup bleed to the right edge like the full-bleed bg */
+  .crystal-hero-v2__stage {
+    overflow-x: visible;
+  }
+}
+
+/*
+ * Below 1200px: copy only (no side img).
+ * 1200px+: single grid cell — mockup behind (z-index 1), copy on top (z-index 3).
+ */
+.crystal-hero-v2__stack {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(1.25rem, 3vw, 2.25rem);
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    align-items: stretch;
+    gap: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-self: stretch;
+  }
+}
+
+.crystal-hero-v2__copy-panel {
+  position: relative;
+  z-index: 3;
+  flex: 0 1 auto;
+  min-width: 0;
+  background: transparent;
+  overflow-x: clip;
+  overflow-y: visible;
+  order: 1;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__copy-panel {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    align-self: center;
+    max-width: min(67%, 42rem);
+    order: 0;
+    /* Clicks hit links/buttons, not the layer below */
+    pointer-events: none;
+  }
+
+  .crystal-hero-v2__copy-panel .crystal-hero-v2__layout {
+    pointer-events: auto;
+  }
+}
+
+.crystal-hero-v2__media-panel {
+  display: none;
+  position: relative;
+  z-index: 1;
+  width: min(80%, 100%);
+  max-width: min(80%, 100%);
+  margin-inline: auto;
+  min-height: min(36vh, 20rem);
+  overflow: visible;
+  background: transparent;
+  order: 2;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__media-panel {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    align-self: stretch;
+    width: min(80%, 100%);
+    max-width: min(80%, 100%);
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    margin-inline: 0;
+    /* Pull to the same right edge as the hero bg (undo container padding) */
+    margin-right: calc(0rem - max(clamp(1rem, 2vw, 1.75rem), env(safe-area-inset-right)));
+    order: 0;
+  }
+}
+
+.crystal-hero-v2__media-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Left-edge blend into hero bg */
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.25) 6%,
+    rgba(0, 0, 0, 0.75) 11%,
+    #000 16%,
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.25) 6%,
+    rgba(0, 0, 0, 0.75) 11%,
+    #000 16%,
+    #000 100%
+  );
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* Side art (home-hero-side-bg) */
+.crystal-hero-v2__hero-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__hero-image {
+    position: absolute;
+    inset: 0;
+    min-height: 100%;
+  }
+}
+
+.crystal-hero-v2__main.container-fluid {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  padding-left: max(clamp(1rem, 4vw, 1.5rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 4vw, 1.5rem), env(safe-area-inset-right));
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__main.container-fluid {
+    /* Left inset via padding only (replaces former margin-left on media panel) */
+    padding-left: max(clamp(2.25rem, 6.5vw, 5.25rem), env(safe-area-inset-left));
+    padding-right: clamp(1rem, 2vw, 1.75rem);
+    /* Fill stage height so mockup can stretch top–bottom with the bg */
+    justify-content: flex-start;
+    align-self: stretch;
+  }
+}
+
+.crystal-hero-v2__copy {
+  position: relative;
+  z-index: 1;
+  max-width: min(38rem, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__copy {
+    margin-left: 10%;
+    margin-right: 0;
+    text-align: start;
+  }
+}
+
+.crystal-hero-v2__layout {
+  width: 100%;
+  min-width: 0;
+}
+
+.crystal-hero-v2__layout-copy {
+  min-width: 0;
+}
+
+.crystal-hero-v2-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 132, 255, 0.5);
+  color: #4dc3ff;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.7rem !important;
+  background: rgba(0, 132, 255, 0.1);
+}
+
+.crystal-hero-v2-title {
+  color: #f8fafc;
+  /* Cap vw so ultra-wide / zoomed layouts don’t blow the grid */
+  font-size: clamp(2.25rem, 1.1rem + min(4.2vw, 2.75rem), 3.65rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  max-width: 22ch;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.crystal-hero-v2-title__line {
+  display: block;
+}
+
+.crystal-hero-v2-title__plain {
+  color: #f8fafc;
+}
+
+.crystal-hero-v2-title__grow {
+  background: linear-gradient(
+    90deg,
+    var(--crystal-hero-accent) 0%,
+    var(--crystal-hero-accent-soft) 45%,
+    #b9e8ff 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.crystal-hero-v2-tagline {
+  color: #a0a0a0;
+  font-size: clamp(1rem, 0.92rem + 0.35vw, 1.125rem);
+  line-height: 1.55;
+  max-width: 100%;
+  font-weight: 500;
+}
+
+.crystal-hero-v2-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.35rem;
+  justify-content: center;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2-highlights {
+    justify-content: flex-start;
+  }
+}
+
+.crystal-hero-v2-highlight {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  text-align: left;
+  max-width: 11rem;
+}
+
+@media (max-width: 1199px) {
+  .crystal-hero-v2-highlight {
+    justify-content: center;
+  }
+}
+
+.crystal-hero-v2-highlight__icon {
+  flex-shrink: 0;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, rgba(0, 132, 255, 0.4), rgba(0, 132, 255, 0.12));
+  border: 1px solid rgba(0, 132, 255, 0.45);
+  color: #4dc3ff;
+}
+
+.crystal-hero-v2-highlight__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.crystal-hero-v2-highlight__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.25;
+}
+
+.crystal-hero-v2-highlight__sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.crystal-hero-v2-cta-primary {
+  border-radius: 10px !important;
+  border: none !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1.35rem !important;
+  background: linear-gradient(135deg, #0090ff, #0084ff) !important;
+  color: #fff !important;
+  /* box-shadow:
+    0 4px 28px rgba(0, 132, 255, 0.55),
+    0 0 40px rgba(0, 132, 255, 0.25),
+    0 0 0 1px rgba(77, 195, 255, 0.35); */
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.crystal-hero-v2-cta-primary:hover {
+  transform: translateY(-2px);
+  color: #fff !important;
+  box-shadow:
+    0 8px 36px rgba(0, 132, 255, 0.65),
+    0 0 48px rgba(0, 132, 255, 0.35),
+    0 0 0 1px rgba(77, 195, 255, 0.5);
+}
+
+.crystal-hero-v2-cta-secondary {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1.35rem !important;
+  border: 1px solid rgba(248, 250, 252, 0.55) !important;
+  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(8px);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.crystal-hero-v2-cta-secondary:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(248, 250, 252, 0.75) !important;
+  color: #fff !important;
+}
+
+.crystal-hero-v2-trust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem 1rem;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2-trust {
+    justify-content: flex-start;
+  }
+}
+
+.crystal-hero-v2__ctas {
+  justify-content: center;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__ctas {
+    justify-content: flex-start;
+  }
+}
+
+.crystal-hero-v2-trust__avatars {
+  display: flex;
+  align-items: center;
+  padding-left: 0.35rem;
+}
+
+.crystal-hero-v2-trust__avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  margin-left: -0.65rem;
+  border: 2px solid #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  background: linear-gradient(135deg, #334155, #1e293b);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.crystal-hero-v2-trust__avatar:nth-child(1) {
+  background: linear-gradient(135deg, #475569, #1e293b);
+}
+.crystal-hero-v2-trust__avatar:nth-child(2) {
+  background: linear-gradient(135deg, #0084ff, #0056b3);
+}
+.crystal-hero-v2-trust__avatar:nth-child(3) {
+  background: linear-gradient(135deg, #a78bfa, #5b21b6);
+}
+.crystal-hero-v2-trust__avatar:nth-child(4) {
+  background: linear-gradient(135deg, #34d399, #047857);
+}
+.crystal-hero-v2-trust__avatar:nth-child(5) {
+  background: linear-gradient(135deg, #fb7185, #be123c);
+}
+
+.crystal-hero-v2-trust__meta {
+  text-align: left;
+}
+
+.crystal-hero-v2-trust__stars {
+  color: #facc15;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.crystal-hero-v2-trust__text {
+  font-size: 0.8125rem;
+  color: #a0a0a0;
+  font-weight: 500;
+}
+
+/* Bottom feature bar */
+.crystal-hero-v2-bottom {
+  position: relative;
+  z-index: 3;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(2, 6, 23, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.crystal-hero-v2-bottom__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .crystal-hero-v2-bottom__item {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.75rem;
+  }
+}
+
+.crystal-hero-v2-bottom__icon {
+  color: #64748b;
+}
+
+.crystal-hero-v2-bottom__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.crystal-hero-v2-bottom__sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.crystal-hero-title {
+  color: #f8fafc !important;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+  font-size: clamp(2.35rem, 1.25rem + 4.5vw, 4.125rem) !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.03em;
+}
+
+.crystal-hero-tagline {
+  color: #e2e8f0 !important;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.2);
+}
+
+.crystal-hero-points {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.crystal-hero-point {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  font-size: 0.875rem;
+  backdrop-filter: blur(8px);
+}
+
+.crystal-hero-point-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: rgba(0, 132, 255, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.crystal-cta {
+  background: linear-gradient(135deg, #0084ff, #4dc3ff) !important;
+  border: none !important;
+  border-radius: 50px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 15px rgba(0, 132, 255, 0.4);
+  min-height: 48px;
+  padding: 0.6rem 1.5rem !important;
+}
+
+.crystal-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 132, 255, 0.5);
+}
+
+.crystal-hero-subtitle {
+  color: #4dc3ff;
+  letter-spacing: 0.15em;
+}
+
+.crystal-cta-outline {
+  min-height: 48px;
+  padding: 0.6rem 1.5rem;
+  border-radius: 50px;
+  font-weight: 600;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Horizontal scroll sections */
+.crystal-scroll-section {
+  padding: 2rem 0;
+  background: #f8fafc;
+}
+
+.crystal-scroll-section.crystal-scroll-testimonials {
+  background: linear-gradient(90deg, #e0f2fe 0%, #f0f9ff 100%);
+}
+
+.crystal-scroll-inner {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 1rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.crystal-scroll-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.crystal-scroll-card {
+  scroll-snap-align: start;
+  min-width: 200px;
+  max-width: 220px;
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.3s ease,
+    background 0.35s ease;
+}
+
+.crystal-scroll-inner .crystal-scroll-card:hover {
+  transform: translateY(-6px) scale(1.03);
+  border-color: rgba(0, 132, 255, 0.35);
+  background: linear-gradient(165deg, #fff 0%, #f0f9ff 55%, #e0f2fe 100%);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(0, 132, 255, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-scroll-inner .crystal-scroll-card {
+    transition: none;
+  }
+
+  .crystal-scroll-inner .crystal-scroll-card:hover {
+    transform: none;
+  }
+
+  .crystal-scroll-inner .crystal-scroll-card:hover .crystal-scroll-icon {
+    transform: none;
+  }
+}
+
+/* Features scroll: centre icon, title, text */
+.crystal-scroll-features .crystal-scroll-card .card-body {
+  text-align: center !important;
+}
+
+.crystal-scroll-features .crystal-scroll-card .card-title,
+.crystal-scroll-features .crystal-scroll-card .card-text {
+  text-align: center !important;
+  width: 100%;
+}
+
+.crystal-scroll-icon {
+  font-size: 1.5rem;
+  color: #0084ff;
+  transition: color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.crystal-scroll-inner .crystal-scroll-card:hover .crystal-scroll-icon {
+  color: #006edc;
+  transform: scale(1.08);
+}
+
+.crystal-testimonial {
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.crystal-scroll-testimonials .crystal-testimonial .card-body {
+  text-align: center !important;
+}
+
+.crystal-scroll-testimonials .crystal-testimonial blockquote {
+  font-style: italic;
+  color: #334155;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  padding-inline-start: 0;
+  border: none;
+  border-inline-start: none;
+  text-align: center !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.crystal-scroll-testimonials .crystal-testimonial footer {
+  text-align: center !important;
+  width: 100%;
+}
+
+/* Section titles */
+.crystal-section-title {
+  color: #0f172a;
+}
+
+/* Action statement – above tutorial */
+.crystal-action-statement {
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-top: 1px solid #e2e8f0;
+  padding-top: clamp(3.25rem, 6vw, 5.5rem);
+  padding-bottom: clamp(3.25rem, 6vw, 5.5rem);
+}
+
+.crystal-action-title {
+  color: #0f172a;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  font-size: clamp(2.5rem, 2rem + 3.8vw, 4.25rem);
+}
+
+.crystal-action-lead {
+  font-size: clamp(1.2rem, 2.2vw, 1.45rem);
+  line-height: 1.55;
+  max-width: 40em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.crystal-action-btns {
+  gap: 1rem 1.25rem;
+}
+
+.crystal-action-statement .crystal-action-btns .btn {
+  font-size: clamp(1.125rem, 1.1rem + 0.9vw, 1.4rem);
+  font-weight: 600;
+  min-height: 3.35rem;
+  padding: 0.9rem 2.35rem !important;
+  border-radius: 999px !important;
+}
+
+.crystal-action-statement .crystal-action-btns .crystal-cta-outline {
+  padding: 0.9rem 2.35rem !important;
+  min-height: 3.35rem;
+}
+
+.crystal-action-preview-btn {
+  border-color: #0084ff !important;
+  color: #0084ff !important;
+  background: transparent !important;
+}
+
+.crystal-action-preview-btn:hover {
+  background: rgba(0, 132, 255, 0.1) !important;
+  border-color: #006edc !important;
+  color: #006edc !important;
+}
+
+.crystal-section-kicker {
+  letter-spacing: 0.14em;
+  color: #0084ff !important;
+}
+
+.crystal-stat {
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+  min-width: 100px;
+}
+
+.crystal-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Section background image effect */
+.crystal-section-bg {
+  position: relative;
+  width: 100%;
+  isolation: isolate;
+  background-color: #f8fafc;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.95) 100%),
+    url('/images/section-bg.jpg');
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.crystal-section-bg .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Value section – how a website helps your gym */
+.crystal-value .crystal-section-title {
+  color: var(--bs-body-color);
+}
+
+.crystal-value__inner {
+  max-width: 44rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 992px) {
+  .crystal-value__inner {
+    max-width: 46rem;
+  }
+}
+
+.crystal-value-points {
+  gap: 0.75rem;
+}
+
+.crystal-value-badge {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  background: rgba(0, 132, 255, 0.12);
+  color: #0084ff;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.25s ease,
+    box-shadow 0.25s ease,
+    color 0.25s ease;
+}
+
+.crystal-value-badge:hover {
+  transform: translateY(-2px) scale(1.04);
+  background: rgba(0, 132, 255, 0.22);
+  color: #006edc;
+  box-shadow: 0 6px 16px rgba(0, 132, 255, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-value-badge {
+    transition: none;
+  }
+
+  .crystal-value-badge:hover {
+    transform: none;
+  }
+}
+
+/* Pricing trust line */
+.crystal-pricing-trust {
+  font-size: 0.95rem;
+  color: var(--bs-secondary-color);
+}
+
+.crystal-trust-badge {
+  display: inline-block;
+  font-weight: 600;
+  color: #0084ff;
+}
+
+.crystal-trust-item {
+  margin: 0 0.15rem;
+}
+
+.crystal-trust-sep {
+  margin: 0 0.35rem;
+  opacity: 0.6;
+}
+
+/* Contact section – professional cards, icons, CTA */
+.crystal-contacts.crystal-contacts--pro {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(0, 132, 255, 0.07) 0%, transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(77, 195, 255, 0.06) 0%, transparent 42%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 48%, #eef2f6 100%);
+}
+
+.crystal-contacts.crystal-contacts--pro.crystal-section-bg {
+  background:
+    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(0, 132, 255, 0.07) 0%, transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(77, 195, 255, 0.06) 0%, transparent 42%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.97) 0%, rgba(241, 245, 249, 0.98) 50%, rgba(238, 242, 246, 0.99) 100%),
+    url('/images/section-bg.jpg') center center / cover no-repeat;
+}
+
+.crystal-contacts-row {
+  align-items: stretch;
+}
+
+.crystal-contacts__header {
+  max-width: 38rem;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 2.5rem;
+}
+
+.crystal-contacts__title {
+  font-size: clamp(1.65rem, 2.2vw + 1rem, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+  margin: 0 0 0.65rem;
+  line-height: 1.2;
+}
+
+.crystal-contacts__subtitle {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0;
+}
+
+.crystal-contact-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.85rem 1.4rem 2rem;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 14px 44px -14px rgba(15, 23, 42, 0.1);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.28s ease,
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.3s ease;
+  min-height: 228px;
+  height: 100%;
+}
+
+.crystal-contact-card:hover {
+  border-color: rgba(0, 132, 255, 0.45);
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 45%, #f0f9ff 100%);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 22px 50px -18px rgba(0, 132, 255, 0.16),
+    0 0 0 1px rgba(0, 132, 255, 0.05);
+  transform: translateY(-4px) scale(1.02);
+}
+
+.crystal-contact-card__icon-wrap {
+  margin-bottom: 1rem;
+}
+
+.crystal-contact-card__icon-disk {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crystal-contact-card__icon-disk--email {
+  background: linear-gradient(160deg, #e0f2fe 0%, #dbeafe 100%);
+  color: #0056b3;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.crystal-contact-card__icon-disk--phone {
+  background: linear-gradient(160deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #047857;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.crystal-contact-card__icon-disk--whatsapp-muted {
+  background: color-mix(in srgb, #94a3b8 18%, #f1f5f9);
+  color: #64748b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.crystal-contact-card__glyph {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.crystal-contact-card__icon-btn {
+  text-decoration: none;
+}
+
+.crystal-contact-card__icon-btn--whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #25d366 0%, #128c7e 100%);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(37, 211, 102, 0.38);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.crystal-contact-card__icon-btn--whatsapp:hover {
+  color: #fff;
+  transform: scale(1.06);
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
+}
+
+.crystal-contact-card__wa-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.crystal-contact-card__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #0084ff;
+  margin: 0 0 0.65rem;
+}
+
+.crystal-contact-card__value {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+}
+
+.crystal-contact-card__link {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-decoration: none;
+  line-height: 1.45;
+  transition: color 0.2s ease;
+  word-break: break-word;
+}
+
+.crystal-contact-card__link:hover {
+  color: #006edc;
+}
+
+.crystal-contact-card__text {
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.crystal-contacts__cta-wrap {
+  margin-top: 2.75rem;
+}
+
+.crystal-contacts__enquiry-btn {
+  padding: 0.7rem 2.35rem;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 20px rgba(0, 132, 255, 0.32);
+  border: none;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.crystal-contacts__enquiry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(0, 132, 255, 0.38);
+}
+
+.crystal-contacts__enquiry-btn:active {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-contact-card:hover {
+    transform: none;
+  }
+
+  .crystal-contacts__enquiry-btn:hover {
+    transform: none;
+  }
+}
+
+/* Tutorial section */
+.crystal-tutorial {
+  overflow: hidden;
+}
+
+.crystal-how-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.crystal-how-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.25s ease,
+    background 0.35s ease;
+}
+
+.crystal-how-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow:
+    0 12px 32px rgba(0, 132, 255, 0.14),
+    0 0 0 1px rgba(0, 132, 255, 0.07);
+  border-color: color-mix(in srgb, #0084ff 42%, #e2e8f0);
+  background: linear-gradient(160deg, #fff 0%, #f8fafc 40%, #f0f9ff 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-how-card {
+    transition: none;
+  }
+
+  .crystal-how-card:hover {
+    transform: none;
+  }
+}
+
+.crystal-how-step {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0084ff, #4dc3ff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.crystal-video-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s ease,
+    border-color 0.35s ease;
+}
+
+.crystal-video-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  border-color: rgba(0, 132, 255, 0.4);
+  box-shadow:
+    0 20px 44px rgba(0, 132, 255, 0.18),
+    0 0 0 1px rgba(0, 132, 255, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-video-card {
+    transition: none;
+  }
+
+  .crystal-video-card:hover {
+    transform: none;
+  }
+}
+
+.crystal-video-frame {
+  position: relative;
+  padding-top: 56.25%;
+  background: #0f172a;
+}
+
+.crystal-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Packages – room for hover lift / shadow */
+.crystal-packages .container {
+  overflow: visible;
+}
+
+.crystal-packages-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2rem 0;
+  margin: 0 -0.25rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+@media (max-width: 991px) {
+  .crystal-packages-inner {
+    padding-right: max(45vw, 1.5rem);
+  }
+}
+
+.crystal-packages-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.crystal-packages-inner {
+  display: flex;
+  gap: 1.5rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  align-items: stretch;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 992px) {
+  .crystal-packages-scroll {
+    overflow: visible;
+    margin: 0;
+  }
+
+  .crystal-packages-inner {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 1fr;
+    overflow: visible;
+    align-items: stretch;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+}
+
+.crystal-package-card {
+  scroll-snap-align: start;
+  min-width: 280px;
+  min-height: 400px;
+  height: 100%;
+  width: 100%;
+  border-radius: 16px !important;
+  position: relative;
+  cursor: pointer;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 12px rgba(15, 23, 42, 0.06),
+    0 16px 42px rgba(15, 23, 42, 0.07);
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.32s ease,
+    border-color 0.25s ease,
+    background 0.35s ease;
+}
+
+@media (min-width: 992px) {
+  .crystal-package-card {
+    min-height: 420px;
+  }
+}
+
+.crystal-package-card .card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Popular plan – subtle brand tint, same footprint as other cards */
+.crystal-package-card.border-primary {
+  border-color: rgba(0, 132, 255, 0.42) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 132, 255, 0.07),
+    0 6px 18px rgba(0, 132, 255, 0.1),
+    0 20px 48px rgba(0, 132, 255, 0.12);
+}
+
+.crystal-package-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  border-color: rgba(0, 132, 255, 0.38) !important;
+  background: linear-gradient(180deg, #fff 0%, #fafcff 35%, #f0f9ff 100%) !important;
+  box-shadow:
+    0 8px 16px rgba(15, 23, 42, 0.06),
+    0 18px 40px rgba(15, 23, 42, 0.09),
+    0 32px 72px rgba(0, 132, 255, 0.12),
+    0 0 0 1px rgba(0, 132, 255, 0.06);
+}
+
+.crystal-package-card.border-primary:hover {
+  border-color: rgba(0, 132, 255, 0.72) !important;
+  background: linear-gradient(180deg, #fff 0%, #f0f9ff 40%, #e0f2fe 100%) !important;
+  box-shadow:
+    0 8px 18px rgba(0, 132, 255, 0.12),
+    0 22px 48px rgba(0, 132, 255, 0.16),
+    0 40px 80px rgba(0, 132, 255, 0.14),
+    0 0 0 1px rgba(0, 132, 255, 0.1);
+}
+
+.crystal-package-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.25rem 0.75rem;
+  border-radius: 50px;
+  font-weight: 600;
+}
+
+.crystal-package-card__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.crystal-package-price-wrap {
+  flex-shrink: 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* PlanPriceDisplay uses flex rows; center like plans page */
+.crystal-package-price-wrap .plan-price-display__badge-row {
+  display: flex;
+  justify-content: center;
+}
+
+.crystal-package-price-wrap .plan-price-display__primary {
+  justify-content: center;
+}
+
+.crystal-package-price-wrap .plan-price-display__was {
+  justify-content: center;
+}
+
+.crystal-package-custom-price {
+  display: block;
+  text-align: center;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.crystal-package-custom-teaser {
+  line-height: 1.45;
+  text-align: center;
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.crystal-package-price-wrap--pro-soon {
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.crystal-package-pro-soon-title {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  letter-spacing: -0.02em;
+}
+
+.crystal-package-custom-cta {
+  flex-shrink: 0;
+}
+
+.crystal-package-features-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-bottom: 0.35rem;
+  flex: 1;
+  min-height: 0;
+  text-align: left;
+}
+
+.crystal-package-card[data-plan-id='starter'] .crystal-package-features {
+  max-height: 16rem;
+}
+
+.crystal-package-features {
+  flex: 1 1 auto;
+  max-height: 11.5rem;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.15rem 0.15rem 0.35rem;
+  margin: 0 -0.15rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 132, 255, 0.45) transparent;
+}
+
+.crystal-package-features::-webkit-scrollbar {
+  width: 5px;
+}
+
+.crystal-package-features::-webkit-scrollbar-thumb {
+  background: rgba(0, 132, 255, 0.4);
+  border-radius: 999px;
+}
+
+.crystal-package-features-list {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.crystal-package-features-list__item {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  padding: 0.32rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.crystal-package-features-list__item:last-child {
+  border-bottom: none;
+}
+
+.crystal-package-features-list__check {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+  color: #0084ff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin-top: 0.05rem;
+}
+
+.crystal-package-features-list__text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.crystal-features-scroll-hint {
+  flex-shrink: 0;
+  align-self: center;
+  margin-top: auto;
+  padding-top: 0.4rem;
+  padding: 0.25rem 0.65rem 0.3rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 132, 255, 0.1);
+  color: #006edc;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.2;
+}
+
+.crystal-features-scroll-hint:hover {
+  background: rgba(0, 132, 255, 0.18);
+  color: #0056b3;
+}
+
+.crystal-features-scroll-hint__chev {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.crystal-package-badge--soon {
+  background: linear-gradient(135deg, #64748b, #475569) !important;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.65rem !important;
+}
+
+.crystal-section {
+  border-top: 1px solid #e2e8f0;
+}
+
+.crystal-packages {
+  overflow: visible;
+}
+
+@keyframes crystal-pricing-trial-cta-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 22px rgba(0, 132, 255, 0.38);
+  }
+
+  50% {
+    transform: scale(1.045);
+    box-shadow: 0 10px 34px rgba(0, 132, 255, 0.48);
+  }
+}
+
+.crystal-pricing-trial-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1.85rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: clamp(0.95rem, 2.2vw, 1.12rem);
+  letter-spacing: 0.03em;
+  color: #fff !important;
+  background: linear-gradient(135deg, #0084ff 0%, #006edc 50%, #0056b3 100%);
+  background-size: 200% 200%;
+  text-decoration: none;
+  border: none;
+  animation:
+    crystal-pricing-trial-cta-pulse 2.4s ease-in-out infinite,
+    crystal-pricing-trial-cta-shimmer 4s ease infinite;
+  transition: filter 0.2s ease;
+}
+
+@keyframes crystal-pricing-trial-cta-shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.crystal-pricing-trial-cta:hover {
+  filter: brightness(1.08) saturate(1.05);
+  color: #fff !important;
+}
+
+.crystal-pricing-trial-cta:focus-visible {
+  outline: 3px solid rgba(0, 132, 255, 0.55);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-pricing-trial-cta {
+    animation: none;
+    background-size: 100% 100%;
+  }
+}
+
+.crystal-packages-seemore {
+  font-weight: 600;
+  color: #0084ff;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.crystal-packages-seemore:hover {
+  color: #006edc;
+}
+
+
+/* ---------- Mobile friendly ---------- */
+@media (max-width: 767px) {
+  .crystal-hero {
+    min-height: 75vh;
+    padding: 2rem 0;
+  }
+
+  .crystal-hero-title {
+    font-size: clamp(2rem, 6.5vw + 0.5rem, 2.85rem) !important;
+    line-height: 1.12 !important;
+  }
+
+  .crystal-hero-tagline {
+    font-size: 1rem;
+  }
+
+  .crystal-hero-subtitle {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+  }
+
+  .crystal-cta,
+  .crystal-cta-outline {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .crystal-scroll-section {
+    padding: 1.5rem 0;
+  }
+
+  .crystal-scroll-inner {
+    padding-left: env(safe-area-inset-left, 1rem);
+    padding-right: env(safe-area-inset-right, 1rem);
+  }
+
+  .crystal-scroll-card {
+    min-width: 180px;
+  }
+
+  .crystal-testimonial {
+    min-width: 260px;
+  }
+
+  .crystal-section {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  .crystal-section-title {
+    font-size: 1.5rem;
+  }
+
+  /* Packages: mobile – one card prominent, proper padding and size */
+  .crystal-packages-scroll {
+    padding: 1.5rem 0;
+    margin: 0;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .crystal-packages-inner {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    /* Extra right padding so the last card isn’t clipped in the horizontal scroll */
+    padding-right: max(45vw, 2rem, env(safe-area-inset-right));
+    gap: 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .crystal-package-card {
+    min-width: min(260px, calc(100vw - 3rem));
+    max-width: min(300px, calc(100vw - 2rem));
+    flex: 0 0 auto;
+    min-height: 400px;
+    transform: none;
+    opacity: 1;
+  }
+
+  .crystal-package-card .card-body {
+    padding: 1rem 1rem 1.25rem;
+  }
+
+  .crystal-package-card .card-title {
+    font-size: 1.1rem;
+  }
+
+  .crystal-package-price-wrap .plan-price-display__primary--lg .plan-price-display__amount {
+    font-size: 1.5rem !important;
+  }
+
+  .crystal-package-features-list {
+    font-size: 0.8rem;
+  }
+
+  .crystal-package-card .btn {
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .crystal-stat {
+    min-width: 80px;
+  }
+
+  .crystal-stat-value {
+    font-size: 1.25rem;
+  }
+
+  .crystal-hero .container,
+  .crystal-section .container,
+  .crystal-packages .container,
+  .crystal-contacts .container {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Touch targets (iPhone): min height on CTAs (not the package card — that broke equal heights). */
+.crystal-cta,
+.crystal-cta-outline,
+.crystal-package-card .btn {
+  min-height: 48px;
+}
