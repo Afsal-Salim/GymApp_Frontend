@@ -27,6 +27,7 @@ import {
   getActiveSubscription,
   getBusinessDetail,
   invalidateUserBusinessListCache,
+  invalidateUserAnalyticsCache,
   listBusinessImages,
   patchBusiness,
   resolveBusinessImageDisplayUrl,
@@ -1566,6 +1567,7 @@ export default function CreateWebsitePage() {
       }
       showToast('Business and website updated.', 'success');
       invalidateUserBusinessListCache();
+      invalidateUserAnalyticsCache();
       router.push('/user');
       return;
     }
@@ -1611,6 +1613,7 @@ export default function CreateWebsitePage() {
         /* quota */
       }
       invalidateUserBusinessListCache();
+      invalidateUserAnalyticsCache();
       setCommittedBusinessSlug(slug);
       setPostSaveRechargeModalSlug(slug);
     } catch (err) {

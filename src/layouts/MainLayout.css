@@ -28,19 +28,36 @@
   min-height: 0;
 }
 
-/* Page enter: fade + slight lift (marketing shell) */
+/* Let routed outlet fill height when the account shell needs full column (see .main-layout__page:has(.user-page)). */
+.main-layout__content:has(.user-page) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* First paint on the boot URL: stable (no motion). Real client navigations opt in below. */
 .main-layout__page {
-  animation: main-layout-page-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   min-height: 100%;
 }
 
+.main-layout__page--route-enter {
+  animation: main-layout-page-in 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .main-layout__page {
+  .main-layout__page--route-enter {
     animation: main-layout-page-in-reduced 0.2s ease-out both;
   }
 }
 
 /* Public gym client page: fill column so no white band above/below outlet */
+/* Account dashboard: fill column under navbar (no short white band below). */
+.main-layout__page:has(.user-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .main-layout__page:has(.crystal-business-page--client) {
   display: flex;
   flex-direction: column;
@@ -77,13 +94,11 @@
 @keyframes main-layout-page-in {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.992);
-    filter: blur(0.5px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: translateY(0);
   }
 }
 

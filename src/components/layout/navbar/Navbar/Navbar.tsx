@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useLayoutEffect, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Container, Nav, Navbar as BSNavbar, Button, Modal } from 'react-bootstrap';
-import { getAccessToken, clearTokens, getUserInfo } from '../../../../api';
-import { STORAGE_USER_AVATAR_URL } from '../../../../config/storageKeys';
+import { getAccessToken, clearTokens, getUserInfo, CRYSTAL_AUTH_CHANGED_EVENT } from '../../../../api';
+import { STORAGE_ACCESS_TOKEN, STORAGE_USER_AVATAR_URL } from '../../../../config/storageKeys';
 import logo from '../../../../assets/logo.svg';
 import './Navbar.css';
 
@@ -17,13 +17,44 @@ const navHashItems = [
   { label: 'Contacts', href: '#contacts' },
 ] as const;
 
+type NavAuthState = 'pending' | 'in' | 'out';
+
+function subscribeNavAuth(onChange: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_ACCESS_TOKEN || e.key === null) onChange();
+  };
+  const onAuth = () => onChange();
+  window.addEventListener('storage', onStorage);
+  window.addEventListener(CRYSTAL_AUTH_CHANGED_EVENT, onAuth);
+  return () => {
+    window.removeEventListener('storage', onStorage);
+    window.removeEventListener(CRYSTAL_AUTH_CHANGED_EVENT, onAuth);
+  };
+}
+
+function readNavAuth(): NavAuthState {
+  return getAccessToken() ? 'in' : 'out';
+}
+
 export default function Navbar() {
   const [expanded, setExpanded] = useState(false);
   const [profileModalShow, setProfileModalShow] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const isMarketingHome = pathname === '/';
-  const isSignedIn = Boolean(getAccessToken());
+  const [authState, setAuthState] = useState<NavAuthState>('pending');
+
+  useLayoutEffect(() => {
+    setAuthState(readNavAuth());
+  }, []);
+
+  useEffect(() => {
+    return subscribeNavAuth(() => setAuthState(readNavAuth()));
+  }, []);
+
+  const isSignedIn = authState === 'in';
+  const authPending = authState === 'pending';
 
   const closeMenu = () => setExpanded(false);
 
@@ -86,7 +117,11 @@ export default function Navbar() {
                 Services
               </Link>
             </Nav.Item>
-            {isSignedIn ? (
+            {authPending ? (
+              <Nav.Item className="mt-2 mt-lg-0 d-flex align-items-center" aria-hidden>
+                <span className="crystal-nav-auth-placeholder" title="" />
+              </Nav.Item>
+            ) : isSignedIn ? (
               <Nav.Item className="mt-2 mt-lg-0">
                 <button
                   type="button"
@@ -95,7 +130,14 @@ export default function Navbar() {
                   aria-label="Open profile menu"
                 >
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="" className="crystal-nav-avatar__img" />
+                    <Image
+                      src={avatarUrl}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="crystal-nav-avatar__img"
+                      unoptimized
+                    />
                   ) : (
                     <span className="crystal-nav-avatar__letter" aria-hidden>{initial}</span>
                   )}
@@ -146,7 +188,14 @@ export default function Navbar() {
           <div className="crystal-account-modal__avatar-wrap">
             <div className="crystal-nav-profile-modal__avatar">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="crystal-nav-profile-modal__img" />
+                <Image
+                  src={avatarUrl}
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="crystal-nav-profile-modal__img"
+                  unoptimized
+                />
               ) : (
                 <span className="crystal-nav-profile-modal__letter" aria-hidden>{initial}</span>
               )}

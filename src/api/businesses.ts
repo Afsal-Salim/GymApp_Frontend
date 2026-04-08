@@ -37,6 +37,8 @@ export type BusinessDetail = {
   description?: string;
   phone?: string;
   address?: string;
+  /** Public / owner-visible logo URL when the API returns it (list + detail). */
+  logo_url?: string;
   /** Maps link (e.g. Google Maps) when the API stores it separately from address. */
   location_map_url?: string;
   /** Crystal theme from GET (same shape as PATCH `website_theme`; may use accent_hex / dark_hex / text_hex). */

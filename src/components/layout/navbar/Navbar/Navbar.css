@@ -126,6 +126,34 @@ a.crystal-nav-link--services:hover {
   filter: invert(1);
 }
 
+/* Same footprint as avatar — avoids Log in / Sign up flash while session is resolving */
+.crystal-nav-auth-placeholder {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(248, 250, 252, 0.2);
+  background: rgba(248, 250, 252, 0.12);
+  box-sizing: border-box;
+  animation: crystal-nav-auth-pulse 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-nav-auth-placeholder {
+    animation: none;
+  }
+}
+
+@keyframes crystal-nav-auth-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
 /* Round profile avatar in nav */
 .crystal-nav-avatar {
   width: 40px;

@@ -1,7 +1,9 @@
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
-const ForgotPasswordPage = dynamic(() => import('@/features/auth/ForgotPasswordPage'), {
+export const dynamic = 'force-dynamic';
+
+const ForgotPasswordPage = nextDynamic(() => import('@/features/auth/ForgotPasswordPage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

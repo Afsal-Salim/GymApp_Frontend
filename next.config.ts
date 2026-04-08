@@ -32,6 +32,14 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@mui/material', '@mui/icons-material'],
   experimental: {
     optimizePackageImports: ['@mui/material', '@mui/icons-material'],
+    /**
+     * Client Router Cache: keep prefetched / recently visited segments warm briefly so back-nav and
+     * repeat visits feel instant without disabling fresh data for long.
+     */
+    staleTimes: {
+      dynamic: 60,
+      static: 300,
+    },
   },
   eslint: {
     ignoreDuringBuilds: true,

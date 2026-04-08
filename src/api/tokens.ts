@@ -4,8 +4,17 @@ import {
   STORAGE_USER_EMAIL,
   STORAGE_USER_PROFILE_CACHE,
   STORAGE_USER_BUSINESS_LIST_CACHE,
+  STORAGE_USER_ANALYTICS_CACHE,
   STORAGE_USER_USERNAME,
 } from '../config/storageKeys';
+
+/** Fired on same-tab login / logout / token refresh so the navbar can update without a full reload. */
+export const CRYSTAL_AUTH_CHANGED_EVENT = 'crystal-auth-changed';
+
+export function dispatchAuthChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(CRYSTAL_AUTH_CHANGED_EVENT));
+}
 
 function getLocalStorage(): Storage | null {
   if (typeof window === 'undefined') return null;
@@ -27,6 +36,7 @@ export function getRefreshToken(): string | null {
 
 export function setAccessToken(token: string): void {
   getLocalStorage()?.setItem(STORAGE_ACCESS_TOKEN, token);
+  dispatchAuthChanged();
 }
 
 export function setRefreshToken(token: string): void {
@@ -83,5 +93,7 @@ export function clearTokens(): void {
   ls.removeItem(STORAGE_REFRESH_TOKEN);
   ls.removeItem(STORAGE_USER_PROFILE_CACHE);
   ls.removeItem(STORAGE_USER_BUSINESS_LIST_CACHE);
+  ls.removeItem(STORAGE_USER_ANALYTICS_CACHE);
   clearUserInfo();
+  dispatchAuthChanged();
 }

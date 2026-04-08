@@ -1,7 +1,9 @@
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
-const SignupPage = dynamic(() => import('@/features/auth/SignupPage'), {
+export const dynamic = 'force-dynamic';
+
+const SignupPage = nextDynamic(() => import('@/features/auth/SignupPage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

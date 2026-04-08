@@ -1,8 +1,10 @@
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
-const LoginPage = dynamic(() => import('@/features/auth/LoginPage'), {
+export const dynamic = 'force-dynamic';
+
+const LoginPage = nextDynamic(() => import('@/features/auth/LoginPage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

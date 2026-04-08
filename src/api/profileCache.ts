@@ -4,7 +4,8 @@ import { getProfile } from './auth';
 import { getAccessToken } from './tokens';
 import { primeProfileCache } from './profileCacheStorage';
 
-const MAX_AGE_MS = 10 * 60 * 1000;
+/** Longer TTL reduces `/auth/me/` churn when moving between marketing and dashboard. */
+const MAX_AGE_MS = 30 * 60 * 1000;
 
 type CachedPayload = {
   at: number;
@@ -35,7 +36,7 @@ function writeCache(data: UserProfile): void {
 }
 
 /**
- * Returns cached `/auth/me/` when fresh (10 min) and a session exists; otherwise fetches and updates cache.
+ * Returns cached `/auth/me/` when fresh (30 min) and a session exists; otherwise fetches and updates cache.
  * Use `{ force: true }` after login/signup. Cache is cleared when auth tokens are cleared (logout).
  */
 export async function getProfileCached(options?: { force?: boolean }): Promise<UserProfile> {

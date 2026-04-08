@@ -100,7 +100,8 @@ html {
   position: fixed;
   bottom: max(1.5rem, env(safe-area-inset-bottom));
   right: max(1.5rem, env(safe-area-inset-right));
-  z-index: 50;
+  /* Above sticky navbar (~1020); portaled to body (layout page uses transform). */
+  z-index: 1040;
   width: 3rem;
   height: 3rem;
   border-radius: 50%;

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar, Footer } from '@/components';
 import { getPublicGymSlugFromHost, MARKETING_APP_PATH_FIRST_SEGMENTS } from '@/config/env';
 import { PageTransitionBar } from '@/layouts/PageTransitionBar';
 import { RouteTransitionLoader } from '@/layouts/RouteTransitionLoader';
+import MarketingRoutePrefetcher from '@/app/_components/MarketingRoutePrefetcher';
 import '@/layouts/MainLayout.css';
 
 const SHOW_IN_DEVELOPMENT_BANNER = true;
@@ -76,6 +77,12 @@ function shouldShowClientGymRouteLoader(pathname: string): boolean {
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showRouteLoader, setShowRouteLoader] = useState(false);
+  const bootPathRef = useRef<string | null>(null);
+  if (bootPathRef.current === null) {
+    bootPathRef.current = pathname;
+  }
+  /** Avoid page-enter motion on the first URL (prevents a second “pop” from React Strict remounts / layout). */
+  const showPageRouteEnterMotion = pathname !== bootPathRef.current;
   const hideMarketingChrome = shouldHideMainLayoutChrome(pathname);
   const notFoundLayout = isDedicatedNotFoundPath(pathname);
 
@@ -95,9 +102,13 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
       <ScrollToTop pathname={pathname} />
       {!hideMarketingChrome && <PageTransitionBar pathname={pathname} />}
       <RouteTransitionLoader active={showRouteLoader} />
+      {!hideMarketingChrome && <MarketingRoutePrefetcher />}
       {!hideMarketingChrome && <Navbar />}
       <div className="main-layout__content">
-        <div key={pathname} className="main-layout__page">
+        <div
+          key={pathname}
+          className={`main-layout__page${showPageRouteEnterMotion ? ' main-layout__page--route-enter' : ''}`.trim()}
+        >
           {children}
         </div>
       </div>

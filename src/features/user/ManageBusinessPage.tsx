@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Container, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { getBusinessWebsiteAnalytics } from '../../api';
+import { getBusinessWebsiteAnalyticsCached, peekBusinessWebsiteAnalytics } from '../../api';
 import type { WebsiteAnalytics, AnalyticsRangePreset } from '../../api/businesses';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
@@ -13,16 +13,23 @@ import { ManageBusinessLeadsSection } from './ManageBusinessLeadsSection';
 import './ManageBusinessPage.css';
 
 function ManageBusinessPageLoaded({ slug }: { slug: string }) {
-  const [data, setData] = useState<WebsiteAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRangePreset>('10d');
   const slugEnc = encodeURIComponent(slug);
+  const [data, setData] = useState<WebsiteAnalytics | null>(() => peekBusinessWebsiteAnalytics(slug, '10d'));
+  const [loading, setLoading] = useState(() => peekBusinessWebsiteAnalytics(slug, '10d') === null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    getBusinessWebsiteAnalytics(slug, { range: analyticsRange })
+    const hit = peekBusinessWebsiteAnalytics(slug, analyticsRange);
+    if (hit) {
+      setData(hit);
+      setError(null);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    getBusinessWebsiteAnalyticsCached(slug, { range: analyticsRange })
       .then((d) => {
         if (!cancelled) {
           setData(d);

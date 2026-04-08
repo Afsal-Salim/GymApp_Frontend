@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Container, Row, Col, Card, Spinner, Modal, Button, ListGroup, Badge, Nav, Pagination, Alert, Form } from 'react-bootstrap';
+import { Container, Row, Col, Card, Spinner, Modal, Button, ListGroup, Badge, Pagination, Alert, Form } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import {
   getProfileCached,
@@ -12,7 +14,8 @@ import {
   peekBusinessListPage,
   getBusinessDetail,
   getActiveSubscription,
-  getAllWebsitesAnalytics,
+  getAllWebsitesAnalyticsCached,
+  peekAllWebsitesAnalytics,
   getUserInfo,
   setUserInfo,
   isAdminProfile,
@@ -20,6 +23,7 @@ import {
   postBusinessRecordStatus,
   BusinessDeactivateBlockedError,
   invalidateUserBusinessListCache,
+  invalidateUserAnalyticsCache,
 } from '../../api';
 import type {
   UserProfile,
@@ -32,8 +36,8 @@ import type {
 import { useToast } from '../../contexts/ToastContext';
 import { visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
-import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
 import { OverallLeadsByWebsiteChart } from './OverallLeadsByWebsiteChart';
+import { GYM_CLIENT_BRAND_LOGO_SRC, isLegacyCrystalGemLogoUrl } from '../crystal/gymClientBrandLogo';
 import logo from '../../assets/logo.svg';
 import './UserPage.css';
 
@@ -114,6 +118,73 @@ function BusinessCardEditIcon({ className }: { className?: string }) {
   );
 }
 
+/** True when the URL is the generic bundled client logo (not site-specific). */
+function isBundledDefaultClientLogoUrl(url: string): boolean {
+  const t = url.trim();
+  if (!t) return true;
+  const path = t.split(/[?#]/)[0].toLowerCase();
+  if (path === GYM_CLIENT_BRAND_LOGO_SRC.toLowerCase()) return true;
+  return /\/clientlogo\.png$/i.test(path) || /\/assets\/clientlogo[-.a-z0-9]*\.png$/i.test(path);
+}
+
+/**
+ * Prefer API `logo_url`, then saved builder `website_content.logo.src` when it is a real custom asset.
+ */
+function resolveBusinessListLogoUrl(b: BusinessListItem): string | null {
+  const fromApi = typeof b.logo_url === 'string' ? b.logo_url.trim() : '';
+  if (fromApi && !isLegacyCrystalGemLogoUrl(fromApi) && !isBundledDefaultClientLogoUrl(fromApi)) {
+    return fromApi;
+  }
+  const wc = b.website_content;
+  if (!wc || typeof wc !== 'object') return null;
+  const logoBlock = (wc as { logo?: { src?: unknown } }).logo;
+  const fromContent = typeof logoBlock?.src === 'string' ? logoBlock.src.trim() : '';
+  if (
+    fromContent &&
+    !isLegacyCrystalGemLogoUrl(fromContent) &&
+    !isBundledDefaultClientLogoUrl(fromContent)
+  ) {
+    return fromContent;
+  }
+  return null;
+}
+
+function BusinessCardSiteLogo({
+  business,
+  label,
+}: {
+  business: BusinessListItem;
+  label: string;
+}) {
+  const url = useMemo(() => resolveBusinessListLogoUrl(business), [business]);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  if (!url || failed) {
+    return (
+      <div className="user-page__business-icon" aria-hidden>
+        <span className="user-page__business-icon-mark">◆</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="user-page__business-icon user-page__business-icon--photo">
+      <img
+        src={url}
+        alt={`${label} logo`}
+        className="user-page__business-logo-img"
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
 function BusinessCardTrashIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -148,15 +219,14 @@ function BusinessCard({
   const slugBusy = Boolean(b.slug && actionSlug === b.slug);
   const address = b.address != null && String(b.address).trim() !== '' ? String(b.address).trim() : '';
   const phone = b.phone != null && String(b.phone).trim() !== '' ? String(b.phone).trim() : '';
+  const logoLabel = (b.name || b.slug || 'Website').trim() || 'Website';
   return (
     <Card
       className={`user-page__business-card-item h-100${archived ? ' user-page__business-card-item--archived' : ''}`}
     >
       <Card.Body className="user-page__business-card-body">
         <div className="user-page__business-card-header">
-          <div className="user-page__business-icon" aria-hidden>
-            <span className="user-page__business-icon-mark">◆</span>
-          </div>
+          <BusinessCardSiteLogo business={b} label={logoLabel} />
           <div
             className={`user-page__business-card-head${!archived && b.slug ? ' user-page__business-card-head--pad-trash' : ''}`}
           >
@@ -318,7 +388,7 @@ export default function UserPage() {
   const [visitNeedsRechargeSlug, setVisitNeedsRechargeSlug] = useState<string | null>(null);
   const [removeConfirmBusiness, setRemoveConfirmBusiness] = useState<BusinessListItem | null>(null);
   const [recordActionSlug, setRecordActionSlug] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'businesses' | 'analytics'>('businesses');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'websites' | 'analytics'>('dashboard');
   const [allAnalytics, setAllAnalytics] = useState<WebsiteAnalytics[] | null>(null);
   const [allAnalyticsLoading, setAllAnalyticsLoading] = useState(false);
   const [allAnalyticsError, setAllAnalyticsError] = useState<string | null>(null);
@@ -384,11 +454,21 @@ export default function UserPage() {
   useEffect(() => {
     if (activeTab !== 'analytics') return;
     let cancelled = false;
-    setAllAnalyticsLoading(true);
-    setAllAnalyticsError(null);
-    getAllWebsitesAnalytics(analyticsRange)
+    const hit = peekAllWebsitesAnalytics(analyticsRange);
+    if (hit) {
+      setAllAnalytics(hit);
+      setAllAnalyticsError(null);
+      setAllAnalyticsLoading(false);
+    } else {
+      setAllAnalyticsLoading(true);
+      setAllAnalyticsError(null);
+    }
+    getAllWebsitesAnalyticsCached(analyticsRange)
       .then((sites) => {
-        if (!cancelled) setAllAnalytics(sites);
+        if (!cancelled) {
+          setAllAnalytics(sites);
+          setAllAnalyticsError(null);
+        }
       })
       .catch((e: unknown) => {
         if (!cancelled) {
@@ -406,6 +486,7 @@ export default function UserPage() {
 
   const refetchBusinessesSilently = useCallback(async () => {
     invalidateUserBusinessListCache();
+    invalidateUserAnalyticsCache();
     try {
       const res = await getBusinessListPaginatedCached(businessPage, businessPageSize, { force: true });
       setBusinesses(res.results);
@@ -523,87 +604,271 @@ export default function UserPage() {
   const removeBusySlug = removeConfirmBusiness?.slug?.trim();
   const removeDialogBusy = Boolean(removeBusySlug && recordActionSlug === removeBusySlug);
 
+  const navItems: { id: typeof activeTab; label: string }[] = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'profile', label: 'Profile' },
+    { id: 'websites', label: 'Websites' },
+    { id: 'analytics', label: 'Analytics' },
+  ];
+
+  const mainPanelRef = useRef<HTMLDivElement | null>(null);
+  const mainPanelScrollCleanupRef = useRef<(() => void) | null>(null);
+  const [showScrollTopFab, setShowScrollTopFab] = useState(false);
+  const [scrollFabMounted, setScrollFabMounted] = useState(false);
+
+  useEffect(() => {
+    setScrollFabMounted(true);
+  }, []);
+
+  const SCROLL_TOP_FAB_THRESHOLD = 72;
+
+  const mainPanelRefCallback = useCallback((node: HTMLDivElement | null) => {
+    mainPanelScrollCleanupRef.current?.();
+    mainPanelScrollCleanupRef.current = null;
+    mainPanelRef.current = node;
+
+    if (!node) return;
+
+    const updateFab = () => {
+      const panelScrollable = node.scrollHeight > node.clientHeight + 2;
+      if (panelScrollable) {
+        setShowScrollTopFab(node.scrollTop > SCROLL_TOP_FAB_THRESHOLD);
+      } else if (typeof window !== 'undefined') {
+        setShowScrollTopFab(window.scrollY > SCROLL_TOP_FAB_THRESHOLD);
+      } else {
+        setShowScrollTopFab(false);
+      }
+    };
+
+    const onPanelScroll = () => updateFab();
+    const onWindowScroll = () => {
+      if (node.scrollHeight > node.clientHeight + 2) return;
+      updateFab();
+    };
+
+    node.addEventListener('scroll', onPanelScroll, { passive: true });
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => updateFab()) : null;
+    ro?.observe(node);
+    updateFab();
+
+    mainPanelScrollCleanupRef.current = () => {
+      node.removeEventListener('scroll', onPanelScroll);
+      window.removeEventListener('scroll', onWindowScroll);
+      ro?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => () => mainPanelScrollCleanupRef.current?.(), []);
+
+  useEffect(() => {
+    const el = mainPanelRef.current;
+    if (el) el.scrollTop = 0;
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
+    setShowScrollTopFab(false);
+    requestAnimationFrame(() => {
+      const n = mainPanelRef.current;
+      if (!n) return;
+      const panelScrollable = n.scrollHeight > n.clientHeight + 2;
+      if (panelScrollable) {
+        setShowScrollTopFab(n.scrollTop > SCROLL_TOP_FAB_THRESHOLD);
+      } else {
+        setShowScrollTopFab(typeof window !== 'undefined' && window.scrollY > SCROLL_TOP_FAB_THRESHOLD);
+      }
+    });
+  }, [activeTab]);
+
+  const scrollMainToTop = useCallback(() => {
+    const el = mainPanelRef.current;
+    const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const behavior = reduce ? 'auto' : 'smooth';
+    if (el && el.scrollHeight > el.clientHeight + 2) {
+      el.scrollTo({ top: 0, behavior });
+    } else if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior });
+    }
+  }, []);
+
+  const sidebarNav = (variant: 'desktop' | 'mobile') => (
+    <nav
+      className={variant === 'mobile' ? 'user-page__mob-nav' : 'user-page__sidebar-nav-links'}
+      aria-label={variant === 'mobile' ? 'Section' : undefined}
+    >
+      {navItems.map(({ id, label }) => (
+        <button
+          key={id}
+          type="button"
+          className={`user-page__nav-item${activeTab === id ? ' user-page__nav-item--active' : ''}`}
+          onClick={() => setActiveTab(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </nav>
+  );
+
   return (
-    <PageContainer>
+    <PageContainer className="user-page__page-container">
       <main className="user-page">
-        <Container className="user-page__container">
-          <Row className="user-page__row">
-            {/* Main content */}
-            <Col lg={8} className="user-page__main">
-              {/* Profile header card with wavy top */}
-              <Card className="user-page__profile-header-card">
-                <div className="user-page__profile-wavy" aria-hidden />
-                <Card.Body className="user-page__profile-body">
-                  <div className="user-page__profile-top">
-                    <div className="user-page__avatar-wrap">
-                      <div className="user-page__avatar" aria-hidden>
-                        {profileLoading ? (
-                          <Spinner animation="border" size="sm" className="user-page__avatar-spinner" />
-                        ) : (
-                          <span>{initial}</span>
-                        )}
-                      </div>
-                      <span className="user-page__avatar-badge" aria-hidden>✓</span>
-                    </div>
-                    <div className="user-page__profile-info">
-                      {profileLoading ? (
-                        <div className="user-page__loading user-page__loading--profile">
-                          <Spinner animation="border" size="sm" /> Loading profile…
-                        </div>
-                      ) : (
-                        <>
-                          <div className="user-page__profile-name-row">
-                            <h2 className="user-page__profile-name">{displayName}</h2>
-                            <span className="user-page__profile-check" aria-hidden>✓</span>
-                          </div>
-                          <p className="user-page__profile-role">Member</p>
-                          <div className="user-page__profile-contact">
-                            <div className="user-page__contact-row">
-                              <span className="user-page__contact-icon" aria-hidden>✉</span>
-                              <span>{displayEmail}</span>
-                            </div>
-                            {profilePhone && (
-                              <div className="user-page__contact-row">
-                                <span className="user-page__contact-icon" aria-hidden>📞</span>
-                                <span>{profilePhone}</span>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <div className="user-page__profile-actions d-flex gap-2 align-items-center flex-wrap">
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm user-page__btn-create-website"
-                        onClick={() => router.push('/user/create-website')}
-                      >
-                        Create website
-                      </button>
-                      <Button variant="outline-secondary" size="sm" className="user-page__btn-edit-profile" disabled aria-label="Edit profile (not available)">Edit Profile</Button>
-                    </div>
+        <div className="user-page__shell">
+          <aside className="user-page__sidebar-nav" aria-label="Account">
+            <div className="user-page__sidebar-brand-block">
+              <p className="user-page__sidebar-brand-kicker">Your dashboard</p>
+              <p className="user-page__sidebar-brand-title">Workspace</p>
+            </div>
+            <div className="user-page__sidebar-user">
+              <div className="user-page__sidebar-avatar" aria-hidden>
+                {profileLoading ?
+                  <Spinner animation="border" size="sm" className="user-page__sidebar-avatar-spinner" />
+                : <span>{initial}</span>}
+              </div>
+              <div className="user-page__sidebar-user-text">
+                <p className="user-page__sidebar-user-name">{profileLoading ? '…' : displayName}</p>
+                <p className="user-page__sidebar-user-role">Member</p>
+                {!profileLoading && (
+                  <p className="user-page__sidebar-user-email text-truncate" title={displayEmail}>
+                    {displayEmail}
+                  </p>
+                )}
+              </div>
+            </div>
+            {sidebarNav('desktop')}
+            <div className="user-page__sidebar-divider" aria-hidden />
+            <div className="user-page__sidebar-mini-stats">
+              <p className="user-page__sidebar-mini-label">Sites</p>
+              <div className="user-page__perf-bars user-page__perf-bars--sidebar">
+                <div className="user-page__perf-row">
+                  <span className="user-page__perf-label">Active</span>
+                  <div className="user-page__perf-bar-wrap">
+                    <div
+                      className="user-page__perf-bar user-page__perf-bar--active"
+                      style={{ width: businesses.length ? `${(activeCount / businesses.length) * 100}%` : '0%' }}
+                    />
                   </div>
-                </Card.Body>
-              </Card>
+                  <span className="user-page__perf-count">{activeCount}</span>
+                </div>
+                <div className="user-page__perf-row">
+                  <span className="user-page__perf-label">Inactive</span>
+                  <div className="user-page__perf-bar-wrap">
+                    <div
+                      className="user-page__perf-bar user-page__perf-bar--inactive"
+                      style={{ width: businesses.length ? `${(inactiveCount / businesses.length) * 100}%` : '0%' }}
+                    />
+                  </div>
+                  <span className="user-page__perf-count">{inactiveCount}</span>
+                </div>
+              </div>
+              <ul className="user-page__sidebar-stats-compact">
+                <li>
+                  Total <strong>{businessTotalCount}</strong>
+                </li>
+              </ul>
+            </div>
+            <div className="user-page__sidebar-footer">
+              <Link href={PLANS_PAGE_PATH} className="user-page__sidebar-footer-link">
+                Plans &amp; pricing
+              </Link>
+              <Link href="/" className="user-page__sidebar-footer-link">
+                ← Marketing home
+              </Link>
+            </div>
+          </aside>
 
-              {/* Tabs: Overview | Businesses */}
-              <Nav variant="tabs" className="user-page__tabs">
-                <Nav.Item>
-                  <Nav.Link eventKey="overview" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>Overview</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="businesses" active={activeTab === 'businesses'} onClick={() => setActiveTab('businesses')}>Businesses</Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="analytics" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>Analytics</Nav.Link>
-                </Nav.Item>
-              </Nav>
+          <div className="user-page__main-panel" ref={mainPanelRefCallback}>
+            <div className="user-page__main-hero-strip" aria-hidden />
+            {sidebarNav('mobile')}
+            <div className="user-page__main-inner">
+              <div className="user-page__main-toolbar d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div className="user-page__main-toolbar-text min-w-0">
+                  <h1 className="user-page__main-title mb-0">
+                    {activeTab === 'dashboard' && 'Dashboard'}
+                    {activeTab === 'profile' && 'Profile'}
+                    {activeTab === 'websites' && 'Your websites'}
+                    {activeTab === 'analytics' && 'Analytics'}
+                  </h1>
+                  {activeTab === 'websites' && (
+                    <p className="user-page__main-subtitle mb-0">
+                      Open, manage, or edit any gym site — everything stays in this workspace until you navigate away.
+                    </p>
+                  )}
+                  {activeTab === 'profile' && (
+                    <p className="user-page__main-subtitle mb-0">Account details we have on file.</p>
+                  )}
+                  {activeTab === 'analytics' && (
+                    <p className="user-page__main-subtitle mb-0">Combined lead trends across all your websites.</p>
+                  )}
+                </div>
+                <div className="d-flex flex-wrap gap-2 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    className="user-page__btn-create-website"
+                    onClick={() => router.push('/user/create-website')}
+                  >
+                    Create website
+                  </Button>
+                </div>
+              </div>
 
-              {/* Tab content */}
-              {activeTab === 'overview' && (
+              {activeTab === 'dashboard' && (
+                <div className="user-page__dashboard">
+                  <p className="user-page__dashboard-lead text-muted mb-4">
+                    Welcome back{displayName && displayName !== '—' ? `, ${displayName.split(' ')[0]}` : ''}. Here is a
+                    quick snapshot of your Crystal workspace — open Websites to manage gyms or Analytics for lead trends.
+                  </p>
+                  <Row className="g-3 mb-4">
+                    <Col sm={6} xl={3}>
+                      <Card className="user-page__stat-card h-100">
+                        <Card.Body className="py-3">
+                          <p className="user-page__stat-label mb-1">Total websites</p>
+                          <p className="user-page__stat-value mb-0">{businessTotalCount}</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col sm={6} xl={3}>
+                      <Card className="user-page__stat-card h-100">
+                        <Card.Body className="py-3">
+                          <p className="user-page__stat-label mb-1">Active</p>
+                          <p className="user-page__stat-value user-page__stat-value--accent mb-0">{activeCount}</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col sm={6} xl={3}>
+                      <Card className="user-page__stat-card h-100">
+                        <Card.Body className="py-3">
+                          <p className="user-page__stat-label mb-1">Inactive</p>
+                          <p className="user-page__stat-value mb-0">{inactiveCount}</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    <Col sm={6} xl={3}>
+                      <Card className="user-page__stat-card h-100">
+                        <Card.Body className="py-3">
+                          <p className="user-page__stat-label mb-1">Account</p>
+                          <p className="user-page__stat-value user-page__stat-value--small mb-0 text-truncate" title={displayEmail}>
+                            {displayEmail}
+                          </p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  </Row>
+                  <Card className="user-page__card user-page__dashboard-cta-card">
+                    <Card.Body className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                      <div>
+                        <h3 className="h6 mb-1">Launch a new gym site</h3>
+                        <p className="text-muted small mb-0">Use the builder to add branding, themes, and content.</p>
+                      </div>
+                      <Button className="user-page__btn-create-website" onClick={() => router.push('/user/create-website')}>
+                        Start create flow
+                      </Button>
+                    </Card.Body>
+                  </Card>
+                </div>
+              )}
+
+              {activeTab === 'profile' && (
                 <Card className="user-page__card user-page__overview-card">
                   <Card.Body>
-                    <h3 className="user-page__overview-title">Profile</h3>
+                    <h3 className="user-page__overview-title">Account details</h3>
                     <ListGroup variant="flush">
                       <ListGroup.Item className="user-page__overview-item">
                         <span className="user-page__profile-label">Username</span>
@@ -613,13 +878,24 @@ export default function UserPage() {
                         <span className="user-page__profile-label">Email</span>
                         <span className="user-page__profile-value">{displayEmail}</span>
                       </ListGroup.Item>
+                      {profilePhone ?
+                        <ListGroup.Item className="user-page__overview-item">
+                          <span className="user-page__profile-label">Phone</span>
+                          <span className="user-page__profile-value">{profilePhone}</span>
+                        </ListGroup.Item>
+                      : null}
                     </ListGroup>
-                    <Link href="/" className="user-page__back-link mt-3">← Back to home</Link>
+                    <Button variant="outline-secondary" size="sm" className="mt-3" disabled aria-label="Edit profile (not available)">
+                      Edit profile
+                    </Button>
+                    <Link href="/" className="user-page__back-link d-block mt-3">
+                      ← Back to home
+                    </Link>
                   </Card.Body>
                 </Card>
               )}
 
-              {activeTab === 'businesses' && (
+              {activeTab === 'websites' && (
                 <>
                   {businessesLoading ? (
                     <div className="user-page__loading user-page__loading--center py-5">
@@ -632,7 +908,7 @@ export default function UserPage() {
                       <p className="user-page__empty-hint">Your connected businesses will appear here.</p>
                     </div>
                   ) : (
-                    <Row xs={1} md={2} className="g-3 g-xl-4 user-page__business-grid">
+                    <Row xs={1} md={2} xl={3} className="g-3 g-xl-4 user-page__business-grid">
                       {businesses.map((b, index) => (
                         <Col
                           key={(b as { id?: string }).id ?? b.slug ?? `business-${index}`}
@@ -675,9 +951,9 @@ export default function UserPage() {
               )}
 
               {activeTab === 'analytics' && (
-                <div className="user-page__analytics-tab">
+                <div className="user-page__analytics-tab user-page__analytics-tab--panel">
                   <p className="text-muted small mb-2">
-                    Compare lead trends across gyms (same time window as Manage when using the same range). Per-site cards below include full detail.
+                    Overall lead trends across your gyms. For site-specific charts and breakdowns, open that website’s Manage page.
                   </p>
                   <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
                     <Form.Label className="small text-muted mb-0">Time range</Form.Label>
@@ -709,76 +985,71 @@ export default function UserPage() {
                     </Card>
                   : null}
                   {!allAnalyticsLoading && !allAnalyticsError && allAnalytics && allAnalytics.length > 0 ?
-                    <OverallLeadsByWebsiteChart sites={allAnalytics} />
-                  : null}
-                  {allAnalytics?.map((site) => {
-                    const s = site.business?.slug;
-                    if (!s) return null;
-                    return (
-                      <Card key={s} className="user-page__card user-page__analytics-site-card mb-3">
-                        <Card.Header className="user-page__analytics-site-head d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-3">
-                          <span className="small fw-semibold text-uppercase text-muted mb-0">Website</span>
-                          <Link
-                            href={`/user/business/${encodeURIComponent(s)}/manage`}
-                            className="btn btn-sm btn-outline-primary"
-                          >
-                            Manage
-                          </Link>
-                        </Card.Header>
-                        <Card.Body className="pt-3">
-                          <WebsiteAnalyticsPanel data={site} loading={false} error={null} showBusinessHeader />
+                    <>
+                      <OverallLeadsByWebsiteChart sites={allAnalytics} />
+                      <Card className="user-page__card user-page__analytics-manage-hint mt-3">
+                        <Card.Body className="py-3">
+                          <h3 className="h6 mb-2">Per-website analytics</h3>
+                          <p className="text-muted small mb-3 mb-md-2">
+                            Select a site to open its Manage page — detailed analytics for that gym are there.
+                          </p>
+                          <ListGroup variant="flush" className="user-page__analytics-manage-list rounded border">
+                            {allAnalytics.map((site) => {
+                              const s = site.business?.slug?.trim();
+                              if (!s) return null;
+                              const label = site.business?.name?.trim() || s;
+                              return (
+                                <ListGroup.Item
+                                  key={s}
+                                  action
+                                  as={Link}
+                                  href={`/user/business/${encodeURIComponent(s)}/manage`}
+                                  className="d-flex justify-content-between align-items-center py-3"
+                                >
+                                  <span className="fw-medium text-body">{label}</span>
+                                  <span className="text-primary small fw-semibold">Manage →</span>
+                                </ListGroup.Item>
+                              );
+                            })}
+                          </ListGroup>
                         </Card.Body>
                       </Card>
-                    );
-                  })}
+                    </>
+                  : null}
                 </div>
               )}
-            </Col>
+            </div>
+          </div>
+        </div>
 
-            {/* Sidebar */}
-            <Col lg={4} className="user-page__sidebar">
-              <Card className="user-page__sidebar-card">
-                <Card.Body>
-                  <h3 className="user-page__sidebar-title">Rating</h3>
-                  <p className="user-page__sidebar-rating-value">—</p>
-                  <p className="user-page__sidebar-rating-hint text-muted small mb-0">Not available</p>
-                </Card.Body>
-              </Card>
-              <Card className="user-page__sidebar-card">
-                <Card.Body>
-                  <h3 className="user-page__sidebar-title">Business Performance</h3>
-                  <div className="user-page__perf-bars">
-                    <div className="user-page__perf-row">
-                      <span className="user-page__perf-label">Active</span>
-                      <div className="user-page__perf-bar-wrap">
-                        <div className="user-page__perf-bar user-page__perf-bar--active" style={{ width: businesses.length ? `${(activeCount / businesses.length) * 100}%` : '0%' }} />
-                      </div>
-                      <span className="user-page__perf-count">{activeCount}</span>
-                    </div>
-                    <div className="user-page__perf-row">
-                      <span className="user-page__perf-label">Inactive</span>
-                      <div className="user-page__perf-bar-wrap">
-                        <div className="user-page__perf-bar user-page__perf-bar--inactive" style={{ width: businesses.length ? `${(inactiveCount / businesses.length) * 100}%` : '0%' }} />
-                      </div>
-                      <span className="user-page__perf-count">{inactiveCount}</span>
-                    </div>
-                  </div>
-                </Card.Body>
-              </Card>
-              <Card className="user-page__sidebar-card">
-                <Card.Body>
-                  <h3 className="user-page__sidebar-title">Stats</h3>
-                  <ul className="user-page__stats-list">
-                    <li>Total Businesses: <strong>{businessTotalCount}</strong></li>
-                    <li>Active: <strong>{activeCount}</strong></li>
-                    <li>Growth: <span className="text-muted">—</span></li>
-                  </ul>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        </Container>
       </main>
+      {scrollFabMounted &&
+        showScrollTopFab &&
+        createPortal(
+          <button
+            type="button"
+            className="user-page__scroll-fab user-page__scroll-fab--up"
+            onClick={scrollMainToTop}
+            aria-label="Scroll to top"
+          >
+            <svg
+              className="user-page__scroll-fab__chevron"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden
+            >
+              <path
+                d="M7 10l5 5 5-5"
+                stroke="currentColor"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>,
+          document.body
+        )}
 
       {/* Business detail modal */}
       <Modal show={selectedBusiness !== null || detailLoading} onHide={closeModal} className="user-page__modal">
@@ -1007,7 +1278,7 @@ export default function UserPage() {
       >
         <Modal.Header closeButton className="user-page__remove-website-modal-header border-0">
           <div className="user-page__remove-website-modal-header-main">
-            <img src={logo} alt="" className="user-page__remove-website-modal-logo" width={48} height={48} />
+            <Image src={logo} alt="" className="user-page__remove-website-modal-logo" width={48} height={48} />
             <Modal.Title as="h2" className="user-page__remove-website-modal-title">
               Remove website?
             </Modal.Title>

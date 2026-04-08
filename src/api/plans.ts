@@ -46,7 +46,7 @@ export type PlanListMeta = {
 };
 
 /** Raw API response: results + meta. */
-type PlanListApiResponse = {
+export type PlanListApiResponse = {
   results?: PlanListItem[];
   meta?: PlanListMeta;
 };

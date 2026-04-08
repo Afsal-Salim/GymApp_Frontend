@@ -150,16 +150,25 @@ function normalizePlansBusinessSlug(raw: string | undefined): string | undefined
   return t || undefined;
 }
 
-export default function PlansPage() {
+type PlansPageProps = {
+  /** From RSC + `fetchPlanListForServer` (ISR). Empty → client falls back to `getPlanList()`. */
+  initialPlans?: PlanListItem[];
+  plansServerError?: string | null;
+};
+
+export default function PlansPage({
+  initialPlans = [],
+  plansServerError = null,
+}: PlansPageProps = {}) {
   const router = useRouter();
   const params = useParams<{ businessSlug?: string }>();
   const businessSlugParam = typeof params.businessSlug === 'string' ? params.businessSlug : undefined;
   const plansBusinessSlug = normalizePlansBusinessSlug(businessSlugParam);
-  const [rawPlans, setRawPlans] = useState<PlanListItem[]>([]);
+  const [rawPlans, setRawPlans] = useState<PlanListItem[]>(initialPlans);
   const [firstRecharge, setFirstRecharge] = useState<BusinessFirstRechargeResponse | null>(null);
   const [eligibleFirstPrice, setEligibleFirstPrice] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(initialPlans.length === 0);
+  const [error, setError] = useState<string | null>(plansServerError);
   const [paymentLoginModalShow, setPaymentLoginModalShow] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState<CheckoutRedirect | null>(null);
 
@@ -169,10 +178,14 @@ export default function PlansPage() {
   );
 
   useEffect(() => {
+    if (initialPlans.length > 0) return;
     let cancelled = false;
     getPlanList()
       .then((data) => {
-        if (!cancelled) setRawPlans(data);
+        if (!cancelled) {
+          setRawPlans(data);
+          setError(null);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load plans');
@@ -183,7 +196,7 @@ export default function PlansPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialPlans.length]);
 
   useEffect(() => {
     if (!plansBusinessSlug || !getAccessToken()) {

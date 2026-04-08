@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
@@ -16,7 +18,8 @@ import homeHeroBg from '../../assets/home-hero-bg.png';
 import homeHeroSideBg from '../../assets/home-hero-side-bg.png';
 
 const homeHeroBgUrl = typeof homeHeroBg === 'string' ? homeHeroBg : homeHeroBg.src;
-const homeHeroSideBgUrl = typeof homeHeroSideBg === 'string' ? homeHeroSideBg : homeHeroSideBg.src;
+const homeHeroSideW = typeof homeHeroSideBg === 'object' ? homeHeroSideBg.width : 800;
+const homeHeroSideH = typeof homeHeroSideBg === 'object' ? homeHeroSideBg.height : 600;
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { PlanPriceDisplay } from '../../components';
 import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
@@ -327,6 +330,9 @@ const PACKAGES_LOOP_BREAKPOINT = 992;
 const FEATURES_AUTOPLAY_MS = 3000;
 const TESTIMONIALS_AUTOPLAY_MS = 3000;
 
+/** Dev Strict Mode remounts mount twice; avoid a second scrollTo/hash strip that feels like a reload. */
+let crystalHomeInitialViewportApplied = false;
+
 export default function HomePage() {
   const { openEnquiryModal } = useEnquiryModal();
   const [packagesScrollMode, setPackagesScrollMode] = useState(false);
@@ -379,6 +385,8 @@ export default function HomePage() {
 
   /* Always open homepage from the top; clear any saved scroll position and hash. */
   useEffect(() => {
+    if (crystalHomeInitialViewportApplied) return;
+    crystalHomeInitialViewportApplied = true;
     sessionStorage.removeItem('crystalReturnScroll');
     window.scrollTo(0, 0);
     if (location.hash && location.pathname === '/') {
@@ -387,6 +395,11 @@ export default function HomePage() {
   }, []);
 
   const [footerVisible, setFooterVisible] = useState(false);
+  const [scrollFabMounted, setScrollFabMounted] = useState(false);
+  useEffect(() => {
+    setScrollFabMounted(true);
+  }, []);
+
   useEffect(() => {
     const footer = document.getElementById('crystal-footer');
     if (!footer) return;
@@ -619,12 +632,14 @@ export default function HomePage() {
               </div>
               <div className="crystal-hero-v2__media-panel" aria-hidden>
                 <div className="crystal-hero-v2__media-frame">
-                  <img
-                    src={homeHeroSideBgUrl}
+                  <Image
+                    src={homeHeroSideBg}
                     alt=""
                     className="crystal-hero-v2__hero-image"
-                    decoding="async"
-                    fetchPriority="high"
+                    width={homeHeroSideW}
+                    height={homeHeroSideH}
+                    sizes="(max-width: 991px) 100vw, 42vw"
+                    priority
                   />
                 </div>
               </div>
@@ -899,30 +914,6 @@ export default function HomePage() {
         </Container>
       </section>
 
-      {/* Floating scroll button – down until footer visible, then up */}
-      <button
-        type="button"
-        className={`crystal-scroll-down-btn ${footerVisible ? 'crystal-scroll-down-btn--up' : ''}`}
-        onClick={footerVisible ? scrollToTop : scrollDown}
-        aria-label={footerVisible ? 'Scroll to top' : 'Scroll down'}
-      >
-        <svg
-          className="crystal-scroll-down-btn__chevron"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden
-        >
-          <path
-            d="M7 10l5 5 5-5"
-            stroke="currentColor"
-            strokeWidth="2.25"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
       {/* Contacts */}
       <section id="contacts" className="crystal-section crystal-contacts py-5 crystal-section-bg crystal-contacts--pro">
         <Container data-crystal-reveal>
@@ -996,6 +987,32 @@ export default function HomePage() {
         </Container>
       </section>
     </main>
+    {scrollFabMounted &&
+      createPortal(
+        <button
+          type="button"
+          className={`crystal-scroll-down-btn ${footerVisible ? 'crystal-scroll-down-btn--up' : ''}`}
+          onClick={footerVisible ? scrollToTop : scrollDown}
+          aria-label={footerVisible ? 'Scroll to top' : 'Scroll down'}
+        >
+          <svg
+            className="crystal-scroll-down-btn__chevron"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden
+          >
+            <path
+              d="M7 10l5 5 5-5"
+              stroke="currentColor"
+              strokeWidth="2.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>,
+        document.body
+      )}
     </>
   );
 }
