@@ -543,7 +543,7 @@ export default function HomePage() {
                 <div className="crystal-hero-v2__layout">
                   <div className="crystal-hero-v2__layout-copy">
                     <Row className="align-items-center gy-5 py-4 py-lg-5">
-                      <Col xs={12} className="text-start crystal-hero-v2__copy">
+                      <Col xs={12} className="crystal-hero-v2__copy">
                     <p className="crystal-hero-v2-badge crystal-hero-seq crystal-hero-seq--1 small fw-semibold mb-3">
                       {HERO_BADGE}
                     </p>
@@ -567,7 +567,7 @@ export default function HomePage() {
                         </div>
                       ))}
                     </div>
-                    <div className="crystal-hero-seq crystal-hero-seq--5 d-flex flex-wrap gap-3 justify-content-start mb-4">
+                    <div className="crystal-hero-v2__ctas crystal-hero-seq crystal-hero-seq--5 d-flex flex-wrap gap-3 mb-4">
                       <Link
                         to="/user/create-website"
                         className="btn btn-lg crystal-hero-v2-cta-primary d-inline-flex align-items-center gap-2"
@@ -583,7 +583,7 @@ export default function HomePage() {
                         See It In Action
                       </Link>
                     </div>
-                    <div className="crystal-hero-v2-trust crystal-hero-seq crystal-hero-seq--6 justify-content-start">
+                    <div className="crystal-hero-v2-trust crystal-hero-seq crystal-hero-seq--6">
                       <div className="crystal-hero-v2-trust__avatars" aria-hidden>
                         {HERO_TRUST_AVATARS.map((letter, i) => (
                           <span

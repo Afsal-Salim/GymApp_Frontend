@@ -4,8 +4,16 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Home marketing: Bootstrap primary + links match hero v2 blue; section backgrounds unchanged */
 .crystal-home {
   overflow-x: hidden;
+  --crystal-brand-primary: #0084ff;
+  --crystal-brand-primary-rgb: 0, 132, 255;
+  --crystal-brand-soft: #4dc3ff;
+  --bs-primary: #0084ff;
+  --bs-primary-rgb: 0, 132, 255;
+  --bs-link-color: #0084ff;
+  --bs-link-hover-color: #006edc;
 }
 
 /* —— Scroll-triggered section reveals —— */
@@ -97,20 +105,20 @@ html {
   height: 3rem;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+  background: linear-gradient(135deg, #0084ff, #4dc3ff);
   color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 132, 255, 0.5);
   transition: transform 0.2s, box-shadow 0.2s;
   animation: crystal-home-float-btn-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.85s both;
 }
 
 .crystal-scroll-down-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(14, 165, 233, 0.6);
+  box-shadow: 0 6px 24px rgba(0, 132, 255, 0.6);
 }
 
 .crystal-scroll-down-btn:active {
@@ -160,7 +168,7 @@ html {
   align-items: center;
   justify-content: center;
   color: #f8fafc;
-  background: linear-gradient(160deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.82) 50%, rgba(14, 165, 233, 0.75) 100%),
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.82) 50%, rgba(0, 132, 255, 0.75) 100%),
     url('https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1600&q=80') center center / cover no-repeat;
   background-attachment: scroll;
 }
@@ -250,7 +258,7 @@ html {
   overflow-x: clip;
 }
 
-@media (min-width: 1350px) {
+@media (min-width: 1200px) {
   /* Let mockup bleed to the right edge like the full-bleed bg */
   .crystal-hero-v2__stage {
     overflow-x: visible;
@@ -258,8 +266,8 @@ html {
 }
 
 /*
- * Below 1350px: copy only (no side img).
- * 1350px+: single grid cell — mockup behind (z-index 1), copy on top (z-index 3).
+ * Below 1200px: copy only (no side img).
+ * 1200px+: single grid cell — mockup behind (z-index 1), copy on top (z-index 3).
  */
 .crystal-hero-v2__stack {
   display: flex;
@@ -273,7 +281,7 @@ html {
   position: relative;
 }
 
-@media (min-width: 1350px) {
+@media (min-width: 1200px) {
   .crystal-hero-v2__stack {
     display: grid;
     grid-template-columns: 1fr;
@@ -297,7 +305,7 @@ html {
   order: 1;
 }
 
-@media (min-width: 1350px) {
+@media (min-width: 1200px) {
   .crystal-hero-v2__copy-panel {
     grid-column: 1;
     grid-row: 1;
@@ -327,7 +335,7 @@ html {
   order: 2;
 }
 
-@media (min-width: 1350px) {
+@media (min-width: 1200px) {
   .crystal-hero-v2__media-panel {
     display: block;
     grid-column: 1;
@@ -384,7 +392,7 @@ html {
   object-position: right center;
 }
 
-@media (min-width: 1350px) {
+@media (min-width: 1200px) {
   .crystal-hero-v2__hero-image {
     position: absolute;
     inset: 0;
@@ -399,11 +407,11 @@ html {
   justify-content: center;
   min-height: 0;
   min-width: 0;
-  padding-left: max(clamp(1px, 1px, 1px), env(safe-area-inset-left));
-  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-left: max(clamp(1rem, 4vw, 1.5rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 4vw, 1.5rem), env(safe-area-inset-right));
 }
 
-@media (min-width: 1350px) {
+@media (min-width: 1200px) {
   .crystal-hero-v2__main.container-fluid {
     /* Left inset via padding only (replaces former margin-left on media panel) */
     padding-left: max(clamp(2.25rem, 6.5vw, 5.25rem), env(safe-area-inset-left));
@@ -418,7 +426,17 @@ html {
   position: relative;
   z-index: 1;
   max-width: min(38rem, 100%);
-  margin-left: 8;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__copy {
+    margin-left: 10%;
+    margin-right: 0;
+    text-align: start;
+  }
 }
 
 .crystal-hero-v2__layout {
@@ -486,7 +504,13 @@ html {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem 1.35rem;
-  justify-content: flex-start;
+  justify-content: center;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2-highlights {
+    justify-content: flex-start;
+  }
 }
 
 .crystal-hero-v2-highlight {
@@ -495,6 +519,12 @@ html {
   gap: 0.65rem;
   text-align: left;
   max-width: 11rem;
+}
+
+@media (max-width: 1199px) {
+  .crystal-hero-v2-highlight {
+    justify-content: center;
+  }
 }
 
 .crystal-hero-v2-highlight__icon {
@@ -536,10 +566,10 @@ html {
   padding: 0.75rem 1.35rem !important;
   background: linear-gradient(135deg, #0090ff, #0084ff) !important;
   color: #fff !important;
-  box-shadow:
+  /* box-shadow:
     0 4px 28px rgba(0, 132, 255, 0.55),
     0 0 40px rgba(0, 132, 255, 0.25),
-    0 0 0 1px rgba(77, 195, 255, 0.35);
+    0 0 0 1px rgba(77, 195, 255, 0.35); */
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
@@ -577,7 +607,24 @@ html {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.85rem 1rem;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2-trust {
+    justify-content: flex-start;
+  }
+}
+
+.crystal-hero-v2__ctas {
+  justify-content: center;
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2__ctas {
+    justify-content: flex-start;
+  }
 }
 
 .crystal-hero-v2-trust__avatars {
@@ -606,7 +653,7 @@ html {
   background: linear-gradient(135deg, #475569, #1e293b);
 }
 .crystal-hero-v2-trust__avatar:nth-child(2) {
-  background: linear-gradient(135deg, #0ea5e9, #0369a1);
+  background: linear-gradient(135deg, #0084ff, #0056b3);
 }
 .crystal-hero-v2-trust__avatar:nth-child(3) {
   background: linear-gradient(135deg, #a78bfa, #5b21b6);
@@ -714,7 +761,7 @@ html {
   width: 1.15rem;
   height: 1.15rem;
   border-radius: 50%;
-  background: rgba(14, 165, 233, 0.35);
+  background: rgba(0, 132, 255, 0.35);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -723,22 +770,22 @@ html {
 }
 
 .crystal-cta {
-  background: linear-gradient(135deg, #0ea5e9, #06b6d4) !important;
+  background: linear-gradient(135deg, #0084ff, #4dc3ff) !important;
   border: none !important;
   border-radius: 50px !important;
   font-weight: 600 !important;
-  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+  box-shadow: 0 4px 15px rgba(0, 132, 255, 0.4);
   min-height: 48px;
   padding: 0.6rem 1.5rem !important;
 }
 
 .crystal-cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 132, 255, 0.5);
 }
 
 .crystal-hero-subtitle {
-  color: #38bdf8;
+  color: #4dc3ff;
   letter-spacing: 0.15em;
 }
 
@@ -794,11 +841,11 @@ html {
 
 .crystal-scroll-inner .crystal-scroll-card:hover {
   transform: translateY(-6px) scale(1.03);
-  border-color: rgba(14, 165, 233, 0.35);
+  border-color: rgba(0, 132, 255, 0.35);
   background: linear-gradient(165deg, #fff 0%, #f0f9ff 55%, #e0f2fe 100%);
   box-shadow:
     0 12px 28px rgba(15, 23, 42, 0.08),
-    0 0 0 1px rgba(14, 165, 233, 0.06);
+    0 0 0 1px rgba(0, 132, 255, 0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -828,12 +875,12 @@ html {
 
 .crystal-scroll-icon {
   font-size: 1.5rem;
-  color: #0ea5e9;
+  color: #0084ff;
   transition: color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .crystal-scroll-inner .crystal-scroll-card:hover .crystal-scroll-icon {
-  color: #0284c7;
+  color: #006edc;
   transform: scale(1.08);
 }
 
@@ -910,20 +957,20 @@ html {
 }
 
 .crystal-action-preview-btn {
-  border-color: #0ea5e9 !important;
-  color: #0ea5e9 !important;
+  border-color: #0084ff !important;
+  color: #0084ff !important;
   background: transparent !important;
 }
 
 .crystal-action-preview-btn:hover {
-  background: rgba(14, 165, 233, 0.1) !important;
-  border-color: #0284c7 !important;
-  color: #0284c7 !important;
+  background: rgba(0, 132, 255, 0.1) !important;
+  border-color: #006edc !important;
+  color: #006edc !important;
 }
 
 .crystal-section-kicker {
   letter-spacing: 0.14em;
-  color: #0ea5e9 !important;
+  color: #0084ff !important;
 }
 
 .crystal-stat {
@@ -980,8 +1027,8 @@ html {
 .crystal-value-badge {
   display: inline-block;
   padding: 0.35rem 0.85rem;
-  background: rgba(14, 165, 233, 0.12);
-  color: #0ea5e9;
+  background: rgba(0, 132, 255, 0.12);
+  color: #0084ff;
   border-radius: 50px;
   font-size: 0.9rem;
   font-weight: 500;
@@ -994,9 +1041,9 @@ html {
 
 .crystal-value-badge:hover {
   transform: translateY(-2px) scale(1.04);
-  background: rgba(14, 165, 233, 0.22);
-  color: #0284c7;
-  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.22);
+  background: rgba(0, 132, 255, 0.22);
+  color: #006edc;
+  box-shadow: 0 6px 16px rgba(0, 132, 255, 0.22);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1018,7 +1065,7 @@ html {
 .crystal-trust-badge {
   display: inline-block;
   font-weight: 600;
-  color: #0ea5e9;
+  color: #0084ff;
 }
 
 .crystal-trust-item {
@@ -1035,15 +1082,15 @@ html {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(14, 165, 233, 0.07) 0%, transparent 52%),
-    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(56, 189, 248, 0.06) 0%, transparent 42%),
+    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(0, 132, 255, 0.07) 0%, transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(77, 195, 255, 0.06) 0%, transparent 42%),
     linear-gradient(180deg, #f8fafc 0%, #f1f5f9 48%, #eef2f6 100%);
 }
 
 .crystal-contacts.crystal-contacts--pro.crystal-section-bg {
   background:
-    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(14, 165, 233, 0.07) 0%, transparent 52%),
-    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(56, 189, 248, 0.06) 0%, transparent 42%),
+    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(0, 132, 255, 0.07) 0%, transparent 52%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(77, 195, 255, 0.06) 0%, transparent 42%),
     linear-gradient(180deg, rgba(248, 250, 252, 0.97) 0%, rgba(241, 245, 249, 0.98) 50%, rgba(238, 242, 246, 0.99) 100%),
     url('/images/section-bg.jpg') center center / cover no-repeat;
 }
@@ -1096,12 +1143,12 @@ html {
 }
 
 .crystal-contact-card:hover {
-  border-color: rgba(14, 165, 233, 0.45);
+  border-color: rgba(0, 132, 255, 0.45);
   background: linear-gradient(180deg, #fff 0%, #f8fafc 45%, #f0f9ff 100%);
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
-    0 22px 50px -18px rgba(14, 165, 233, 0.16),
-    0 0 0 1px rgba(14, 165, 233, 0.05);
+    0 22px 50px -18px rgba(0, 132, 255, 0.16),
+    0 0 0 1px rgba(0, 132, 255, 0.05);
   transform: translateY(-4px) scale(1.02);
 }
 
@@ -1120,7 +1167,7 @@ html {
 
 .crystal-contact-card__icon-disk--email {
   background: linear-gradient(160deg, #e0f2fe 0%, #dbeafe 100%);
-  color: #0369a1;
+  color: #0056b3;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
@@ -1178,7 +1225,7 @@ html {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #0ea5e9;
+  color: #0084ff;
   margin: 0 0 0.65rem;
 }
 
@@ -1202,7 +1249,7 @@ html {
 }
 
 .crystal-contact-card__link:hover {
-  color: #0284c7;
+  color: #006edc;
 }
 
 .crystal-contact-card__text {
@@ -1219,7 +1266,7 @@ html {
   border-radius: 999px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: 0 4px 20px rgba(13, 148, 211, 0.32);
+  box-shadow: 0 4px 20px rgba(0, 132, 255, 0.32);
   border: none;
   transition:
     box-shadow 0.2s ease,
@@ -1228,7 +1275,7 @@ html {
 
 .crystal-contacts__enquiry-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 32px rgba(13, 148, 211, 0.38);
+  box-shadow: 0 10px 32px rgba(0, 132, 255, 0.38);
 }
 
 .crystal-contacts__enquiry-btn:active {
@@ -1270,9 +1317,9 @@ html {
 .crystal-how-card:hover {
   transform: translateY(-5px) scale(1.02);
   box-shadow:
-    0 12px 32px rgba(14, 165, 233, 0.14),
-    0 0 0 1px rgba(14, 165, 233, 0.07);
-  border-color: color-mix(in srgb, #0ea5e9 42%, #e2e8f0);
+    0 12px 32px rgba(0, 132, 255, 0.14),
+    0 0 0 1px rgba(0, 132, 255, 0.07);
+  border-color: color-mix(in srgb, #0084ff 42%, #e2e8f0);
   background: linear-gradient(160deg, #fff 0%, #f8fafc 40%, #f0f9ff 100%);
 }
 
@@ -1290,7 +1337,7 @@ html {
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+  background: linear-gradient(135deg, #0084ff, #4dc3ff);
   color: #fff;
   display: flex;
   align-items: center;
@@ -1312,10 +1359,10 @@ html {
 
 .crystal-video-card:hover {
   transform: translateY(-5px) scale(1.02);
-  border-color: rgba(14, 165, 233, 0.4);
+  border-color: rgba(0, 132, 255, 0.4);
   box-shadow:
-    0 20px 44px rgba(14, 165, 233, 0.18),
-    0 0 0 1px rgba(14, 165, 233, 0.08);
+    0 20px 44px rgba(0, 132, 255, 0.18),
+    0 0 0 1px rgba(0, 132, 255, 0.08);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1435,32 +1482,32 @@ html {
 
 /* Popular plan – subtle brand tint, same footprint as other cards */
 .crystal-package-card.border-primary {
-  border-color: rgba(14, 165, 233, 0.42) !important;
+  border-color: rgba(0, 132, 255, 0.42) !important;
   box-shadow:
-    0 1px 2px rgba(14, 165, 233, 0.07),
-    0 6px 18px rgba(14, 165, 233, 0.1),
-    0 20px 48px rgba(14, 165, 233, 0.12);
+    0 1px 2px rgba(0, 132, 255, 0.07),
+    0 6px 18px rgba(0, 132, 255, 0.1),
+    0 20px 48px rgba(0, 132, 255, 0.12);
 }
 
 .crystal-package-card:hover {
   transform: translateY(-6px) scale(1.02);
-  border-color: rgba(14, 165, 233, 0.38) !important;
+  border-color: rgba(0, 132, 255, 0.38) !important;
   background: linear-gradient(180deg, #fff 0%, #fafcff 35%, #f0f9ff 100%) !important;
   box-shadow:
     0 8px 16px rgba(15, 23, 42, 0.06),
     0 18px 40px rgba(15, 23, 42, 0.09),
-    0 32px 72px rgba(14, 165, 233, 0.12),
-    0 0 0 1px rgba(14, 165, 233, 0.06);
+    0 32px 72px rgba(0, 132, 255, 0.12),
+    0 0 0 1px rgba(0, 132, 255, 0.06);
 }
 
 .crystal-package-card.border-primary:hover {
-  border-color: rgba(14, 165, 233, 0.72) !important;
+  border-color: rgba(0, 132, 255, 0.72) !important;
   background: linear-gradient(180deg, #fff 0%, #f0f9ff 40%, #e0f2fe 100%) !important;
   box-shadow:
-    0 8px 18px rgba(14, 165, 233, 0.12),
-    0 22px 48px rgba(14, 165, 233, 0.16),
-    0 40px 80px rgba(14, 165, 233, 0.14),
-    0 0 0 1px rgba(14, 165, 233, 0.1);
+    0 8px 18px rgba(0, 132, 255, 0.12),
+    0 22px 48px rgba(0, 132, 255, 0.16),
+    0 40px 80px rgba(0, 132, 255, 0.14),
+    0 0 0 1px rgba(0, 132, 255, 0.1);
 }
 
 .crystal-package-badge {
@@ -1554,7 +1601,7 @@ html {
   padding: 0.15rem 0.15rem 0.35rem;
   margin: 0 -0.15rem;
   scrollbar-width: thin;
-  scrollbar-color: rgba(14, 165, 233, 0.45) transparent;
+  scrollbar-color: rgba(0, 132, 255, 0.45) transparent;
 }
 
 .crystal-package-features::-webkit-scrollbar {
@@ -1562,7 +1609,7 @@ html {
 }
 
 .crystal-package-features::-webkit-scrollbar-thumb {
-  background: rgba(14, 165, 233, 0.4);
+  background: rgba(0, 132, 255, 0.4);
   border-radius: 999px;
 }
 
@@ -1588,7 +1635,7 @@ html {
   flex-shrink: 0;
   width: 1rem;
   text-align: center;
-  color: #0ea5e9;
+  color: #0084ff;
   font-weight: 700;
   font-size: 0.8rem;
   line-height: 1.4;
@@ -1610,8 +1657,8 @@ html {
   padding: 0.25rem 0.65rem 0.3rem;
   border: none;
   border-radius: 999px;
-  background: rgba(14, 165, 233, 0.1);
-  color: #0284c7;
+  background: rgba(0, 132, 255, 0.1);
+  color: #006edc;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -1623,8 +1670,8 @@ html {
 }
 
 .crystal-features-scroll-hint:hover {
-  background: rgba(14, 165, 233, 0.18);
-  color: #0369a1;
+  background: rgba(0, 132, 255, 0.18);
+  color: #0056b3;
 }
 
 .crystal-features-scroll-hint__chev {
@@ -1652,12 +1699,12 @@ html {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 4px 22px rgba(14, 165, 233, 0.38);
+    box-shadow: 0 4px 22px rgba(0, 132, 255, 0.38);
   }
 
   50% {
     transform: scale(1.045);
-    box-shadow: 0 10px 34px rgba(14, 165, 233, 0.48);
+    box-shadow: 0 10px 34px rgba(0, 132, 255, 0.48);
   }
 }
 
@@ -1671,7 +1718,7 @@ html {
   font-size: clamp(0.95rem, 2.2vw, 1.12rem);
   letter-spacing: 0.03em;
   color: #fff !important;
-  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+  background: linear-gradient(135deg, #0084ff 0%, #006edc 50%, #0056b3 100%);
   background-size: 200% 200%;
   text-decoration: none;
   border: none;
@@ -1698,7 +1745,7 @@ html {
 }
 
 .crystal-pricing-trial-cta:focus-visible {
-  outline: 3px solid rgba(14, 165, 233, 0.55);
+  outline: 3px solid rgba(0, 132, 255, 0.55);
   outline-offset: 3px;
 }
 
@@ -1711,13 +1758,13 @@ html {
 
 .crystal-packages-seemore {
   font-weight: 600;
-  color: #0ea5e9;
+  color: #0084ff;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .crystal-packages-seemore:hover {
-  color: #0284c7;
+  color: #006edc;
 }
 
 
