@@ -60,10 +60,16 @@
 }
 
 html {
-  scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+/* Anchor / programmatic vertical scroll; section `scroll-margin-top` handles the sticky nav. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 html::-webkit-scrollbar {

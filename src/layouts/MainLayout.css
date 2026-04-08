@@ -28,10 +28,16 @@
   min-height: 0;
 }
 
-/* Smooth page transition */
+/* Page enter: fade + slight lift (marketing shell) */
 .main-layout__page {
-  animation: main-layout-page-in 0.3s ease-out;
+  animation: main-layout-page-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   min-height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-layout__page {
+    animation: main-layout-page-in-reduced 0.2s ease-out both;
+  }
 }
 
 /* Public gym client page: fill column so no white band above/below outlet */
@@ -71,8 +77,95 @@
 @keyframes main-layout-page-in {
   from {
     opacity: 0;
+    transform: translateY(14px) scale(0.992);
+    filter: blur(0.5px);
   }
   to {
     opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes main-layout-page-in-reduced {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ─── Route change: top accent bar (marketing chrome only) ─── */
+.page-transition-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 1090;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(170, 59, 255, 0.15) 20%,
+    rgba(0, 132, 255, 0.85) 50%,
+    rgba(170, 59, 255, 0.15) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(0, 132, 255, 0.35);
+  transform-origin: left center;
+  animation: page-transition-bar-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page-transition-bar {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(192, 132, 252, 0.2) 25%,
+      rgba(96, 165, 250, 0.9) 50%,
+      rgba(192, 132, 252, 0.2) 75%,
+      transparent 100%
+    );
+    box-shadow: 0 0 14px rgba(96, 165, 250, 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition-bar {
+    animation: page-transition-bar-reduced 0.25s ease-out both;
+    filter: none;
+    box-shadow: none;
+  }
+}
+
+@keyframes page-transition-bar-in {
+  0% {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  55% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+@keyframes page-transition-bar-reduced {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
   }
 }

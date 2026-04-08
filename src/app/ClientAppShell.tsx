@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar, Footer } from '@/components';
 import { getPublicGymSlugFromHost, MARKETING_APP_PATH_FIRST_SEGMENTS } from '@/config/env';
+import { PageTransitionBar } from '@/layouts/PageTransitionBar';
 import { RouteTransitionLoader } from '@/layouts/RouteTransitionLoader';
 import '@/layouts/MainLayout.css';
 
@@ -92,6 +93,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     <div className={`main-layout${notFoundLayout ? ' main-layout--not-found' : ''}`}>
       <InDevelopmentBanner pathname={pathname} />
       <ScrollToTop pathname={pathname} />
+      {!hideMarketingChrome && <PageTransitionBar pathname={pathname} />}
       <RouteTransitionLoader active={showRouteLoader} />
       {!hideMarketingChrome && <Navbar />}
       <div className="main-layout__content">

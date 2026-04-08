@@ -815,9 +815,16 @@ html {
   overflow-y: hidden;
   padding: 0.5rem 1rem;
   scroll-snap-type: x mandatory;
+  scroll-snap-stop: normal;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .crystal-scroll-inner {
+    scroll-behavior: smooth;
+  }
 }
 
 .crystal-scroll-inner::-webkit-scrollbar {
@@ -1401,6 +1408,12 @@ html {
   margin: 0 -0.25rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .crystal-packages-scroll {
+    scroll-behavior: smooth;
+  }
 }
 
 @media (max-width: 991px) {
