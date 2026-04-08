@@ -11,13 +11,21 @@
   cursor: pointer;
 }
 
-/* Fixed preview — stays visible while editing (below dev banner + navbar when present). */
-.create-website__preview-dock {
-  position: fixed;
+/* Sticky preview — stays under app chrome while scrolling the create/edit form (same page for both routes). */
+.create-website__preview-sticky {
+  position: sticky;
   top: calc(2.5rem + 4.25rem + env(safe-area-inset-top, 0px) + 0.35rem);
-  right: max(1rem, env(safe-area-inset-right, 0px));
-  /* Below modal/backdrop (1050+); above sticky navbar (1020). */
   z-index: 1030;
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 0.35rem;
+  margin: -0.15rem 0 0.15rem;
+  pointer-events: none;
+}
+
+.create-website__preview-dock {
+  position: static;
+  /* Below modal/backdrop (1050+); above sticky navbar (1020). */
   pointer-events: none;
 }
 

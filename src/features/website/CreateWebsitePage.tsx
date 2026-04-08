@@ -1660,34 +1660,36 @@ export default function CreateWebsitePage() {
   return (
     <PageContainer>
       <main className="create-website">
-        <div className="create-website__preview-dock">
-          <Button
-            type="button"
-            variant="primary"
-            className="create-website__preview-dock-btn"
-            disabled={isEditMode && !editReady}
-            onClick={() => setPreviewTargetModalOpen(true)}
-            aria-label="Open site preview"
-          >
-            <svg
-              className="create-website__preview-dock-icon"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span className="create-website__preview-dock-label">Preview</span>
-          </Button>
-        </div>
         <Container className="create-website__container py-4">
+          <div className="create-website__preview-sticky">
+            <div className="create-website__preview-dock">
+              <Button
+                type="button"
+                variant="primary"
+                className="create-website__preview-dock-btn"
+                disabled={isEditMode && !editReady}
+                onClick={() => setPreviewTargetModalOpen(true)}
+                aria-label="Open site preview"
+              >
+                <svg
+                  className="create-website__preview-dock-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span className="create-website__preview-dock-label">Preview</span>
+              </Button>
+            </div>
+          </div>
           <div className="create-website__head">
             <div>
               <h1 className="create-website__title h3 mb-1">
