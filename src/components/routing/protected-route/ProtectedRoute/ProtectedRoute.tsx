@@ -12,16 +12,17 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const token = getAccessToken();
 
   useEffect(() => {
-    if (!getAccessToken()) {
+    if (!token) {
       const q = searchParams.toString();
       const path = q ? `${pathname}?${q}` : pathname;
       router.replace(`/login?from=${encodeURIComponent(path)}`);
     }
-  }, [pathname, router, searchParams]);
+  }, [token, pathname, router, searchParams]);
 
-  if (!getAccessToken()) {
+  if (!token) {
     return null;
   }
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { CrystalWebsiteSetupPayload } from '../ui-pages/crystal/gymClientSiteContent';
+import type { CrystalWebsiteSetupPayload } from '../features/crystal/gymClientSiteContent';
 import { privateApi } from './interceptor';
 import { getAxiosErrorMessage } from './http/axiosErrorMessage';
 import { publicApi } from './http/publicApi';
@@ -835,7 +835,7 @@ export type { CrystalWebsiteSetupPayload };
 /**
  * Save the full Crystal website builder payload for the logged-in user.
  *
- * **POST** `/api/businesses/website-setup/` (see `VITE_API_BASE_URL`) — **Authorization: Bearer** required.
+ * **POST** `/api/businesses/website-setup/` (see `NEXT_PUBLIC_API_BASE_URL`) — **Authorization: Bearer** required.
  * Request JSON body: {@link CrystalWebsiteSetupPayload}. Optional `content.layout.heroTextColor` (`#rrggbb`) tints hero copy.
  */
 export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload): Promise<void> {

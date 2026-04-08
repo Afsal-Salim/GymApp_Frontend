@@ -31,6 +31,11 @@ function gymSlugFromHost(host: string, publicSiteDomain: string): string | null 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  /** Let Next rewrites forward `/api/*` to Django — never treat as a public-gym `[slug]`. */
+  if (pathname === '/api' || pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith('/_next') || pathname.startsWith('/gym-by-host/')) {
     return NextResponse.next();
   }

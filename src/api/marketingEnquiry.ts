@@ -10,7 +10,7 @@ export type SubmitMarketingEnquiryPayload = {
 
 /**
  * Public marketing enquiry (homepage).
- * **POST** `public/enquiries/` under `VITE_API_BASE_URL` (e.g. `/api/public/enquiries/` full path).
+ * **POST** `public/enquiries/` under `NEXT_PUBLIC_API_BASE_URL` (e.g. `/api/public/enquiries/` full path).
  * Body: `{ name, email, message }`. Success **201** `{ ok: true, id }`. **400** = serializer field errors.
  */
 export async function submitMarketingEnquiry(payload: SubmitMarketingEnquiryPayload): Promise<void> {

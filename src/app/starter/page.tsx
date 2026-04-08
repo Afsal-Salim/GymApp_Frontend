@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic';
 import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
-const PaymentPage = dynamic(() => import('@/ui-pages/payment/PaymentPage'), {
+const PaymentPage = dynamic(() => import('@/features/payment/PaymentPage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

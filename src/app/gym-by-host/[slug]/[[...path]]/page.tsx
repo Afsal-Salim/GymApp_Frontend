@@ -5,7 +5,7 @@ import { getPublicGymSlugFromHostHeader } from '@/config/env';
 import { notFound } from 'next/navigation';
 import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
-const CrystalBusinessPage = dynamic(() => import('@/ui-pages/crystal/CrystalBusinessPage'), {
+const CrystalBusinessPage = dynamic(() => import('@/features/crystal/CrystalBusinessPage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

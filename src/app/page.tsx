@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Modern gym websites, themes, WhatsApp leads, and analytics for your fitness business.',
 };
 
-const HomePage = dynamic(() => import('@/ui-pages/home/HomePage'), {
+const HomePage = dynamic(() => import('@/features/home/HomePage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

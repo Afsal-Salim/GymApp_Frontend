@@ -3,47 +3,95 @@
  *
  * Client-exposed values use `NEXT_PUBLIC_*` (inlined at build time).
  * Do not put API secrets or private keys here.
+ *
+ * Important: read each `NEXT_PUBLIC_*` as a **static** `process.env.NEXT_PUBLIC_*` expression.
+ * Dynamic access like `process.env[key]` is not inlined in the browser bundle, which breaks SSR/client
+ * hydration (server sees real env, client sees empty).
  */
 
 import { SESSION_CRYSTAL_CREATE_SKIP_ON_BACK } from './storageKeys';
 
-function envString(key: string): string {
-  if (typeof process === 'undefined' || !process.env) return '';
-  return (process.env[key] ?? '').trim();
+function trim(s: string | undefined): string {
+  return (s ?? '').trim();
 }
 
-export const appMode = envString('NODE_ENV') === 'production' ? 'production' : 'development';
+export const appMode = process.env.NODE_ENV === 'production' ? 'production' : 'development';
 export const isDev = appMode !== 'production';
 export const isProd = appMode === 'production';
 
 /** Next.js base path, e.g. `/` or `/app/` */
-export const nextBaseUrl = envString('NEXT_PUBLIC_BASE_PATH') || '/';
+export const nextBaseUrl = trim(process.env.NEXT_PUBLIC_BASE_PATH) || '/';
 
-/**
- * REST API base URL (scheme + host + optional path prefix).
- * @default http://localhost:3000/api
- */
+/** REST API base URL (scheme + host + optional path prefix). Set in `.env`. */
 export const apiBaseUrl =
-  envString('NEXT_PUBLIC_API_BASE_URL') || 'http://localhost:3000/api';
+  trim(process.env.NEXT_PUBLIC_API_BASE_URL) || trim(process.env.VITE_API_BASE_URL);
 
 /** Google Identity Services client ID (optional). */
-export const googleOAuthClientId = envString('NEXT_PUBLIC_GOOGLE_CLIENT_ID');
+export const googleOAuthClientId = trim(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
 /** Marketing / contact: WhatsApp E.164 or display number (optional). */
-export const whatsappPhone = envString('NEXT_PUBLIC_WHATSAPP_PHONE');
+export const whatsappPhone = trim(process.env.NEXT_PUBLIC_WHATSAPP_PHONE);
 
-export const whatsappDefaultMessage =
-  envString('NEXT_PUBLIC_WHATSAPP_MESSAGE') || 'Hello I am interested in your service';
+export const whatsappDefaultMessage = trim(process.env.NEXT_PUBLIC_WHATSAPP_MESSAGE);
 
-export const homepageTutorialVideoUrl =
-  envString('NEXT_PUBLIC_HOMEPAGE_TUTORIAL_VIDEO_URL') ||
-  'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+export const homepageTutorialVideoUrl = trim(process.env.NEXT_PUBLIC_HOMEPAGE_TUTORIAL_VIDEO_URL);
 
 export const marketingEnquiryPath =
-  envString('NEXT_PUBLIC_MARKETING_ENQUIRY_PATH') || '/public/enquiries/';
+  trim(process.env.NEXT_PUBLIC_MARKETING_ENQUIRY_PATH) ||
+  trim(process.env.VITE_MARKETING_ENQUIRY_PATH);
 
 export const serviceEnquiryPath =
-  envString('NEXT_PUBLIC_SERVICE_ENQUIRY_PATH') || '/public/service-enquiries/';
+  trim(process.env.NEXT_PUBLIC_SERVICE_ENQUIRY_PATH) ||
+  trim(process.env.VITE_SERVICE_ENQUIRY_PATH);
+
+/** Marketing “Contact us” email (homepage, service enquiry sidebar). */
+export const contactEmail = trim(process.env.NEXT_PUBLIC_CONTACT_EMAIL);
+
+/** Human-readable phone line shown in contact UI. */
+export const contactPhoneDisplay = trim(process.env.NEXT_PUBLIC_CONTACT_PHONE);
+
+/**
+ * Optional dial string for `tel:` (e.g. `+918137951793`). If unset, digits are taken from
+ * `NEXT_PUBLIC_CONTACT_PHONE` when possible.
+ */
+export const contactPhoneTelRaw = trim(process.env.NEXT_PUBLIC_CONTACT_PHONE_TEL);
+
+export function contactMailtoHref(): string {
+  return contactEmail ? `mailto:${contactEmail}` : '';
+}
+
+export function contactTelHref(): string {
+  let raw = contactPhoneTelRaw.replace(/\s/g, '');
+  if (!raw && contactPhoneDisplay) {
+    raw = contactPhoneDisplay.replace(/\D/g, '');
+  }
+  if (!raw) return '';
+  if (raw.startsWith('+')) return `tel:${raw}`;
+  const digits = raw.replace(/\D/g, '');
+  return digits ? `tel:+${digits}` : '';
+}
+
+export type MarketingContactRow = {
+  type: 'Email' | 'Phone' | 'WhatsApp';
+  value: string;
+  href: string;
+};
+
+/** Homepage cards + service enquiry sidebar: email/phone from env; WhatsApp always last. */
+export function buildMarketingContactRows(): MarketingContactRow[] {
+  const waHref = whatsappPhone
+    ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappDefaultMessage)}`
+    : '';
+  const rows: MarketingContactRow[] = [];
+  if (contactEmail) {
+    rows.push({ type: 'Email', value: contactEmail, href: contactMailtoHref() });
+  }
+  if (contactPhoneDisplay) {
+    rows.push({ type: 'Phone', value: contactPhoneDisplay, href: contactTelHref() });
+  }
+  rows.push({ type: 'WhatsApp', value: 'Chat with us instantly', href: waHref });
+  return rows;
+}
 
 export const authRefreshPath = '/auth/refresh/' as const;
 
@@ -58,7 +106,7 @@ export function crystalPreviewAbsoluteUrl(): string {
   return new URL('preview', window.location.origin + base).href;
 }
 
-export const publicSiteDomain = envString('NEXT_PUBLIC_PUBLIC_SITE_DOMAIN').toLowerCase();
+export const publicSiteDomain = trim(process.env.NEXT_PUBLIC_PUBLIC_SITE_DOMAIN).toLowerCase();
 
 export function isLocalDevelopmentHost(): boolean {
   if (typeof window === 'undefined') return false;
@@ -71,6 +119,7 @@ export function isPublicSiteSubdomainRoutingActive(): boolean {
 }
 
 export const MARKETING_APP_PATH_FIRST_SEGMENTS = new Set([
+  'api',
   'plans',
   'starter',
   'pro',

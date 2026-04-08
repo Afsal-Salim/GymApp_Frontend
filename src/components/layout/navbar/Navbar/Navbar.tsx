@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -19,15 +19,11 @@ const navHashItems = [
 
 export default function Navbar() {
   const [expanded, setExpanded] = useState(false);
-  const [isSignedIn, setIsSignedIn] = useState(false);
   const [profileModalShow, setProfileModalShow] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const isMarketingHome = pathname === '/';
-
-  useEffect(() => {
-    setIsSignedIn(!!getAccessToken());
-  }, [pathname]);
+  const isSignedIn = Boolean(getAccessToken());
 
   const closeMenu = () => setExpanded(false);
 
@@ -46,7 +42,6 @@ export default function Navbar() {
   const handleLogout = () => {
     closeProfileModal();
     clearTokens();
-    setIsSignedIn(false);
     closeMenu();
     router.push('/');
   };

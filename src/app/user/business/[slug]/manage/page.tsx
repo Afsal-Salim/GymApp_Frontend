@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic';
 import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
-const ManageBusinessPage = dynamic(() => import('@/ui-pages/user/ManageBusinessPage'), {
+const ManageBusinessPage = dynamic(() => import('@/features/user/ManageBusinessPage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

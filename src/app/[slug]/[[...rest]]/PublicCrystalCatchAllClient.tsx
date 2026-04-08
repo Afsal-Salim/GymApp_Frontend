@@ -7,7 +7,7 @@ import {
   MARKETING_APP_PATH_FIRST_SEGMENTS,
   publicGymSiteUrl,
 } from '@/config/env';
-import CrystalBusinessPage from '@/ui-pages/crystal/CrystalBusinessPage';
+import CrystalBusinessPage from '@/features/crystal/CrystalBusinessPage';
 
 export default function PublicCrystalCatchAllClient() {
   const params = useParams<{ slug: string; rest?: string[] }>();
