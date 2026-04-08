@@ -7,21 +7,28 @@ import { getAxiosErrorMessage } from './http/axiosErrorMessage';
 const BASE = '/businesses';
 
 function businessImageFilePathSegment(): string {
-  const s = (import.meta.env.VITE_BUSINESS_IMAGE_FILE_SEGMENT ?? 'file').trim().replace(/^\/+|\/+$/g, '');
+  const raw =
+    typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT
+      ? process.env.NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT
+      : 'file';
+  const s = raw.trim().replace(/^\/+|\/+$/g, '');
   return s || 'file';
 }
 
-function useApiFileUrlForBusinessImages(): boolean {
-  const v = (import.meta.env.VITE_BUSINESS_IMAGE_USE_API_FILE ?? '').trim();
+function shouldUseApiFileUrlForBusinessImages(): boolean {
+  const v = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE
+    ? process.env.NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE
+    : ''
+  ).trim();
   return /^true|1|yes$/i.test(v);
 }
 
 /**
  * `<img src>` / gallery strip URL. By default uses **`image_url` from the API** (e.g. time-limited **signed S3 URLs**).
  *
- * Set `VITE_BUSINESS_IMAGE_USE_API_FILE=true` to use `GET {apiBaseUrl}/businesses/{slug}/images/{id}/{segment}/` instead
+ * Set `NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE=true` to use `GET {apiBaseUrl}/businesses/{slug}/images/{id}/{segment}/` instead
  * when raw `image_url` is private and fails in the browser. Segment defaults to `file`; override with
- * `VITE_BUSINESS_IMAGE_FILE_SEGMENT`.
+ * `NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT`.
  */
 export function resolveBusinessImageDisplayUrl(
   slug: string,
@@ -29,7 +36,7 @@ export function resolveBusinessImageDisplayUrl(
 ): string {
   const raw = (img.image_url ?? '').trim();
   const id = img.id;
-  if (useApiFileUrlForBusinessImages() && id != null && Number.isFinite(id) && id > 0) {
+  if (shouldUseApiFileUrlForBusinessImages() && id != null && Number.isFinite(id) && id > 0) {
     const base = apiBaseUrl.replace(/\/$/, '');
     const seg = businessImageFilePathSegment();
     return `${base}${BASE}/${encodeURIComponent(slug.trim())}/images/${Math.trunc(id)}/${seg}/`;

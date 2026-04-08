@@ -5,9 +5,9 @@ import { STORAGE_USER_PROFILE_CACHE } from '../config/storageKeys';
 import { getAccessToken } from './tokens';
 
 export function primeProfileCache(data: object): void {
-  if (!getAccessToken()) return;
+  if (!getAccessToken() || typeof window === 'undefined') return;
   try {
-    localStorage.setItem(
+    window.localStorage.setItem(
       STORAGE_USER_PROFILE_CACHE,
       JSON.stringify({ at: Date.now(), data })
     );

@@ -1,18 +1,29 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+'use client';
+
+import { useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAccessToken } from '../../../../api';
 
 /**
  * Protects routes that require authentication.
- * If there is no access token, redirects to /login with return URL in state.
- * Otherwise renders the child route (Outlet).
+ * Redirects to `/login?from=` when there is no access token.
  */
-export default function ProtectedRoute() {
-  const location = useLocation();
-  const token = getAccessToken();
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  if (!token) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  useEffect(() => {
+    if (!getAccessToken()) {
+      const q = searchParams.toString();
+      const path = q ? `${pathname}?${q}` : pathname;
+      router.replace(`/login?from=${encodeURIComponent(path)}`);
+    }
+  }, [pathname, router, searchParams]);
+
+  if (!getAccessToken()) {
+    return null;
   }
 
-  return <Outlet />;
+  return <>{children}</>;
 }

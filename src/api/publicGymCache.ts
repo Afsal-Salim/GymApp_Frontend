@@ -24,8 +24,19 @@ function normalizeSlug(slug: string): string {
   return slug.trim().toLowerCase();
 }
 
+function browserLocalStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 function readStore(): Store {
-  const raw = localStorage.getItem(STORAGE_PUBLIC_GYM_BUNDLE_CACHE);
+  const ls = browserLocalStorage();
+  if (!ls) return { entries: {} };
+  const raw = ls.getItem(STORAGE_PUBLIC_GYM_BUNDLE_CACHE);
   if (!raw) return { entries: {} };
   try {
     const parsed = JSON.parse(raw) as Store;
@@ -47,10 +58,12 @@ function pruneOldest(entries: Record<string, Entry>): Record<string, Entry> {
 }
 
 function writeEntry(slugKey: string, entry: Entry): void {
+  const ls = browserLocalStorage();
+  if (!ls) return;
   try {
     const store = readStore();
     const entries = pruneOldest({ ...store.entries, [slugKey]: entry });
-    localStorage.setItem(STORAGE_PUBLIC_GYM_BUNDLE_CACHE, JSON.stringify({ entries } satisfies Store));
+    ls.setItem(STORAGE_PUBLIC_GYM_BUNDLE_CACHE, JSON.stringify({ entries } satisfies Store));
   } catch {
     /* quota */
   }
@@ -91,12 +104,14 @@ export async function fetchPublicGymBundle(slug: string, options?: { force?: boo
 export function invalidatePublicGymBundleCache(slug: string): void {
   const key = normalizeSlug(slug);
   if (!key) return;
+  const ls = browserLocalStorage();
+  if (!ls) return;
   try {
     const store = readStore();
     if (!store.entries[key]) return;
     const entries = { ...store.entries };
     delete entries[key];
-    localStorage.setItem(STORAGE_PUBLIC_GYM_BUNDLE_CACHE, JSON.stringify({ entries } satisfies Store));
+    ls.setItem(STORAGE_PUBLIC_GYM_BUNDLE_CACHE, JSON.stringify({ entries } satisfies Store));
   } catch {
     /* ignore */
   }

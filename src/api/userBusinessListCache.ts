@@ -20,7 +20,8 @@ type Store = {
 };
 
 function readStore(): Store {
-  const raw = localStorage.getItem(STORAGE_USER_BUSINESS_LIST_CACHE);
+  if (typeof window === 'undefined') return { entries: {} };
+  const raw = window.localStorage.getItem(STORAGE_USER_BUSINESS_LIST_CACHE);
   if (!raw) return { entries: {} };
   try {
     const parsed = JSON.parse(raw) as Store;
@@ -42,14 +43,14 @@ function prune(entries: Record<string, Entry>): Record<string, Entry> {
 }
 
 function writeEntry(key: string, data: BusinessListPaginatedResponse): void {
-  if (!getAccessToken()) return;
+  if (!getAccessToken() || typeof window === 'undefined') return;
   try {
     const store = readStore();
     const entries = prune({
       ...store.entries,
       [key]: { at: Date.now(), data } satisfies Entry,
     });
-    localStorage.setItem(STORAGE_USER_BUSINESS_LIST_CACHE, JSON.stringify({ entries } satisfies Store));
+    window.localStorage.setItem(STORAGE_USER_BUSINESS_LIST_CACHE, JSON.stringify({ entries } satisfies Store));
   } catch {
     /* quota */
   }
@@ -87,8 +88,9 @@ export async function getBusinessListPaginatedCached(
 
 /** Call after creating/updating a business if you need the list fresh before TTL expires. */
 export function invalidateUserBusinessListCache(): void {
+  if (typeof window === 'undefined') return;
   try {
-    localStorage.removeItem(STORAGE_USER_BUSINESS_LIST_CACHE);
+    window.localStorage.removeItem(STORAGE_USER_BUSINESS_LIST_CACHE);
   } catch {
     /* ignore */
   }

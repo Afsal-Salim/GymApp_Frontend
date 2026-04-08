@@ -1,5 +1,9 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { Container, Nav, Navbar as BSNavbar, Button, Modal } from 'react-bootstrap';
 import { getAccessToken, clearTokens, getUserInfo } from '../../../../api';
 import { STORAGE_USER_AVATAR_URL } from '../../../../config/storageKeys';
@@ -17,19 +21,19 @@ export default function Navbar() {
   const [expanded, setExpanded] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [profileModalShow, setProfileModalShow] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const isMarketingHome = location.pathname === '/';
+  const pathname = usePathname();
+  const router = useRouter();
+  const isMarketingHome = pathname === '/';
 
   useEffect(() => {
     setIsSignedIn(!!getAccessToken());
-  }, [location]);
+  }, [pathname]);
 
   const closeMenu = () => setExpanded(false);
 
   const userInfo = getUserInfo();
   const avatarUrl =
-    typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_USER_AVATAR_URL) : null;
+    typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_USER_AVATAR_URL) : null;
   const initial = (userInfo.username?.[0] ?? userInfo.email?.[0] ?? '?').toUpperCase();
 
   const openProfileModal = () => {
@@ -44,20 +48,25 @@ export default function Navbar() {
     clearTokens();
     setIsSignedIn(false);
     closeMenu();
-    navigate('/');
+    router.push('/');
   };
 
   const goToProfile = () => {
     closeProfileModal();
-    navigate('/user');
+    router.push('/user');
   };
 
   return (
     <>
       <BSNavbar expand="lg" className="crystal-navbar" sticky="top" expanded={expanded} onToggle={setExpanded}>
       <Container fluid className="crystal-navbar-container">
-        <BSNavbar.Brand as={Link} to="/" className="crystal-brand crystal-brand--start d-flex align-items-center" onClick={closeMenu}>
-          <img src={logo} alt="" className="crystal-logo" width={48} height={48} />
+        <BSNavbar.Brand
+          as={Link}
+          href="/"
+          className="crystal-brand crystal-brand--start d-flex align-items-center"
+          onClick={closeMenu}
+        >
+          <Image src={logo} alt="" className="crystal-logo" width={48} height={48} priority />
           <span>Crystal</span>
         </BSNavbar.Brand>
         <BSNavbar.Toggle aria-controls="crystal-nav" />
@@ -75,7 +84,7 @@ export default function Navbar() {
             ))}
             <Nav.Item className="d-lg-inline-flex align-items-stretch">
               <Link
-                to="/services/custom"
+                href="/services/custom"
                 className="nav-link crystal-nav-link crystal-nav-link--services px-3 w-100 w-lg-auto text-start"
                 onClick={closeMenu}
               >
@@ -100,20 +109,20 @@ export default function Navbar() {
             ) : (
               <Nav.Item className="d-flex gap-2 flex-nowrap mt-2 mt-lg-0">
                 <Link
-                  to="/login"
+                  href="/login"
                   className="text-decoration-none"
                   onClick={closeMenu}
                 >
-                  <Button variant="outline-light" size="sm" className="crystal-nav-btn crystal-nav-btn--login" as="span">
+                  <Button as="span" variant="outline-light" size="sm" className="crystal-nav-btn crystal-nav-btn--login">
                     Log in
                   </Button>
                 </Link>
                 <Link
-                  to="/signup"
+                  href="/signup"
                   className="text-decoration-none"
                   onClick={closeMenu}
                 >
-                  <Button variant="primary" size="sm" className="crystal-nav-btn crystal-nav-btn--signup" as="span">
+                  <Button as="span" variant="primary" size="sm" className="crystal-nav-btn crystal-nav-btn--signup">
                     Sign up
                   </Button>
                 </Link>

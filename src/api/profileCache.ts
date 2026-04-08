@@ -17,8 +17,8 @@ export function peekProfileCache(): UserProfile | null {
 }
 
 function readCache(): UserProfile | null {
-  if (!getAccessToken()) return null;
-  const raw = localStorage.getItem(STORAGE_USER_PROFILE_CACHE);
+  if (!getAccessToken() || typeof window === 'undefined') return null;
+  const raw = window.localStorage.getItem(STORAGE_USER_PROFILE_CACHE);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as CachedPayload;

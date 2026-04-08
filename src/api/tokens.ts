@@ -7,21 +7,30 @@ import {
   STORAGE_USER_USERNAME,
 } from '../config/storageKeys';
 
+function getLocalStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /** Access and refresh tokens are stored in localStorage and used by the protected API interceptor. */
 export function getAccessToken(): string | null {
-  return localStorage.getItem(STORAGE_ACCESS_TOKEN);
+  return getLocalStorage()?.getItem(STORAGE_ACCESS_TOKEN) ?? null;
 }
 
 export function getRefreshToken(): string | null {
-  return localStorage.getItem(STORAGE_REFRESH_TOKEN);
+  return getLocalStorage()?.getItem(STORAGE_REFRESH_TOKEN) ?? null;
 }
 
 export function setAccessToken(token: string): void {
-  localStorage.setItem(STORAGE_ACCESS_TOKEN, token);
+  getLocalStorage()?.setItem(STORAGE_ACCESS_TOKEN, token);
 }
 
 export function setRefreshToken(token: string): void {
-  localStorage.setItem(STORAGE_REFRESH_TOKEN, token);
+  getLocalStorage()?.setItem(STORAGE_REFRESH_TOKEN, token);
 }
 
 export function setTokens(access: string, refresh: string): void {
@@ -35,34 +44,44 @@ export type StoredUserInfo = {
 };
 
 export function setUserInfo(email: string | undefined, username: string | undefined): void {
+  const ls = getLocalStorage();
+  if (!ls) return;
   if (email != null && email !== '') {
-    localStorage.setItem(STORAGE_USER_EMAIL, email);
+    ls.setItem(STORAGE_USER_EMAIL, email);
   } else {
-    localStorage.removeItem(STORAGE_USER_EMAIL);
+    ls.removeItem(STORAGE_USER_EMAIL);
   }
   if (username != null && username !== '') {
-    localStorage.setItem(STORAGE_USER_USERNAME, username);
+    ls.setItem(STORAGE_USER_USERNAME, username);
   } else {
-    localStorage.removeItem(STORAGE_USER_USERNAME);
+    ls.removeItem(STORAGE_USER_USERNAME);
   }
 }
 
 export function getUserInfo(): StoredUserInfo {
+  const ls = getLocalStorage();
+  if (!ls) {
+    return { email: null, username: null };
+  }
   return {
-    email: localStorage.getItem(STORAGE_USER_EMAIL),
-    username: localStorage.getItem(STORAGE_USER_USERNAME),
+    email: ls.getItem(STORAGE_USER_EMAIL),
+    username: ls.getItem(STORAGE_USER_USERNAME),
   };
 }
 
 function clearUserInfo(): void {
-  localStorage.removeItem(STORAGE_USER_EMAIL);
-  localStorage.removeItem(STORAGE_USER_USERNAME);
+  const ls = getLocalStorage();
+  if (!ls) return;
+  ls.removeItem(STORAGE_USER_EMAIL);
+  ls.removeItem(STORAGE_USER_USERNAME);
 }
 
 export function clearTokens(): void {
-  localStorage.removeItem(STORAGE_ACCESS_TOKEN);
-  localStorage.removeItem(STORAGE_REFRESH_TOKEN);
-  localStorage.removeItem(STORAGE_USER_PROFILE_CACHE);
-  localStorage.removeItem(STORAGE_USER_BUSINESS_LIST_CACHE);
+  const ls = getLocalStorage();
+  if (!ls) return;
+  ls.removeItem(STORAGE_ACCESS_TOKEN);
+  ls.removeItem(STORAGE_REFRESH_TOKEN);
+  ls.removeItem(STORAGE_USER_PROFILE_CACHE);
+  ls.removeItem(STORAGE_USER_BUSINESS_LIST_CACHE);
   clearUserInfo();
 }

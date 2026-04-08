@@ -1,5 +1,8 @@
+'use client';
+
 import { Modal, Button } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
+import { SESSION_PAYMENT_CHECKOUT_DRAFT } from '../../../../config/storageKeys';
 import './PaymentLoginRequiredModal.css';
 
 export type CheckoutRedirect = {
@@ -25,18 +28,17 @@ type PaymentLoginRequiredModalProps = {
 };
 
 export default function PaymentLoginRequiredModal({ show, onHide, checkout }: PaymentLoginRequiredModalProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const goLogin = () => {
     if (!checkout) return;
-    navigate('/login', {
-      state: {
-        from: {
-          pathname: checkout.pathname,
-          state: checkout.state,
-        },
-      },
-    });
+    try {
+      sessionStorage.setItem(SESSION_PAYMENT_CHECKOUT_DRAFT, JSON.stringify(checkout.state ?? {}));
+    } catch {
+      /* quota */
+    }
+    const from = encodeURIComponent(checkout.pathname);
+    router.push(`/login?from=${from}`);
   };
 
   return (

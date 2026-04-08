@@ -1,4 +1,7 @@
-import { Link, useLocation } from 'react-router-dom';
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Container, Row, Col } from 'react-bootstrap';
 import { useEnquiryModal } from '../../../../contexts/EnquiryModalContext';
 import './Footer.css';
@@ -35,12 +38,12 @@ function footerHref(hash: string | null): string {
 
 export default function Footer() {
   const year = new Date().getFullYear();
-  const location = useLocation();
+  const pathname = usePathname();
   const { openEnquiryModal } = useEnquiryModal();
 
   const handleSectionClick = (hash: string | null, e: React.MouseEvent) => {
     if (!hash) return;
-    const isHome = location.pathname === HOME_PATH || location.pathname === '/';
+    const isHome = pathname === HOME_PATH || pathname === '/';
     if (isHome) {
       e.preventDefault();
       const el = document.getElementById(hash);
@@ -64,9 +67,9 @@ export default function Footer() {
               {FOOTER_LINKS.product.map((item) => (
                 <li key={item.label}>
                   {'path' in item ? (
-                    <Link to={item.path}>{item.label}</Link>
+                    <Link href={item.path}>{item.label}</Link>
                   ) : item.hash ? (
-                    <Link to={footerHref(item.hash)} onClick={(e) => handleSectionClick(item.hash, e)}>
+                    <Link href={footerHref(item.hash)} onClick={(e) => handleSectionClick(item.hash, e)}>
                       {item.label}
                     </Link>
                   ) : (
@@ -82,13 +85,13 @@ export default function Footer() {
               {FOOTER_LINKS.company.map((item) => (
                 <li key={item.label}>
                   {'path' in item && item.path ? (
-                    <Link to={item.path}>{item.label}</Link>
+                    <Link href={item.path}>{item.label}</Link>
                   ) : 'action' in item && item.action === 'enquiry' ? (
                     <button type="button" className="crystal-footer__link-btn" onClick={openEnquiryModal}>
                       {item.label}
                     </button>
                   ) : 'hash' in item && item.hash ? (
-                    <Link to={footerHref(item.hash)} onClick={(e) => handleSectionClick(item.hash, e)}>
+                    <Link href={footerHref(item.hash)} onClick={(e) => handleSectionClick(item.hash, e)}>
                       {item.label}
                     </Link>
                   ) : (
@@ -104,7 +107,7 @@ export default function Footer() {
               {FOOTER_LINKS.legal.map(({ label, path }) => (
                 <li key={label}>
                   {path ?
-                    <Link to={path}>{label}</Link>
+                    <Link href={path}>{label}</Link>
                   : <a href="#">{label}</a>}
                 </li>
               ))}

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { CrystalWebsiteSetupPayload } from '../pages/crystal/gymClientSiteContent';
+import type { CrystalWebsiteSetupPayload } from '../ui-pages/crystal/gymClientSiteContent';
 import { privateApi } from './interceptor';
 import { getAxiosErrorMessage } from './http/axiosErrorMessage';
 import { publicApi } from './http/publicApi';

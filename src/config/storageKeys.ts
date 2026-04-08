@@ -37,6 +37,9 @@ export const CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY = 'crystal_website_setup_dr
  */
 export const SESSION_CRYSTAL_CREATE_SKIP_ON_BACK = 'crystal_create_skip_on_back_v1';
 
+/** Plans → payment: checkout context when sending the user to login (no React Router `location.state`). */
+export const SESSION_PAYMENT_CHECKOUT_DRAFT = 'crystal_payment_checkout_draft_v1';
+
 // —— Anonymous analytics-style persistence ——
 /** Per-slug lead / engagement counters for the public gym page. */
 export const GYM_CRYSTAL_LEAD_STATS_STORAGE_KEY = 'gymCrystal_leadStats_v1';
