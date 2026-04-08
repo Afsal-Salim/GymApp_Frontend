@@ -5,9 +5,25 @@
   padding-bottom: 0.85rem !important;
 }
 
-.crystal-navbar .container {
-  padding-left: max(1.25rem, env(safe-area-inset-left));
-  padding-right: max(1.25rem, env(safe-area-inset-right));
+/* Fluid shell with a capped width so the logo stays a consistent inset from the viewport edge at any zoom */
+.crystal-navbar-container.container-fluid {
+  width: 100%;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 3vw, 2.5rem), env(safe-area-inset-right));
+}
+
+@media (min-width: 1280px) {
+  .crystal-navbar-container.container-fluid {
+    padding-left: max(2.25rem, env(safe-area-inset-left));
+    padding-right: max(2.25rem, env(safe-area-inset-right));
+  }
+}
+
+.crystal-brand.crystal-brand--start {
+  margin-right: auto;
 }
 
 .crystal-brand {
@@ -26,6 +42,12 @@
 }
 
 .crystal-logo {
+  width: clamp(2rem, 4.5vw + 0.35rem, 2.75rem);
+  height: auto;
+  max-height: 2.75rem;
+  flex-shrink: 0;
+  aspect-ratio: 1;
+  object-fit: contain;
   filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
 }
 

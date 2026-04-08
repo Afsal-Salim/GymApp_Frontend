@@ -1,6 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
+import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
+import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
+import WidgetsOutlinedIcon from '@mui/icons-material/WidgetsOutlined';
+import SmartphoneOutlinedIcon from '@mui/icons-material/SmartphoneOutlined';
+import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import homeHeroBg from '../../assets/home-hero-bg.png';
+import homeHeroSideBg from '../../assets/home-hero-side-bg.png';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { PlanPriceDisplay } from '../../components';
 import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
@@ -69,15 +79,22 @@ const PRO_PLAN: DisplayPlan = {
   priceStatusMessage: 'Coming soon',
 };
 
-const HERO_BADGE = 'Website builder';
-const HERO_TITLE = 'Create Your Gym Website in Minutes';
+const HERO_BADGE = '#1 PLATFORM FOR GYMS';
 const HERO_TAGLINE =
-  'No Coding Required. Get more members, manage bookings, and grow your gym online.';
-const HERO_POINTS = [
-    'Enter your gym details in minutes',
-    'Preview your site before publishing',
-    'Go live with one click',
-  ];
+  'Create your professional gym website in minutes. No coding. Get more members, manage bookings, and grow online.';
+const HERO_HIGHLIGHTS = [
+  { title: 'Lightning Fast', sub: 'Launch in minutes', Icon: BoltOutlinedIcon },
+  { title: 'Member Management', sub: 'Built-in CRM', Icon: GroupsOutlinedIcon },
+  { title: 'Grow Your Business', sub: 'More members, less effort', Icon: BarChartOutlinedIcon },
+] as const;
+const HERO_TRUST_AVATARS = ['A', 'B', 'C', 'D', 'E'] as const;
+const HERO_BOTTOM_FEATURES = [
+  { title: 'No Coding', sub: 'Easy to use builder', Icon: WidgetsOutlinedIcon },
+  { title: 'Mobile Ready', sub: 'Looks perfect anywhere', Icon: SmartphoneOutlinedIcon },
+  { title: 'SEO Optimized', sub: 'Rank higher on Google', Icon: TravelExploreOutlinedIcon },
+  { title: 'Secure & Reliable', sub: 'Your data is safe', Icon: LockOutlinedIcon },
+] as const;
+const muiHeroIconSx = { fontSize: '1.25rem' } as const;
 
 const HOW_IT_WORKS = [
     {
@@ -511,52 +528,123 @@ export default function HomePage() {
     <>
     <main ref={homeMainRef} className="crystal-home">
       {/* Hero section */}
-      <section id="home" className="crystal-hero">
-        <Container>
-          <Row className="justify-content-center align-items-center text-center">
-            <Col xs={12} lg={10} xl={8} className="py-5 py-lg-0">
-              <p className="crystal-hero-subtitle crystal-hero-seq crystal-hero-seq--1 text-uppercase small fw-semibold mb-2 mb-md-3">
-                {HERO_BADGE}
-              </p>
-              <h1 className="crystal-hero-title crystal-hero-seq crystal-hero-seq--2 display-4 fw-bold mb-3">
-                {HERO_TITLE}
-              </h1>
-              <p className="crystal-hero-tagline crystal-hero-seq crystal-hero-seq--3 lead mb-4 mx-auto">
-                {HERO_TAGLINE}
-              </p>
-              <div className="crystal-hero-seq crystal-hero-seq--4 d-flex flex-wrap gap-2 justify-content-center">
-              <Link to="/user/create-website" className="btn btn-primary btn-lg crystal-cta">
-               Create Free
-              </Link>
-              <Link
-                  to="/preview?from=marketing"
-                  className="btn btn-outline-light btn-lg crystal-cta-outline d-inline-flex align-items-center gap-2"
-                >
-                  <VisibilityOutlinedIcon
-                    sx={{ fontSize: '1.35rem', color: 'inherit' }}
-                    aria-hidden
+      <section id="home" className="crystal-hero crystal-hero-v2">
+        {/* Common full-bleed gym photo + veil for entire hero (all breakpoints) */}
+        <div
+          className="crystal-hero-v2__bg"
+          style={{ backgroundImage: `url(${homeHeroBg})` }}
+          aria-hidden
+        />
+        <div className="crystal-hero-v2__veil" aria-hidden />
+        <div className="crystal-hero-v2__stage">
+          <Container fluid className="crystal-hero-v2__main position-relative">
+            <div className="crystal-hero-v2__stack">
+              <div className="crystal-hero-v2__copy-panel">
+                <div className="crystal-hero-v2__layout">
+                  <div className="crystal-hero-v2__layout-copy">
+                    <Row className="align-items-center gy-5 py-4 py-lg-5">
+                      <Col xs={12} className="text-start crystal-hero-v2__copy">
+                    <p className="crystal-hero-v2-badge crystal-hero-seq crystal-hero-seq--1 small fw-semibold mb-3">
+                      {HERO_BADGE}
+                    </p>
+                    <h1 className="crystal-hero-v2-title crystal-hero-seq crystal-hero-seq--2 fw-bold mb-3">
+                      <span className="crystal-hero-v2-title__line crystal-hero-v2-title__plain">Build. Manage.</span>
+                      <span className="crystal-hero-v2-title__line crystal-hero-v2-title__grow">Grow Your Gym.</span>
+                    </h1>
+                    <p className="crystal-hero-v2-tagline crystal-hero-seq crystal-hero-seq--3 mb-4">
+                      {HERO_TAGLINE}
+                    </p>
+                    <div className="crystal-hero-v2-highlights crystal-hero-seq crystal-hero-seq--4 mb-4">
+                      {HERO_HIGHLIGHTS.map(({ title, sub, Icon }) => (
+                        <div key={title} className="crystal-hero-v2-highlight">
+                          <span className="crystal-hero-v2-highlight__icon" aria-hidden>
+                            <Icon sx={muiHeroIconSx} />
+                          </span>
+                          <span className="crystal-hero-v2-highlight__text">
+                            <span className="crystal-hero-v2-highlight__title">{title}</span>
+                            <span className="crystal-hero-v2-highlight__sub">{sub}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="crystal-hero-seq crystal-hero-seq--5 d-flex flex-wrap gap-3 justify-content-start mb-4">
+                      <Link
+                        to="/user/create-website"
+                        className="btn btn-lg crystal-hero-v2-cta-primary d-inline-flex align-items-center gap-2"
+                      >
+                        Create Your Gym Website
+                        <ArrowForwardOutlinedIcon sx={{ fontSize: '1.35rem' }} aria-hidden />
+                      </Link>
+                      <Link
+                        to="/preview?from=marketing"
+                        className="btn btn-lg crystal-hero-v2-cta-secondary d-inline-flex align-items-center gap-2"
+                      >
+                        <PlayArrowOutlinedIcon sx={{ fontSize: '1.45rem' }} aria-hidden />
+                        See It In Action
+                      </Link>
+                    </div>
+                    <div className="crystal-hero-v2-trust crystal-hero-seq crystal-hero-seq--6 justify-content-start">
+                      <div className="crystal-hero-v2-trust__avatars" aria-hidden>
+                        {HERO_TRUST_AVATARS.map((letter, i) => (
+                          <span
+                            key={letter}
+                            className="crystal-hero-v2-trust__avatar"
+                            style={{ zIndex: HERO_TRUST_AVATARS.length - i }}
+                          >
+                            {letter}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="crystal-hero-v2-trust__meta">
+                        <div className="crystal-hero-v2-trust__stars" aria-hidden>
+                          {'★★★★★'}
+                        </div>
+                        <p className="crystal-hero-v2-trust__text mb-0">Trusted by 1,000+ gym owners</p>
+                      </div>
+                    </div>
+                      </Col>
+                    </Row>
+                  </div>
+                </div>
+              </div>
+              <div className="crystal-hero-v2__media-panel" aria-hidden>
+                <div className="crystal-hero-v2__media-frame">
+                  <img
+                    src={homeHeroSideBg}
+                    alt=""
+                    className="crystal-hero-v2__hero-image"
+                    decoding="async"
+                    fetchPriority="high"
                   />
-                  Preview
-                </Link>
+                </div>
               </div>
-              <div className="crystal-hero-points crystal-hero-seq crystal-hero-seq--5 mt-4">
-                {HERO_POINTS.map((point) => (
-                  <span key={point} className="crystal-hero-point">
-                    <span className="crystal-hero-point-icon" aria-hidden>✓</span>
-                    {point}
-                  </span>
-                ))}
-              </div>
-            </Col>
-          </Row>
-        </Container>
+            </div>
+          </Container>
+        </div>
+        <div className="crystal-hero-v2-bottom">
+          <Container>
+            <Row className="g-3 g-md-4 py-4 text-center text-md-start">
+              {HERO_BOTTOM_FEATURES.map(({ title, sub, Icon }) => (
+                <Col key={title} xs={6} md={3}>
+                  <div className="crystal-hero-v2-bottom__item">
+                    <Icon sx={{ fontSize: '1.75rem' }} className="crystal-hero-v2-bottom__icon" aria-hidden />
+                    <div>
+                      <div className="crystal-hero-v2-bottom__title">{title}</div>
+                      <div className="crystal-hero-v2-bottom__sub">{sub}</div>
+                    </div>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Container>
+        </div>
       </section>
 
       {/* Why a website helps your gym – right below hero */}
       <section id="value" className="crystal-section crystal-value py-5 crystal-section-bg">
         <Container data-crystal-reveal>
           <Row className="justify-content-center">
-            <Col lg={8} className="text-center">
+            <Col xs={12} lg={10} xl={8} className="text-center crystal-value__inner">
               <p className="crystal-section-kicker text-primary fw-semibold text-uppercase small mb-2">Grow your gym</p>
               <h2 className="crystal-section-title display-6 fw-bold mb-3">
               Turn visitors into paying gym members with your own website.

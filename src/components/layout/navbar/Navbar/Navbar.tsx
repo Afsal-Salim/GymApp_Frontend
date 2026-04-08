@@ -55,9 +55,9 @@ export default function Navbar() {
   return (
     <>
       <BSNavbar expand="lg" className="crystal-navbar" sticky="top" expanded={expanded} onToggle={setExpanded}>
-      <Container>
-        <BSNavbar.Brand as={Link} to="/" className="crystal-brand d-flex align-items-center" onClick={closeMenu}>
-          <img src={logo} alt="Crystal" width="42" height="42" className="crystal-logo" />
+      <Container fluid className="crystal-navbar-container">
+        <BSNavbar.Brand as={Link} to="/" className="crystal-brand crystal-brand--start d-flex align-items-center" onClick={closeMenu}>
+          <img src={logo} alt="" className="crystal-logo" width={48} height={48} />
           <span>Crystal</span>
         </BSNavbar.Brand>
         <BSNavbar.Toggle aria-controls="crystal-nav" />

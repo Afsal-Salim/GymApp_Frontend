@@ -72,6 +72,10 @@ html {
   animation-delay: 0.68s;
 }
 
+.crystal-hero .crystal-hero-seq--6 {
+  animation-delay: 0.52s;
+}
+
 @keyframes crystal-home-float-btn-in {
   from {
     opacity: 0;
@@ -162,7 +166,7 @@ html {
 }
 
 @media (min-width: 768px) {
-  .crystal-hero {
+  .crystal-hero:not(.crystal-hero-v2) {
     background-attachment: fixed;
   }
 }
@@ -170,6 +174,508 @@ html {
 .crystal-hero .container {
   position: relative;
   z-index: 1;
+}
+
+/* —— Hero v2 (marketing mock + layered backgrounds) —— */
+.crystal-hero-v2 {
+  --crystal-hero-accent: #0084ff;
+  --crystal-hero-accent-soft: #4dc3ff;
+  min-height: min(100vh, 1024px);
+  padding-top: 0;
+  background: #050a12 !important;
+  background-image: none !important;
+  background-attachment: scroll !important;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  .crystal-hero-v2 {
+    min-height: min(100dvh, 1024px);
+  }
+}
+
+/* Single common background for the whole hero (mobile + desktop) */
+.crystal-hero-v2__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  filter: saturate(0.7) brightness(0.46) blur(0.5px);
+}
+
+.crystal-hero-v2__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* Single shared darkening (no opaque copy “card”); left stays readable, right opens for mockup */
+  background: linear-gradient(
+    105deg,
+    rgba(5, 10, 18, 0.9) 0%,
+    rgba(5, 10, 18, 0.78) 24%,
+    rgba(5, 10, 18, 0.5) 42%,
+    rgba(5, 10, 18, 0.2) 60%,
+    rgba(5, 10, 18, 0.09) 76%,
+    rgba(5, 10, 18, 0.03) 100%
+  );
+}
+
+.crystal-hero-v2__main {
+  position: relative;
+  z-index: 2;
+}
+
+.crystal-hero-v2__stage {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+  overflow-x: clip;
+}
+
+@media (min-width: 1350px) {
+  /* Let mockup bleed to the right edge like the full-bleed bg */
+  .crystal-hero-v2__stage {
+    overflow-x: visible;
+  }
+}
+
+/*
+ * Below 1350px: copy only (no side img).
+ * 1350px+: single grid cell — mockup behind (z-index 1), copy on top (z-index 3).
+ */
+.crystal-hero-v2__stack {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(1.25rem, 3vw, 2.25rem);
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+
+@media (min-width: 1350px) {
+  .crystal-hero-v2__stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    align-items: stretch;
+    gap: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-self: stretch;
+  }
+}
+
+.crystal-hero-v2__copy-panel {
+  position: relative;
+  z-index: 3;
+  flex: 0 1 auto;
+  min-width: 0;
+  background: transparent;
+  overflow-x: clip;
+  overflow-y: visible;
+  order: 1;
+}
+
+@media (min-width: 1350px) {
+  .crystal-hero-v2__copy-panel {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    align-self: center;
+    max-width: min(67%, 42rem);
+    order: 0;
+    /* Clicks hit links/buttons, not the layer below */
+    pointer-events: none;
+  }
+
+  .crystal-hero-v2__copy-panel .crystal-hero-v2__layout {
+    pointer-events: auto;
+  }
+}
+
+.crystal-hero-v2__media-panel {
+  display: none;
+  position: relative;
+  z-index: 1;
+  width: min(80%, 100%);
+  max-width: min(80%, 100%);
+  margin-inline: auto;
+  min-height: min(36vh, 20rem);
+  overflow: visible;
+  background: transparent;
+  order: 2;
+}
+
+@media (min-width: 1350px) {
+  .crystal-hero-v2__media-panel {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    align-self: stretch;
+    width: min(80%, 100%);
+    max-width: min(80%, 100%);
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    margin-inline: 0;
+    /* Pull to the same right edge as the hero bg (undo container padding) */
+    margin-right: calc(0rem - max(clamp(1rem, 2vw, 1.75rem), env(safe-area-inset-right)));
+    order: 0;
+  }
+}
+
+.crystal-hero-v2__media-frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Left-edge blend into hero bg */
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.25) 6%,
+    rgba(0, 0, 0, 0.75) 11%,
+    #000 16%,
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.25) 6%,
+    rgba(0, 0, 0, 0.75) 11%,
+    #000 16%,
+    #000 100%
+  );
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* Side art (home-hero-side-bg) */
+.crystal-hero-v2__hero-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+}
+
+@media (min-width: 1350px) {
+  .crystal-hero-v2__hero-image {
+    position: absolute;
+    inset: 0;
+    min-height: 100%;
+  }
+}
+
+.crystal-hero-v2__main.container-fluid {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+  padding-left: max(clamp(1px, 1px, 1px), env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 1350px) {
+  .crystal-hero-v2__main.container-fluid {
+    /* Left inset via padding only (replaces former margin-left on media panel) */
+    padding-left: max(clamp(2.25rem, 6.5vw, 5.25rem), env(safe-area-inset-left));
+    padding-right: clamp(1rem, 2vw, 1.75rem);
+    /* Fill stage height so mockup can stretch top–bottom with the bg */
+    justify-content: flex-start;
+    align-self: stretch;
+  }
+}
+
+.crystal-hero-v2__copy {
+  position: relative;
+  z-index: 1;
+  max-width: min(38rem, 100%);
+  margin-left: 8;
+}
+
+.crystal-hero-v2__layout {
+  width: 100%;
+  min-width: 0;
+}
+
+.crystal-hero-v2__layout-copy {
+  min-width: 0;
+}
+
+.crystal-hero-v2-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 132, 255, 0.5);
+  color: #4dc3ff;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.7rem !important;
+  background: rgba(0, 132, 255, 0.1);
+}
+
+.crystal-hero-v2-title {
+  color: #f8fafc;
+  /* Cap vw so ultra-wide / zoomed layouts don’t blow the grid */
+  font-size: clamp(2.25rem, 1.1rem + min(4.2vw, 2.75rem), 3.65rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  max-width: 22ch;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.crystal-hero-v2-title__line {
+  display: block;
+}
+
+.crystal-hero-v2-title__plain {
+  color: #f8fafc;
+}
+
+.crystal-hero-v2-title__grow {
+  background: linear-gradient(
+    90deg,
+    var(--crystal-hero-accent) 0%,
+    var(--crystal-hero-accent-soft) 45%,
+    #b9e8ff 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.crystal-hero-v2-tagline {
+  color: #a0a0a0;
+  font-size: clamp(1rem, 0.92rem + 0.35vw, 1.125rem);
+  line-height: 1.55;
+  max-width: 100%;
+  font-weight: 500;
+}
+
+.crystal-hero-v2-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.35rem;
+  justify-content: flex-start;
+}
+
+.crystal-hero-v2-highlight {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  text-align: left;
+  max-width: 11rem;
+}
+
+.crystal-hero-v2-highlight__icon {
+  flex-shrink: 0;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, rgba(0, 132, 255, 0.4), rgba(0, 132, 255, 0.12));
+  border: 1px solid rgba(0, 132, 255, 0.45);
+  color: #4dc3ff;
+}
+
+.crystal-hero-v2-highlight__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.crystal-hero-v2-highlight__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.25;
+}
+
+.crystal-hero-v2-highlight__sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.crystal-hero-v2-cta-primary {
+  border-radius: 10px !important;
+  border: none !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1.35rem !important;
+  background: linear-gradient(135deg, #0090ff, #0084ff) !important;
+  color: #fff !important;
+  box-shadow:
+    0 4px 28px rgba(0, 132, 255, 0.55),
+    0 0 40px rgba(0, 132, 255, 0.25),
+    0 0 0 1px rgba(77, 195, 255, 0.35);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.crystal-hero-v2-cta-primary:hover {
+  transform: translateY(-2px);
+  color: #fff !important;
+  box-shadow:
+    0 8px 36px rgba(0, 132, 255, 0.65),
+    0 0 48px rgba(0, 132, 255, 0.35),
+    0 0 0 1px rgba(77, 195, 255, 0.5);
+}
+
+.crystal-hero-v2-cta-secondary {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1.35rem !important;
+  border: 1px solid rgba(248, 250, 252, 0.55) !important;
+  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(8px);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.crystal-hero-v2-cta-secondary:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(248, 250, 252, 0.75) !important;
+  color: #fff !important;
+}
+
+.crystal-hero-v2-trust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1rem;
+}
+
+.crystal-hero-v2-trust__avatars {
+  display: flex;
+  align-items: center;
+  padding-left: 0.35rem;
+}
+
+.crystal-hero-v2-trust__avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  margin-left: -0.65rem;
+  border: 2px solid #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  background: linear-gradient(135deg, #334155, #1e293b);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.crystal-hero-v2-trust__avatar:nth-child(1) {
+  background: linear-gradient(135deg, #475569, #1e293b);
+}
+.crystal-hero-v2-trust__avatar:nth-child(2) {
+  background: linear-gradient(135deg, #0ea5e9, #0369a1);
+}
+.crystal-hero-v2-trust__avatar:nth-child(3) {
+  background: linear-gradient(135deg, #a78bfa, #5b21b6);
+}
+.crystal-hero-v2-trust__avatar:nth-child(4) {
+  background: linear-gradient(135deg, #34d399, #047857);
+}
+.crystal-hero-v2-trust__avatar:nth-child(5) {
+  background: linear-gradient(135deg, #fb7185, #be123c);
+}
+
+.crystal-hero-v2-trust__meta {
+  text-align: left;
+}
+
+.crystal-hero-v2-trust__stars {
+  color: #facc15;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.crystal-hero-v2-trust__text {
+  font-size: 0.8125rem;
+  color: #a0a0a0;
+  font-weight: 500;
+}
+
+/* Bottom feature bar */
+.crystal-hero-v2-bottom {
+  position: relative;
+  z-index: 3;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(2, 6, 23, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.crystal-hero-v2-bottom__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .crystal-hero-v2-bottom__item {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.75rem;
+  }
+}
+
+.crystal-hero-v2-bottom__icon {
+  color: #64748b;
+}
+
+.crystal-hero-v2-bottom__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.crystal-hero-v2-bottom__sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.35;
 }
 
 .crystal-hero-title {
@@ -433,8 +939,14 @@ html {
 /* Section background image effect */
 .crystal-section-bg {
   position: relative;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.95) 100%),
-    url('/images/section-bg.jpg') center center / cover no-repeat;
+  width: 100%;
+  isolation: isolate;
+  background-color: #f8fafc;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.95) 100%),
+    url('/images/section-bg.jpg');
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 .crystal-section-bg .container {
@@ -445,6 +957,20 @@ html {
 /* Value section – how a website helps your gym */
 .crystal-value .crystal-section-title {
   color: var(--bs-body-color);
+}
+
+.crystal-value__inner {
+  max-width: 44rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 992px) {
+  .crystal-value__inner {
+    max-width: 46rem;
+  }
 }
 
 .crystal-value-points {
