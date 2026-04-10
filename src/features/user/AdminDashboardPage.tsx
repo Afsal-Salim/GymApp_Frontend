@@ -260,11 +260,18 @@ function SupportFeedbackSection() {
   ) => {
     setSavingId(id);
     try {
-      await patchAdminSupportFeedback(id, kind, body);
-      showToast('Saved.');
-      await load();
+      const updated = await patchAdminSupportFeedback(id, kind, body);
+      setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...updated } : row)));
+      showToast('Saved.', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Update failed.');
+      setSavingId(null);
+      return;
+    }
+    try {
+      await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Could not refresh the list.', 'warning');
     } finally {
       setSavingId(null);
     }
@@ -464,11 +471,18 @@ function EnquiriesSection() {
   const patchOne = async (id: number, body: Parameters<typeof patchAdminEnquiry>[1]) => {
     setSavingId(id);
     try {
-      await patchAdminEnquiry(id, body);
-      showToast('Saved.');
-      await load();
+      const updated = await patchAdminEnquiry(id, body);
+      setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...updated } : row)));
+      showToast('Saved.', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Update failed.');
+      setSavingId(null);
+      return;
+    }
+    try {
+      await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Could not refresh the list.', 'warning');
     } finally {
       setSavingId(null);
     }
@@ -616,11 +630,20 @@ function WebsitesSection() {
   const patchOne = async (slug: string, body: Parameters<typeof patchAdminWebsite>[1]) => {
     setSavingKey(slug);
     try {
-      await patchAdminWebsite(slug, body);
-      showToast('Saved.');
-      await load();
+      const updated = await patchAdminWebsite(slug, body);
+      setRows((prev) =>
+        prev.map((r) => ((typeof r.slug === 'string' ? r.slug : '') === slug ? { ...r, ...updated } : r))
+      );
+      showToast('Saved.', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Update failed.');
+      setSavingKey(null);
+      return;
+    }
+    try {
+      await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Could not refresh the list.', 'warning');
     } finally {
       setSavingKey(null);
     }
@@ -738,11 +761,18 @@ function UsersSection() {
   const patchOne = async (id: number, body: Parameters<typeof patchAdminUser>[1]) => {
     setSavingId(id);
     try {
-      await patchAdminUser(id, body);
-      showToast('Saved.');
-      await load();
+      const updated = await patchAdminUser(id, body);
+      setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...updated } : row)));
+      showToast('Saved.', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Update failed.');
+      setSavingId(null);
+      return;
+    }
+    try {
+      await load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Could not refresh the list.', 'warning');
     } finally {
       setSavingId(null);
     }

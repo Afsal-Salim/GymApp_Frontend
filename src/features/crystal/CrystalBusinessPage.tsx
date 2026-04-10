@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, type RefObject, type CSSProperties } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, type RefObject, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button, Container, Row, Col, Card, Modal, Navbar, Nav } from 'react-bootstrap';
@@ -476,6 +476,19 @@ function resolveSiteBackgroundImageUrl(raw: string): string {
   }
 }
 
+/** Gallery `<img src>` on `/preview` — supports blob/data/https and root-relative paths. */
+function resolvePreviewGalleryImageUrl(raw: string): string {
+  const u = raw.trim();
+  if (!u) return u;
+  if (typeof window === 'undefined') return u;
+  if (u.startsWith('blob:') || u.startsWith('data:') || /^https?:\/\//i.test(u)) return u;
+  try {
+    return new URL(u, window.location.origin).href;
+  } catch {
+    return u;
+  }
+}
+
 function GymClientSiteView({
   content,
   businessSlug,
@@ -489,13 +502,15 @@ function GymClientSiteView({
   themeCssVars: CSSProperties;
   /** True on `/preview` — no lead API or local lead stats; gym is not published. */
   suppressPublicLeads?: boolean;
-  /** Paid-plan gym photos from GET `/businesses/<slug>/images/` (hidden for trial). */
+  /** Live site: from GET `/businesses/<slug>/images/` (hidden for trial). Preview: from draft `gallery.imageOrder`. */
   galleryStrip?: { url: string; caption?: string }[];
 }) {
   const shellRef = useRef<HTMLDivElement>(null);
   const [joinLeadModalOpen, setJoinLeadModalOpen] = useState(false);
   const [bookTrialModalOpen, setBookTrialModalOpen] = useState(false);
   const [planVisitModalOpen, setPlanVisitModalOpen] = useState(false);
+  /** `null` = closed; index into `galleryStrip` for lightbox. */
+  const [galleryLightboxIndex, setGalleryLightboxIndex] = useState<number | null>(null);
   const openJoinLeadModal = () => setJoinLeadModalOpen(true);
   const openBookTrialModal = () => setBookTrialModalOpen(true);
   const openPlanVisitModal = () => setPlanVisitModalOpen(true);
@@ -524,6 +539,26 @@ function GymClientSiteView({
     io.observe(footer);
     return () => io.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (galleryLightboxIndex === null || !galleryStrip?.length) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setGalleryLightboxIndex((i) =>
+          i === null || !galleryStrip.length ? null : (i + 1) % galleryStrip.length
+        );
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setGalleryLightboxIndex((i) =>
+          i === null || !galleryStrip.length ? null : (i - 1 + galleryStrip.length) % galleryStrip.length
+        );
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [galleryLightboxIndex, galleryStrip]);
 
   const scrollDown = () => {
     window.scrollTo({ top: window.scrollY + window.innerHeight * 0.85, behavior: 'smooth' });
@@ -771,20 +806,50 @@ function GymClientSiteView({
             <h2 id="crystal-client-gallery" className="crystal-client__section-title text-center px-3 mb-3" data-reveal>
               {content.gallery?.sectionTitle?.trim() || 'Gallery'}
             </h2>
-            <div className="crystal-client__gallery-scroller px-3" data-reveal>
+            <p className="crystal-client__gallery-hint small text-muted text-center px-3 mb-3 mb-md-2" data-reveal>
+              {galleryStrip.length <= 1 ?
+                'Tap the photo to enlarge'
+              : 'Swipe or scroll sideways to browse · tap a photo to enlarge'}
+            </p>
+            <div
+              className={`crystal-client__gallery-scroller px-3 crystal-client__gallery-layout--${
+                galleryStrip.length <= 1 ? 'one' : galleryStrip.length === 2 ? 'two' : galleryStrip.length === 3 ? 'three' : 'many'
+              }`}
+              data-reveal
+            >
               <div className="crystal-client__gallery-track">
                 {galleryStrip.map((item, idx) => (
                   <figure key={`${item.url}-${idx}`} className="crystal-client__gallery-card">
-                    <div className="crystal-client__gallery-card-img-wrap">
-                      <img
-                        src={item.url}
-                        alt={item.caption || 'Gym photo'}
-                        className="crystal-client__gallery-card-img"
-                        loading="lazy"
-                        width={400}
-                        height={280}
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      className="crystal-client__gallery-thumb-btn"
+                      onClick={() => setGalleryLightboxIndex(idx)}
+                      aria-haspopup="dialog"
+                      aria-label={
+                        item.caption?.trim() ? `Enlarge photo: ${item.caption.trim()}` : `Enlarge photo ${idx + 1} of ${galleryStrip.length}`
+                      }
+                    >
+                      <span className="crystal-client__gallery-card-img-wrap">
+                        <img
+                          src={item.url}
+                          alt=""
+                          className="crystal-client__gallery-card-img"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <span className="crystal-client__gallery-expand-hint" aria-hidden>
+                          <svg className="crystal-client__gallery-expand-icon" viewBox="0 0 24 24" fill="none">
+                            <path
+                              d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                      </span>
+                    </button>
                     {item.caption?.trim() ?
                       <figcaption className="crystal-client__gallery-card-caption small text-muted mt-2 mb-0 px-1">
                         {item.caption.trim()}
@@ -1152,6 +1217,87 @@ function GymClientSiteView({
         suppressPublicLeads={suppressPublicLeads}
       />
 
+      {galleryStrip && galleryStrip.length > 0 ?
+        <Modal
+          show={galleryLightboxIndex !== null}
+          onHide={() => setGalleryLightboxIndex(null)}
+          centered
+          size="xl"
+          dialogClassName="crystal-client-gallery-lightbox"
+          contentClassName="crystal-client-gallery-lightbox__shell border-0 shadow-lg"
+          backdropClassName="crystal-client-gallery-lightbox-backdrop"
+          aria-labelledby="crystal-gallery-lightbox-title"
+        >
+          <Modal.Body className="crystal-client-gallery-lightbox__body position-relative p-2 p-sm-3">
+            <button
+              type="button"
+              className="btn-close btn-close-white crystal-client-gallery-lightbox__close"
+              aria-label="Close gallery"
+              onClick={() => setGalleryLightboxIndex(null)}
+            />
+            {galleryLightboxIndex !== null ?
+              <>
+                <p id="crystal-gallery-lightbox-title" className="visually-hidden">
+                  Photo {galleryLightboxIndex + 1} of {galleryStrip.length}
+                </p>
+                <div className="crystal-client-gallery-lightbox__frame">
+                  <img
+                    src={galleryStrip[galleryLightboxIndex].url}
+                    alt={galleryStrip[galleryLightboxIndex].caption?.trim() || 'Gym photo'}
+                    className="crystal-client-gallery-lightbox__img"
+                  />
+                </div>
+                {galleryStrip[galleryLightboxIndex].caption?.trim() ?
+                  <p className="crystal-client-gallery-lightbox__caption text-white-50 small text-center mb-0 mt-2 px-2">
+                    {galleryStrip[galleryLightboxIndex].caption.trim()}
+                  </p>
+                : null}
+                {galleryStrip.length > 1 ?
+                  <>
+                    <button
+                      type="button"
+                      className="crystal-client-gallery-lightbox__nav crystal-client-gallery-lightbox__nav--prev"
+                      aria-label="Previous photo"
+                      onClick={() =>
+                        setGalleryLightboxIndex(
+                          (i) =>
+                            i === null ? null : (i - 1 + galleryStrip.length) % galleryStrip.length
+                        )
+                      }
+                    >
+                      <span aria-hidden>‹</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="crystal-client-gallery-lightbox__nav crystal-client-gallery-lightbox__nav--next"
+                      aria-label="Next photo"
+                      onClick={() =>
+                        setGalleryLightboxIndex((i) => (i === null ? null : (i + 1) % galleryStrip.length))
+                      }
+                    >
+                      <span aria-hidden>›</span>
+                    </button>
+                    <div className="crystal-client-gallery-lightbox__dots" role="tablist" aria-label="Gallery photos">
+                      {galleryStrip.map((_, dotIdx) => (
+                        <button
+                          key={dotIdx}
+                          type="button"
+                          role="tab"
+                          aria-selected={dotIdx === galleryLightboxIndex}
+                          aria-label={`Photo ${dotIdx + 1}`}
+                          className={`crystal-client-gallery-lightbox__dot${dotIdx === galleryLightboxIndex ? ' is-active' : ''}`}
+                          onClick={() => setGalleryLightboxIndex(dotIdx)}
+                        />
+                      ))}
+                    </div>
+                  </>
+                : null}
+              </>
+            : null}
+          </Modal.Body>
+        </Modal>
+      : null}
+
       <div className="crystal-client-floating-stack">
         {whatsappHref ? (
           <div
@@ -1403,8 +1549,14 @@ export default function CrystalBusinessPage() {
   const [publicGalleryImages, setPublicGalleryImages] = useState<BusinessUploadedImage[]>([]);
   /** Bumped when another tab writes the preview draft so we re-read localStorage. */
   const [previewStorageRev, setPreviewStorageRev] = useState(0);
+  /** After layout on the client — avoids SSR + first paint showing “No preview yet” before localStorage is read. */
+  const [canReadPreviewStorage, setCanReadPreviewStorage] = useState(false);
   /** Bumped on cross-tab login/logout (`storage` event) so we re-check gym ownership. */
   const [authSessionRev, setAuthSessionRev] = useState(0);
+
+  useLayoutEffect(() => {
+    setCanReadPreviewStorage(true);
+  }, []);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -1418,8 +1570,9 @@ export default function CrystalBusinessPage() {
 
   const previewDraft = useMemo(() => {
     if (slug !== 'preview' || isMarketingPreview) return null;
+    if (!canReadPreviewStorage) return null;
     return readCrystalWebsitePreviewFromStorage();
-  }, [slug, isMarketingPreview, previewStorageRev]);
+  }, [slug, isMarketingPreview, canReadPreviewStorage, previewStorageRev]);
 
   const marketingDemoContent = useMemo(
     () => (isMarketingPreview ? cloneGymClientSiteDefaults() : null),
@@ -1468,6 +1621,23 @@ export default function CrystalBusinessPage() {
       caption: caps?.[i.image_url]?.trim() || undefined,
     }));
   }, [slug, publicSubscription, publicGalleryImages, siteContent]);
+
+  /** `/preview` — show gallery from saved draft so users see the same strip as the public site (trial included). */
+  const previewGalleryStrip = useMemo(() => {
+    if (slug !== 'preview' || !siteContent) return undefined;
+    const previewOrder = siteContent.gallery?.previewImageOrder;
+    const order =
+      previewOrder && previewOrder.length > 0 ? previewOrder : siteContent.gallery?.imageOrder;
+    if (!order || order.length === 0) return undefined;
+    const caps = siteContent.gallery?.captionsByUrl;
+    return order
+      .map((raw) => raw.trim())
+      .filter(Boolean)
+      .map((rawUrl) => ({
+        url: resolvePreviewGalleryImageUrl(rawUrl),
+        caption: caps?.[rawUrl]?.trim() || undefined,
+      }));
+  }, [slug, siteContent]);
 
   /** Same tokens on viewport + portaled modals (navbar, hero, modal header gradient, etc.). */
   const resolvedGymClientTheme = useMemo(() => {
@@ -1658,6 +1828,18 @@ export default function CrystalBusinessPage() {
     }
   }, [slug, loading, notFound, router]);
 
+  if (slug === 'preview' && !isMarketingPreview && !canReadPreviewStorage) {
+    return (
+      <PageContainer className="crystal-business-page crystal-business-page--client">
+        <main className="crystal-business-page__main crystal-business-page__main--flush">
+          <div className="crystal-client-viewport crystal-client-viewport--loading" style={clientThemeCssVars}>
+            <GymLoadingScreen active variant="embed" message="Loading preview…" />
+          </div>
+        </main>
+      </PageContainer>
+    );
+  }
+
   if (slug === 'preview' && !siteContent) {
     return <CrystalPreviewEmpty />;
   }
@@ -1760,7 +1942,7 @@ export default function CrystalBusinessPage() {
                   }
                   themeCssVars={clientThemeCssVars}
                   suppressPublicLeads={slug === 'preview'}
-                  galleryStrip={slug !== 'preview' ? clientGalleryStrip : undefined}
+                  galleryStrip={slug === 'preview' ? previewGalleryStrip : clientGalleryStrip}
                 />
               </div>
               {showCrystalOwnerRechargeModal && publicSubscription && slug !== 'preview' ? (

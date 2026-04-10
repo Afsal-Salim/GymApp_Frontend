@@ -502,29 +502,61 @@ html {
 }
 
 .crystal-hero-v2-highlights {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 1.35rem;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+@media (max-width: 767.98px) {
+  .crystal-hero-v2-highlights {
+    justify-items: center;
+  }
+}
+
+/* Equal columns + uniform gutters — avoids uneven gaps from variable flex item widths */
+@media (min-width: 768px) {
+  .crystal-hero-v2-highlights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: clamp(0.35rem, 1.2vw, 0.65rem);
+    row-gap: 0.65rem;
+    justify-items: stretch;
+  }
 }
 
 @media (min-width: 1200px) {
   .crystal-hero-v2-highlights {
-    justify-content: flex-start;
+    column-gap: 0.75rem;
+  }
+}
+
+/* Extra space between column 2 (Member Management) and 3 (Grow Your Business) */
+@media (min-width: 768px) {
+  .crystal-hero-v2-highlights .crystal-hero-v2-highlight:nth-child(3) {
+    margin-left: 0.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .crystal-hero-v2-highlights .crystal-hero-v2-highlight:nth-child(3) {
+    margin-left: 0.85rem;
   }
 }
 
 .crystal-hero-v2-highlight {
   display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
   text-align: left;
-  max-width: 11rem;
+  min-width: 0;
+  width: 100%;
+  justify-content: flex-start;
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 767.98px) {
   .crystal-hero-v2-highlight {
-    justify-content: center;
+    max-width: 22rem;
   }
 }
 
@@ -545,6 +577,8 @@ html {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 .crystal-hero-v2-highlight__title {
@@ -554,10 +588,41 @@ html {
   line-height: 1.25;
 }
 
+/* Longer labels: keep on one line (slightly smaller type when columns are tight) */
+@media (max-width: 767.98px) {
+  .crystal-hero-v2-highlight:nth-child(2) .crystal-hero-v2-highlight__title,
+  .crystal-hero-v2-highlight:nth-child(3) .crystal-hero-v2-highlight__title {
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 768px) {
+  .crystal-hero-v2-highlight:nth-child(2) .crystal-hero-v2-highlight__title,
+  .crystal-hero-v2-highlight:nth-child(3) .crystal-hero-v2-highlight__title {
+    white-space: nowrap;
+    font-size: clamp(0.6875rem, 0.52rem + 0.75vw, 0.875rem);
+    letter-spacing: -0.02em;
+  }
+}
+
 .crystal-hero-v2-highlight__sub {
   font-size: 0.75rem;
   color: #64748b;
   line-height: 1.3;
+}
+
+@media (max-width: 767.98px) {
+  .crystal-hero-v2-highlight:nth-child(3) .crystal-hero-v2-highlight__sub {
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 768px) {
+  .crystal-hero-v2-highlight:nth-child(3) .crystal-hero-v2-highlight__sub {
+    white-space: nowrap;
+    font-size: clamp(0.625rem, 0.45rem + 0.7vw, 0.75rem);
+    letter-spacing: -0.015em;
+  }
 }
 
 .crystal-hero-v2-cta-primary {
@@ -1904,4 +1969,40 @@ html {
 .crystal-cta-outline,
 .crystal-package-card .btn {
   min-height: 48px;
+}
+
+/* Homepage FAQ (Bootstrap accordion) */
+.crystal-home .crystal-home-faq .crystal-home-faq__item {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 0.75rem;
+  margin-bottom: 0.65rem;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+
+.crystal-home .crystal-home-faq .accordion-button {
+  font-weight: 600;
+  color: var(--crystal-brand-primary, #0084ff);
+  background: transparent;
+  box-shadow: none !important;
+}
+
+.crystal-home .crystal-home-faq .accordion-button:not(.collapsed) {
+  color: var(--crystal-brand-primary, #0084ff);
+  background: transparent;
+}
+
+.crystal-home .crystal-home-faq .accordion-body {
+  padding-top: 0;
+  padding-bottom: 1rem;
+}
+
+/* About: vision & mission (readable column inside centered section) */
+.crystal-home .crystal-about__vision-mission {
+  max-width: 36rem;
+}
+
+.crystal-home .crystal-about__vm-heading {
+  letter-spacing: 0.04em;
+  font-size: 0.8rem;
 }

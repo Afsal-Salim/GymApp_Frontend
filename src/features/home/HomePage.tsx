@@ -20,10 +20,11 @@ import homeHeroSideBg from '../../assets/home-hero-side-bg.png';
 const homeHeroBgUrl = typeof homeHeroBg === 'string' ? homeHeroBg : homeHeroBg.src;
 const homeHeroSideW = typeof homeHeroSideBg === 'object' ? homeHeroSideBg.width : 800;
 const homeHeroSideH = typeof homeHeroSideBg === 'object' ? homeHeroSideBg.height : 600;
-import { Container, Row, Col, Card, Button } from 'react-bootstrap';
+import { Accordion, Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { PlanPriceDisplay } from '../../components';
 import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
 import { buildMarketingContactRows, homepageTutorialVideoUrl } from '../../config/env';
+import { HOME_PAGE_FAQ } from './homeFaq';
 import { WhatsAppLogoIcon } from '../../components';
 import './HomePage.css';
 
@@ -90,7 +91,7 @@ const PRO_PLAN: DisplayPlan = {
 
 const HERO_BADGE = '#1 PLATFORM FOR GYMS';
 const HERO_TAGLINE =
-  'Create your professional gym website in minutes. No coding. Get more members, manage bookings, and grow online.';
+  'Create a website for your gym in minutes—no coding. Crystal is a gym website builder: themes, WhatsApp leads, and analytics so you can grow online.';
 const HERO_HIGHLIGHTS = [
   { title: 'Lightning Fast', sub: 'Launch in minutes', Icon: BoltOutlinedIcon },
   { title: 'Member Management', sub: 'Built-in CRM', Icon: GroupsOutlinedIcon },
@@ -123,8 +124,13 @@ const HOW_IT_WORKS = [
 const ABOUT = {
     title: 'Why Crystal',
     tagline: 'Launch your gym online—fast and hassle-free.',
+    vision: 'Empowering small and growing businesses with high-quality websites at prices they can truly afford.',
+    mission: [
+      'We believe every business—no matter how small—deserves a professional online presence.',
+      "That's why we build powerful, affordable websites that help you grow.",
+    ] as const,
     description:
-      'Crystal turns your gym details into a professional website in minutes. No coding, no complexity—just a simple way to get your business online and attract more members.',
+      'Crystal is built to help you create a fitness or gym website without a developer. Turn your timetable, pricing, and photos into a polished site in minutes—then publish and share your link.',
     stats: [
       { value: '3', label: 'Simple steps to launch' },
       { value: '<5 min', label: 'Setup time' },
@@ -630,11 +636,11 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="crystal-hero-v2__media-panel" aria-hidden>
+              <div className="crystal-hero-v2__media-panel">
                 <div className="crystal-hero-v2__media-frame">
                   <Image
                     src={homeHeroSideBg}
-                    alt=""
+                    alt="Crystal gym website builder: preview of a fitness business site on laptop and phone"
                     className="crystal-hero-v2__hero-image"
                     width={homeHeroSideW}
                     height={homeHeroSideH}
@@ -675,7 +681,7 @@ export default function HomePage() {
               Turn visitors into paying gym members with your own website.
               </h2>
               <p className="text-muted mb-3">
-                A dedicated website builds trust, shows your classes and timings, and helps new members find you. Stand out with a polished online presence—no tech skills needed.
+                Whether someone searches for your gym by name or for classes nearby, a dedicated site builds trust, shows your classes and timings, and helps new members choose you. Stand out with a polished online presence—no tech skills needed.
               </p>
               <p className="text-muted mb-4">
                 Show your plans, promote offers, and receive instant enquiries on WhatsApp — all in one place.
@@ -789,6 +795,23 @@ export default function HomePage() {
             <Col lg={8} className="text-center">
               <h2 className="crystal-section-title display-6 fw-bold mb-2">{ABOUT.title}</h2>
               <p className="text-primary fw-medium mb-3">{ABOUT.tagline}</p>
+              <div className="crystal-about__vision-mission text-start mx-auto mb-4">
+                <h3 className="crystal-about__vm-heading h6 text-uppercase fw-semibold text-primary mb-2">
+                  Our vision
+                </h3>
+                <p className="text-muted mb-4 mb-lg-5">{ABOUT.vision}</p>
+                <h3 className="crystal-about__vm-heading h6 text-uppercase fw-semibold text-primary mb-2">
+                  Our mission
+                </h3>
+                {ABOUT.mission.map((paragraph, i) => (
+                  <p
+                    key={paragraph}
+                    className={`text-muted ${i < ABOUT.mission.length - 1 ? 'mb-2' : 'mb-0'}`}
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
               <p className="text-muted mb-4">{ABOUT.description}</p>
               <Row className="g-3 justify-content-center">
                 {ABOUT.stats.map(({ value, label }) => (
@@ -911,6 +934,28 @@ export default function HomePage() {
               See more →
             </Link>
           </p>
+        </Container>
+      </section>
+
+      {/* FAQ — copy matches JSON-LD FAQPage on this route */}
+      <section id="faq" className="crystal-section crystal-faq py-5 crystal-section-bg">
+        <Container data-crystal-reveal>
+          <h2 className="crystal-section-title text-center display-6 fw-bold mb-2">Common questions</h2>
+          <p className="text-center text-muted mb-4 mx-auto" style={{ maxWidth: '36rem' }}>
+            Quick answers about using Crystal to create a website for your gym or fitness studio.
+          </p>
+          <Row className="justify-content-center">
+            <Col lg={8}>
+              <Accordion className="crystal-home-faq">
+                {HOME_PAGE_FAQ.map((item, i) => (
+                  <Accordion.Item eventKey={String(i)} key={item.question} className="crystal-home-faq__item border-0">
+                    <Accordion.Header className="crystal-home-faq__header">{item.question}</Accordion.Header>
+                    <Accordion.Body className="text-muted pt-0">{item.answer}</Accordion.Body>
+                  </Accordion.Item>
+                ))}
+              </Accordion>
+            </Col>
+          </Row>
         </Container>
       </section>
 

@@ -6,6 +6,9 @@ import { publicApi } from './http/publicApi';
 
 const BASE = '/businesses';
 
+/** Coalesce concurrent GET `/businesses/<slug>/` (e.g. React Strict Mode dev double-mount). */
+const businessDetailInflight = new Map<string, Promise<BusinessDetail>>();
+
 /**
  * Owner list endpoints accept `search` or `q` with identical behavior (case-insensitive OR across
  * documented fields). We always send `search` after normalizing.
@@ -409,8 +412,18 @@ export async function getBusinessList(): Promise<BusinessListItem[]> {
 }
 
 export async function getBusinessDetail(slug: string): Promise<BusinessDetail> {
-  const { data } = await privateApi.get<BusinessDetail>(`${BASE}/${slug}/`);
-  return data;
+  const key = slug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  const existing = businessDetailInflight.get(key);
+  if (existing) return existing;
+  const promise = privateApi
+    .get<BusinessDetail>(`${BASE}/${encodeURIComponent(key)}/`)
+    .then(({ data }) => data)
+    .finally(() => {
+      businessDetailInflight.delete(key);
+    });
+  businessDetailInflight.set(key, promise);
+  return promise;
 }
 
 /** Starter block from GET `/businesses/<slug>/first-recharge/` (owner only). */

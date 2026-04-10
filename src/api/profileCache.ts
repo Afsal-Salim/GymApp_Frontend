@@ -1,5 +1,5 @@
 import { STORAGE_USER_PROFILE_CACHE } from '../config/storageKeys';
-import type { UserProfile } from './auth';
+import type { LoginResponse, UserProfile } from './auth';
 import { getProfile } from './auth';
 import { getAccessToken } from './tokens';
 import { primeProfileCache } from './profileCacheStorage';
@@ -33,6 +33,39 @@ function readCache(): UserProfile | null {
 
 function writeCache(data: UserProfile): void {
   primeProfileCache(data);
+}
+
+function isCompleteCustomerPayload(v: unknown): v is UserProfile {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  if (typeof o.email !== 'string' || !o.email.trim()) return false;
+  if (typeof o.username !== 'string' || !o.username.trim()) return false;
+  if (typeof o.role !== 'number' || !Number.isFinite(o.role)) return false;
+  if (typeof o.id !== 'number' || !Number.isFinite(o.id)) return false;
+  return true;
+}
+
+function seedProfileCacheFromLoginCustomer(customer: unknown): boolean {
+  if (!isCompleteCustomerPayload(customer)) return false;
+  primeProfileCache(customer);
+  return true;
+}
+
+/**
+ * After `setTokens`: warm cache from `response.customer` when the API sends a full customer object,
+ * otherwise fetch `/auth/me/`. **Await before navigating to `/user`** so the dashboard reads a warm
+ * cache and avoids an empty-profile flash.
+ */
+export async function syncProfileCacheAfterLogin(
+  response: Pick<LoginResponse, 'customer'>
+): Promise<UserProfile | null> {
+  const primed =
+    response.customer != null && seedProfileCacheFromLoginCustomer(response.customer);
+  try {
+    return await getProfileCached({ force: !primed });
+  } catch {
+    return peekProfileCache();
+  }
 }
 
 /**

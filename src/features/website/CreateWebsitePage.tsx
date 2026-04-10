@@ -64,6 +64,7 @@ import {
   writeCrystalWebsitePreviewToStorage,
   type CoachFormRow,
   type CreateWebsiteFormState,
+  type CrystalWebsiteDraftPayload,
   type DiscountOfferFormRow,
   type MembershipPackageFormRow,
 } from './setup/createWebsiteFormState';
@@ -92,15 +93,31 @@ import './CreateWebsitePage.css';
 
 const SLUG_REGEX = /^([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
-const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024; // 1 MB
+const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024; // 1 MB — logo, about body, coach photos, gallery
+const MAX_HERO_BG_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB — hero background only (large landscape)
 
-const GALLERY_IMAGE_ACCEPT =
-  'image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif';
+function formatImageUploadMaxLabel(maxBytes: number): string {
+  const mb = maxBytes / (1024 * 1024);
+  if (mb >= 1 && Number.isInteger(mb)) return `${mb} MB`;
+  const kb = maxBytes / 1024;
+  if (kb >= 1) return `${Math.max(1, Math.round(kb))} KB`;
+  return `${maxBytes} bytes`;
+}
+
+/** Some browsers leave `file.type` empty for camera / drag-drop; fall back to extension. */
+function fileLooksLikeGalleryImage(file: File): boolean {
+  const mime = file.type?.trim().toLowerCase();
+  if (mime.startsWith('image/')) return true;
+  return /\.(jpe?g|png|webp|gif|heic|heif|bmp|avif)$/i.test(file.name ?? '');
+}
 
 const GALLERY_DND_TYPE = 'application/x-gym-gallery-key';
 
 const GALLERY_KEY_PREFIX_SERVER = 's|';
 const GALLERY_KEY_PREFIX_PENDING = 'p|';
+
+/** Server gallery rows marked for removal in the UI; DELETE runs on Save only. */
+type GalleryPendingServerDelete = { id: number; url: string };
 
 function galleryServerKey(imageUrl: string): string {
   return `${GALLERY_KEY_PREFIX_SERVER}${imageUrl}`;
@@ -194,6 +211,55 @@ function mergedGalleryOrderFromKeys(visualKeys: string[], urlByLocalId: Map<stri
     .filter((u): u is string => typeof u === 'string' && u.length > 0);
 }
 
+type GalleryPendingRow = { localId: string; file: File; previewUrl: string; dataUrl?: string };
+
+/** Data URLs for pending files so `/preview` works across tabs (blob URLs are document-scoped). */
+function applyPreviewGallerySlotsToDraft(
+  draft: CrystalWebsiteDraftPayload,
+  visualKeys: string[],
+  pendingRows: GalleryPendingRow[]
+): CrystalWebsiteDraftPayload {
+  const pendingById = new Map(pendingRows.map((r) => [r.localId, r]));
+  const slots = visualKeys
+    .map((key) => {
+      if (key.startsWith(GALLERY_KEY_PREFIX_SERVER)) return key.slice(GALLERY_KEY_PREFIX_SERVER.length).trim();
+      if (key.startsWith(GALLERY_KEY_PREFIX_PENDING)) {
+        const id = key.slice(GALLERY_KEY_PREFIX_PENDING.length);
+        return pendingById.get(id)?.dataUrl?.trim() ?? '';
+      }
+      return '';
+    })
+    .filter(Boolean);
+
+  const baseGallery = draft.content.gallery;
+  if (slots.length === 0) {
+    if (!baseGallery?.previewImageOrder?.length) return draft;
+    const { previewImageOrder: _drop, ...rest } = baseGallery;
+    return {
+      ...draft,
+      content: {
+        ...draft.content,
+        gallery: Object.keys(rest).length > 0 ? rest : undefined,
+      },
+    };
+  }
+
+  return {
+    ...draft,
+    content: {
+      ...draft.content,
+      gallery: {
+        sectionTitle: baseGallery?.sectionTitle?.trim() || 'Gallery',
+        ...(baseGallery?.captionsByUrl && Object.keys(baseGallery.captionsByUrl).length > 0 ?
+          { captionsByUrl: baseGallery.captionsByUrl }
+        : {}),
+        ...(baseGallery?.imageOrder?.length ? { imageOrder: baseGallery.imageOrder } : {}),
+        previewImageOrder: slots,
+      },
+    },
+  };
+}
+
 function planTierIsTrial(sub: ActiveSubscriptionResponse | null): boolean {
   if (!sub) return false;
   const t = (sub.plan_tier ?? sub.subscription?.plan_tier ?? '').toString().trim().toLowerCase();
@@ -259,6 +325,8 @@ type ImageUrlOrUploadFieldProps = {
   disabled?: boolean;
   /** Shown above controls when `disabled` (e.g. preset artwork is active). */
   disabledNotice?: ReactNode;
+  /** Max file size for device upload; hero background allows a higher cap. */
+  maxUploadBytes?: number;
 };
 
 function ImageUrlOrUploadField({
@@ -274,7 +342,9 @@ function ImageUrlOrUploadField({
   sourceMode = 'url-or-upload',
   disabled = false,
   disabledNotice,
+  maxUploadBytes = MAX_IMAGE_UPLOAD_BYTES,
 }: ImageUrlOrUploadFieldProps) {
+  const uploadMaxLabel = formatImageUploadMaxLabel(maxUploadBytes);
   const uploadOnly = sourceMode === 'upload-only';
   const [tab, setTab] = useState<'url' | 'upload'>(() =>
     uploadOnly ? 'upload' : isDataImageUrl(value) ? 'upload' : 'url'
@@ -298,15 +368,17 @@ function ImageUrlOrUploadField({
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (disabled) return;
-    const file = e.target.files?.[0];
-    e.target.value = '';
+    const input = e.target;
+    /** Grab `File` before `value = ''` — clearing the input empties the live `FileList` reference. */
+    const file = input.files?.[0];
+    input.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      showToast('Please choose an image file.', 'warning');
+    if (!fileLooksLikeGalleryImage(file)) {
+      showToast('Please choose an image file (JPG, PNG, WebP, GIF, …).', 'warning');
       return;
     }
-    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-      showToast('Image must be 1 MB or smaller.', 'warning');
+    if (file.size > maxUploadBytes) {
+      showToast(`Image must be ${uploadMaxLabel} or smaller.`, 'warning');
       return;
     }
     const reader = new FileReader();
@@ -327,9 +399,9 @@ function ImageUrlOrUploadField({
       : null}
       <p className="text-muted small mb-2">
         {uploadOnly ?
-          <>Upload from your device only (no image URL). {ratioHint} Max 1 MB.</>
+          <>Upload from your device only (no image URL). {ratioHint} Max {uploadMaxLabel}.</>
         : <>
-            {ratioHint} Max upload size 1 MB.
+            {ratioHint} Max upload size {uploadMaxLabel}.
           </>
         }
       </p>
@@ -386,7 +458,9 @@ function ImageUrlOrUploadField({
             disabled={disabled}
           >
             <span className="create-website__image-upload-zone-title">Choose image</span>
-            <span className="create-website__image-upload-zone-sub text-muted small">PNG, JPG, WebP, GIF — up to 1 MB</span>
+            <span className="create-website__image-upload-zone-sub text-muted small">
+              PNG, JPG, WebP, GIF — up to {uploadMaxLabel}
+            </span>
           </button>
         </>
       }
@@ -803,8 +877,13 @@ export default function CreateWebsitePage() {
   const router = useRouter();
   const navigationType = useNavigationTypeCompat();
   const searchParams = useSearchParams();
-  const params = useParams<{ slug?: string }>();
-  const editRouteSlug = typeof params.slug === 'string' ? params.slug : undefined;
+  const params = useParams<{ slug?: string | string[] }>();
+  const editRouteSlug = (() => {
+    const raw = params.slug;
+    if (typeof raw === 'string') return raw.trim() || undefined;
+    if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'string') return raw[0].trim() || undefined;
+    return undefined;
+  })();
   const isEditMode = Boolean(editRouteSlug);
   const { showToast } = useToast();
   /** Edit flow must not seed from preview localStorage — wrong slug debounces and triggers a false “taken” check. */
@@ -825,14 +904,19 @@ export default function CreateWebsitePage() {
   const [galleryList, setGalleryList] = useState<ListBusinessImagesResponse | null>(null);
   const [galleryListLoading, setGalleryListLoading] = useState(false);
   /** Staged files — uploaded only when the main Save button runs. */
-  const [galleryPending, setGalleryPending] = useState<{ localId: string; file: File; previewUrl: string }[]>([]);
+  const [galleryPending, setGalleryPending] = useState<GalleryPendingRow[]>([]);
   const [galleryVisualKeys, setGalleryVisualKeys] = useState<string[]>([]);
+  const galleryVisualKeysRef = useRef(galleryVisualKeys);
+  const galleryPendingRef = useRef(galleryPending);
+  galleryVisualKeysRef.current = galleryVisualKeys;
+  galleryPendingRef.current = galleryPending;
   const [galleryFileDragOver, setGalleryFileDragOver] = useState(false);
   const [builderSubscription, setBuilderSubscription] = useState<ActiveSubscriptionResponse | null>(null);
   const [galleryPreviewSrc, setGalleryPreviewSrc] = useState<string | null>(null);
-  const [galleryDeletingUrl, setGalleryDeletingUrl] = useState<string | null>(null);
+  const [galleryServerDeletesPending, setGalleryServerDeletesPending] = useState<GalleryPendingServerDelete[]>([]);
   const galleryFileInputRef = useRef<HTMLInputElement>(null);
-  const editGalleryHydratedForSlug = useRef<string | null>(null);
+  /** Drop staged files when switching which business is being edited (avoid wrong blob previews). */
+  const galleryPendingSlugRef = useRef<string | undefined>(undefined);
 
   const applyThemePreset = useCallback((preset: WebsiteThemePreset) => {
     setForm((f) => ({
@@ -1055,7 +1139,6 @@ export default function CreateWebsitePage() {
 
   const [editReady, setEditReady] = useState(!isEditMode);
   const [editBaselineSlug, setEditBaselineSlug] = useState<string | null>(null);
-  const [editBusinessActive, setEditBusinessActive] = useState(true);
 
   useEffect(() => {
     if (!editRouteSlug) {
@@ -1070,8 +1153,6 @@ export default function CreateWebsitePage() {
         if (cancelled) return;
         setForm(createWebsiteFormFromBusinessDetail(d, editRouteSlug));
         setEditBaselineSlug(d.slug?.trim().toLowerCase() ?? editRouteSlug.trim().toLowerCase());
-        const ia = d.is_active;
-        setEditBusinessActive(typeof ia === 'boolean' ? ia : true);
       })
       .catch(() => {
         if (!cancelled) showToast('Failed to load business.');
@@ -1132,7 +1213,10 @@ export default function CreateWebsitePage() {
     if (typeof window === 'undefined') return;
     const f = formRef.current;
     const slugForPreview = f.slug.trim().toLowerCase() || 'preview';
-    writeCrystalWebsitePreviewToStorage(mapFormToWebsiteDraft({ ...f, slug: slugForPreview }));
+    const draft = mapFormToWebsiteDraft({ ...f, slug: slugForPreview });
+    writeCrystalWebsitePreviewToStorage(
+      applyPreviewGallerySlotsToDraft(draft, galleryVisualKeysRef.current, galleryPendingRef.current)
+    );
   }, [
     form.useDefaultPaletteArtwork,
     form.aboutBodyBgImageUrl,
@@ -1141,17 +1225,21 @@ export default function CreateWebsitePage() {
     form.darkColor,
     form.textColor,
     form.lightColor,
+    galleryVisualKeys,
+    galleryPending,
   ]);
 
   /** Live-sync preview draft to localStorage so `/preview` updates (debounced; runs in create and edit). */
   useEffect(() => {
     const slugForPreview = form.slug.trim().toLowerCase() || 'preview';
     const t = window.setTimeout(() => {
-      const draft = mapFormToWebsiteDraft({ ...form, slug: slugForPreview });
-      writeCrystalWebsitePreviewToStorage(draft);
+      const draft = mapFormToWebsiteDraft({ ...formRef.current, slug: slugForPreview });
+      writeCrystalWebsitePreviewToStorage(
+        applyPreviewGallerySlotsToDraft(draft, galleryVisualKeysRef.current, galleryPendingRef.current)
+      );
     }, PREVIEW_LIVE_SYNC_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
-  }, [form]);
+  }, [form, galleryVisualKeys, galleryPending]);
 
   const debouncedSlug = useDebounced(form.slug.trim().toLowerCase(), 450);
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
@@ -1199,6 +1287,10 @@ export default function CreateWebsitePage() {
   }, [isEditMode, editBaselineSlug, editRouteSlug, committedBusinessSlug]);
 
   useEffect(() => {
+    setGalleryServerDeletesPending([]);
+  }, [editRouteSlug, galleryUploadSlug]);
+
+  useEffect(() => {
     if (!galleryUploadSlug || (isEditMode && !editReady)) {
       setBuilderSubscription(null);
       return;
@@ -1219,6 +1311,7 @@ export default function CreateWebsitePage() {
   useEffect(() => {
     if (!galleryUploadSlug || (isEditMode && !editReady)) {
       setGalleryList(null);
+      setGalleryListLoading(false);
       return;
     }
     let cancelled = false;
@@ -1235,15 +1328,17 @@ export default function CreateWebsitePage() {
       });
     return () => {
       cancelled = true;
+      setGalleryListLoading(false);
     };
   }, [galleryUploadSlug, isEditMode, editReady]);
 
   const effectiveGalleryLimit = useMemo(() => {
-    if (galleryList && galleryList.slots_limit === 0 && (galleryList.images?.length ?? 0) === 0) {
-      return 0;
-    }
     if (galleryList && galleryList.slots_limit > 0) {
       return galleryList.slots_limit;
+    }
+    if (galleryList && galleryList.slots_limit === 0 && (galleryList.images?.length ?? 0) === 0) {
+      /** API may report 0 while storage is still usable — allow staging; server rejects if truly disabled. */
+      return 5;
     }
     if (builderSubscription) {
       return planTierIsTrial(builderSubscription) ? 5 : 10;
@@ -1257,11 +1352,19 @@ export default function CreateWebsitePage() {
    * Do not rely on `slots_used` alone — some APIs omit it or return 0 while `images` still lists files,
    * which incorrectly showed “0 / 5” with photos already on the gym.
    */
+  const pendingDeletedGalleryUrls = useMemo(
+    () => new Set(galleryServerDeletesPending.map((d) => d.url)),
+    [galleryServerDeletesPending]
+  );
+
   const serverGalleryImageCount = useMemo(() => {
     const list = galleryList?.images;
     if (!list?.length) return 0;
-    return list.filter((img) => !img.asset || img.asset === 'gallery').length;
-  }, [galleryList]);
+    return list.filter(
+      (img) =>
+        (!img.asset || img.asset === 'gallery') && !pendingDeletedGalleryUrls.has(img.image_url)
+    ).length;
+  }, [galleryList, pendingDeletedGalleryUrls]);
 
   const galleryStagedCount = serverGalleryImageCount + galleryPending.length;
   const galleryAtCapacity =
@@ -1271,34 +1374,35 @@ export default function CreateWebsitePage() {
     () =>
       (galleryList?.images ?? [])
         .filter((img) => !img.asset || img.asset === 'gallery')
-        .map((img) => img.image_url),
-    [galleryList]
+        .map((img) => img.image_url)
+        .filter((url) => !pendingDeletedGalleryUrls.has(url)),
+    [galleryList, pendingDeletedGalleryUrls]
   );
 
   const pendingLocalIds = useMemo(() => galleryPending.map((r) => r.localId), [galleryPending]);
 
   useEffect(() => {
+    if (!isEditMode) {
+      galleryPendingSlugRef.current = undefined;
+      setGalleryVisualKeys((prev) =>
+        reconcileGalleryVisualKeys(prev, serverGalleryUrls, pendingLocalIds, formRef.current.galleryImageOrder)
+      );
+      return;
+    }
+    const slugNorm = editRouteSlug?.trim().toLowerCase();
+    const prevStoredSlug = galleryPendingSlugRef.current;
+    if (slugNorm && prevStoredSlug != null && prevStoredSlug !== slugNorm) {
+      setGalleryPending((rows) => {
+        for (const r of rows) URL.revokeObjectURL(r.previewUrl);
+        return [];
+      });
+    }
+    if (slugNorm) galleryPendingSlugRef.current = slugNorm;
+    if (!slugNorm || !editReady) return;
     setGalleryVisualKeys((prev) =>
       reconcileGalleryVisualKeys(prev, serverGalleryUrls, pendingLocalIds, formRef.current.galleryImageOrder)
     );
-  }, [serverGalleryUrls, pendingLocalIds]);
-
-  useEffect(() => {
-    editGalleryHydratedForSlug.current = null;
-  }, [editRouteSlug]);
-
-  useEffect(() => {
-    if (!isEditMode || !editRouteSlug || !editReady) return;
-    if (editGalleryHydratedForSlug.current === editRouteSlug) return;
-    editGalleryHydratedForSlug.current = editRouteSlug;
-    setGalleryVisualKeys(
-      reconcileGalleryVisualKeys([], serverGalleryUrls, pendingLocalIds, formRef.current.galleryImageOrder)
-    );
   }, [isEditMode, editRouteSlug, editReady, serverGalleryUrls, pendingLocalIds]);
-
-  useEffect(() => {
-    if (!isEditMode) editGalleryHydratedForSlug.current = null;
-  }, [isEditMode]);
 
   useEffect(() => {
     const urls = orderFromGalleryVisualKeys(galleryVisualKeys);
@@ -1309,17 +1413,20 @@ export default function CreateWebsitePage() {
   }, [galleryVisualKeys]);
 
   const addGalleryFilesFromList = useCallback(
-    (files: FileList | File[] | null) => {
-      if (!files?.length) return;
-      if (isEditMode && !editReady) return;
+    (files: FileList | File[] | null | undefined) => {
+      const picked = files && files.length ? Array.from(files) : [];
+      if (!picked.length) return;
+      if (isEditMode && !editReady) {
+        showToast('Still loading this gym — wait a moment, then try adding photos again.');
+        return;
+      }
       if (effectiveGalleryLimit <= 0) {
         showToast('Image storage is not available right now.');
         return;
       }
-      const okMime = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-      const toAppend: { localId: string; file: File; previewUrl: string }[] = [];
+      const toAppend: GalleryPendingRow[] = [];
       let wouldBeCount = galleryStagedCount;
-      for (const file of Array.from(files)) {
+      for (const file of picked) {
         if (wouldBeCount >= effectiveGalleryLimit) {
           if (toAppend.length === 0) {
             showToast(`You can have up to ${effectiveGalleryLimit} images on your current plan.`);
@@ -1332,7 +1439,7 @@ export default function CreateWebsitePage() {
           showToast('Each image must be 1 MB or smaller.');
           continue;
         }
-        if (!okMime.includes(file.type.toLowerCase())) {
+        if (!fileLooksLikeGalleryImage(file)) {
           showToast('Use JPG, PNG, WebP, or GIF.');
           continue;
         }
@@ -1345,6 +1452,28 @@ export default function CreateWebsitePage() {
       }
       if (toAppend.length > 0) {
         setGalleryPending((rows) => [...rows, ...toAppend]);
+        setGalleryVisualKeys((keys) => {
+          let next = keys;
+          for (const row of toAppend) {
+            const k = galleryPendingKey(row.localId);
+            if (!next.includes(k)) {
+              if (next === keys) next = [...keys];
+              next.push(k);
+            }
+          }
+          return next;
+        });
+        for (const row of toAppend) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result;
+            if (typeof result !== 'string') return;
+            setGalleryPending((prev) =>
+              prev.map((p) => (p.localId === row.localId ? { ...p, dataUrl: result } : p))
+            );
+          };
+          reader.readAsDataURL(row.file);
+        }
       }
     },
     [isEditMode, editReady, effectiveGalleryLimit, galleryStagedCount, showToast]
@@ -1352,9 +1481,11 @@ export default function CreateWebsitePage() {
 
   const handleGalleryFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const list = e.target.files;
-      e.target.value = '';
-      addGalleryFilesFromList(list);
+      const input = e.target;
+      /** Snapshot before reset — `input.files` is a live list that clears when the input is reset. */
+      const picked = input.files?.length ? Array.from(input.files) : [];
+      input.value = '';
+      addGalleryFilesFromList(picked);
     },
     [addGalleryFilesFromList]
   );
@@ -1394,53 +1525,34 @@ export default function CreateWebsitePage() {
     setGalleryPreviewSrc(src);
   }, []);
 
-  const removeServerGalleryImage = useCallback(
-    async (img: BusinessUploadedImage) => {
-      const slug = galleryUploadSlug;
-      if (!slug) return;
-      if (!window.confirm('Remove this image from your gym? The file will be deleted from your account.')) {
+  const stageRemoveServerGalleryImage = useCallback(
+    (img: BusinessUploadedImage) => {
+      if (!galleryUploadSlug) return;
+      if (
+        !window.confirm(
+          'Remove this photo from the gallery? It will disappear here until you save. Your public site updates after you click Save.'
+        )
+      ) {
         return;
       }
       const imageUrl = img.image_url;
-      if (img.id == null || !Number.isFinite(img.id) || img.id <= 0) {
+      const pk = img.id;
+      if (pk == null || !Number.isFinite(pk) || pk <= 0) {
         showToast('Cannot remove this image (missing id). Try refreshing the page.');
         return;
       }
-      setGalleryDeletingUrl(imageUrl);
-      try {
-        await deleteBusinessGalleryImage(slug, img.id);
-        setForm((f) => {
-          const next = { ...f.galleryCaptions };
-          delete next[imageUrl];
-          return {
-            ...f,
-            galleryCaptions: next,
-            galleryImageOrder: f.galleryImageOrder.filter((u) => u !== imageUrl),
-          };
-        });
-        try {
-          setGalleryList(await listBusinessImages(slug));
-        } catch {
-          setGalleryList((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              images: prev.images.filter((i) => i.image_url !== imageUrl),
-              slots_used: Math.max(0, prev.slots_used - 1),
-            };
-          });
-        }
-      } catch (err) {
-        showToast(err instanceof Error ? err.message : 'Could not remove image.');
-      } finally {
-        setGalleryDeletingUrl(null);
-      }
+      setGalleryServerDeletesPending((rows) =>
+        rows.some((r) => r.url === imageUrl) ? rows : [...rows, { id: pk, url: imageUrl }]
+      );
+      setForm((f) => {
+        const next = { ...f.galleryCaptions };
+        delete next[imageUrl];
+        return { ...f, galleryCaptions: next };
+      });
     },
     [galleryUploadSlug, showToast]
   );
 
-  const galleryPendingRef = useRef(galleryPending);
-  galleryPendingRef.current = galleryPending;
   useEffect(() => {
     return () => {
       for (const row of galleryPendingRef.current) {
@@ -1500,8 +1612,15 @@ export default function CreateWebsitePage() {
       }
       const pendingSnapshot = [...galleryPending];
       const visualKeysSnapshot = [...galleryVisualKeys];
+      const pendingDeletesSnapshot = [...galleryServerDeletesPending];
       setSaving(true);
       try {
+        if (pendingDeletesSnapshot.length > 0) {
+          for (const row of pendingDeletesSnapshot) {
+            await deleteBusinessGalleryImage(baseline, row.id);
+          }
+          setGalleryServerDeletesPending([]);
+        }
         const urlByLocalId =
           pendingSnapshot.length > 0 ?
             await uploadPendingGalleryInVisualOrder(
@@ -1537,7 +1656,6 @@ export default function CreateWebsitePage() {
           phone: phoneDigits,
           address: form.contactAddress.trim(),
           location_map_url: mapNorm,
-          is_active: editBusinessActive,
           logo_url: logoUrlForApi,
           website_theme: {
             accentHex: draft.theme.accentHex.trim() || '#ea580c',
@@ -1573,8 +1691,15 @@ export default function CreateWebsitePage() {
     }
 
     const draft = mapFormToWebsiteDraft({ ...form, slug });
+    const pendingDeletesSnapshot = [...galleryServerDeletesPending];
     setSaving(true);
     try {
+      if (pendingDeletesSnapshot.length > 0) {
+        for (const row of pendingDeletesSnapshot) {
+          await deleteBusinessGalleryImage(slug, row.id);
+        }
+        setGalleryServerDeletesPending([]);
+      }
       await submitWebsiteSetupDraft(draft);
       const pendingSnapshot = [...galleryPending];
       const visualKeysSnapshot = [...galleryVisualKeys];
@@ -1583,7 +1708,7 @@ export default function CreateWebsitePage() {
           await uploadPendingGalleryInVisualOrder(slug, visualKeysSnapshot, pendingSnapshot, uploadBusinessImage)
         : new Map<string, string>();
       const mergedGalleryImageOrder = mergedGalleryOrderFromKeys(visualKeysSnapshot, urlByLocalId);
-      if (pendingSnapshot.length > 0) {
+      if (pendingSnapshot.length > 0 || pendingDeletesSnapshot.length > 0) {
         const draftWithGallery = mapFormToWebsiteDraft({
           ...form,
           slug,
@@ -1594,9 +1719,11 @@ export default function CreateWebsitePage() {
       for (const row of pendingSnapshot) {
         URL.revokeObjectURL(row.previewUrl);
       }
+      if (pendingSnapshot.length > 0 || pendingDeletesSnapshot.length > 0) {
+        setForm((f) => ({ ...f, galleryImageOrder: mergedGalleryImageOrder }));
+      }
       if (pendingSnapshot.length > 0) {
         setGalleryPending([]);
-        setForm((f) => ({ ...f, galleryImageOrder: mergedGalleryImageOrder }));
       }
       try {
         setGalleryList(await listBusinessImages(slug));
@@ -1604,7 +1731,7 @@ export default function CreateWebsitePage() {
         /* list refresh is best-effort */
       }
       const draftForStorage =
-        pendingSnapshot.length > 0 ?
+        pendingSnapshot.length > 0 || pendingDeletesSnapshot.length > 0 ?
           mapFormToWebsiteDraft({ ...form, slug, galleryImageOrder: mergedGalleryImageOrder })
         : draft;
       try {
@@ -1626,7 +1753,9 @@ export default function CreateWebsitePage() {
   const savePreviewDraftToStorage = (): boolean => {
     const slugForPreview = form.slug.trim().toLowerCase() || 'preview';
     const draft = mapFormToWebsiteDraft({ ...form, slug: slugForPreview });
-    return writeCrystalWebsitePreviewToStorage(draft);
+    return writeCrystalWebsitePreviewToStorage(
+      applyPreviewGallerySlotsToDraft(draft, galleryVisualKeys, galleryPending)
+    );
   };
 
   const openPreviewInNewTab = () => {
@@ -1814,18 +1943,6 @@ export default function CreateWebsitePage() {
                         </div>
                         <Form.Text id="cw-slug-help">{slugHelp}</Form.Text>
                       </Form.Group>
-                      {isEditMode ?
-                        <Form.Group className="mb-3">
-                          <Form.Check
-                            type="switch"
-                            id="cw-listing-active"
-                            label="Business listing active"
-                            checked={editBusinessActive}
-                            onChange={(e) => setEditBusinessActive(e.target.checked)}
-                          />
-                          <Form.Text className="text-muted">When off, your gym can be hidden from listings if the API supports it.</Form.Text>
-                        </Form.Group>
-                      : null}
                       <Row className="g-3">
                         <Col md={6}>
                           <Form.Group>
@@ -1862,15 +1979,6 @@ export default function CreateWebsitePage() {
                   <Accordion.Item eventKey="brand" className="create-website__accordion-item">
                     <Accordion.Header>Brand colors &amp; logo</Accordion.Header>
                     <Accordion.Body>
-                      <p className="create-website__theme-intro">
-                        These map to <code className="create-website__theme-token">--gym-client-accent</code> (CTAs and
-                        highlights), <code className="create-website__theme-token">--gym-client-dark</code> (surfaces and
-                        borders), <code className="create-website__theme-token">--gym-client-text</code> (readable copy), and{' '}
-                        <code className="create-website__theme-token">--gym-client-light</code> (mostly white/light surfaces).
-                        Choose a suggested palette for a balanced look, or expand <strong>Customise colors</strong> to set each
-                        value manually (palette, hex, or full-spectrum picker). Stored in your setup draft for when the theme API
-                        is connected.
-                      </p>
                       <Form.Check
                         type="checkbox"
                         id="cw-default-palette-artwork"
@@ -2010,6 +2118,7 @@ export default function CreateWebsitePage() {
                           previewVariant="landscape"
                           ratioHint="Recommended aspect ~16:9 (landscape)."
                           showToast={showToast}
+                          maxUploadBytes={MAX_HERO_BG_UPLOAD_BYTES}
                         />
                       </div>
                       <Form.Group className="mb-3">
@@ -2271,18 +2380,21 @@ export default function CreateWebsitePage() {
                       <p className="small text-muted mb-3">
                         JPG, PNG, WebP, or GIF — max 1 MB each. Add photos with the button below or by dropping files onto
                         the dashed area. Drag tiles by the handle to change order on your public site (saved with{' '}
-                        <strong>Save</strong>). Trial: up to 5 images; Starter/Pro: up to 10. Live gallery strip is hidden
-                        on trial public pages.
+                        <strong>Save</strong>). Trial: up to 5 images; Starter/Pro: up to 10. The live gallery strip is
+                        hidden on trial public pages, but <strong>Preview site</strong> shows it so you can check photos and
+                        order (remove or reorder in this form, then save).
                       </p>
                       {(isEditMode && !editReady) ?
                         <Alert variant="info" className="mb-0 py-2 small">
                           Loading business…
                         </Alert>
-                      : galleryUploadSlug && galleryListLoading ?
-                        <div className="d-flex align-items-center gap-2 text-muted small">
-                          <Spinner animation="border" size="sm" /> Loading gallery…
-                        </div>
                       : <>
+                          {galleryUploadSlug && galleryListLoading ?
+                            <div className="d-flex align-items-center gap-2 text-muted small mb-3">
+                              <Spinner animation="border" size="sm" aria-hidden />
+                              <span>Refreshing saved photos from the server… You can still add new images below.</span>
+                            </div>
+                          : null}
                           <Form.Group className="mb-3">
                             <Form.Label>Gallery section title (public site)</Form.Label>
                             <Form.Control
@@ -2291,9 +2403,10 @@ export default function CreateWebsitePage() {
                               placeholder="Gallery"
                             />
                           </Form.Group>
-                          {galleryList != null && galleryList.slots_limit === 0 && galleryList.slots_used === 0 ?
+                          {galleryList != null && galleryList.slots_limit === 0 && (galleryList.images?.length ?? 0) > 0 ?
                             <Alert variant="warning" className="py-2 small mb-3">
-                              Image storage is not available right now (server configuration). Try again later.
+                              The server reports no free gallery slots, but existing images are listed below. If uploads
+                              fail when you save, contact support.
                             </Alert>
                           : null}
                           {!galleryUploadSlug && !isEditMode ?
@@ -2305,7 +2418,7 @@ export default function CreateWebsitePage() {
                           <input
                             ref={galleryFileInputRef}
                             type="file"
-                            accept={GALLERY_IMAGE_ACCEPT}
+                            accept="image/*"
                             className="d-none"
                             multiple
                             onChange={handleGalleryFileChange}
@@ -2337,8 +2450,16 @@ export default function CreateWebsitePage() {
                               <p className="small text-muted mb-2 mb-md-3">
                                 <strong>{galleryStagedCount}</strong> /{' '}
                                 {effectiveGalleryLimit > 0 ? effectiveGalleryLimit : '—'} photos
-                                {galleryPending.length > 0 ?
-                                  <span className="text-muted"> · {galleryPending.length} not saved yet</span>
+                                {galleryPending.length > 0 || galleryServerDeletesPending.length > 0 ?
+                                  <span className="text-muted">
+                                    {galleryPending.length > 0 ?
+                                      <> · {galleryPending.length} new photo{galleryPending.length === 1 ? '' : 's'} not saved</>
+                                    : null}
+                                    {galleryServerDeletesPending.length > 0 ?
+                                      <> · {galleryServerDeletesPending.length} removal
+                                      {galleryServerDeletesPending.length === 1 ? '' : 's'} on save</>
+                                    : null}
+                                  </span>
                                 : null}
                               </p>
                               <Button
@@ -2363,13 +2484,14 @@ export default function CreateWebsitePage() {
                                   const localId = isPending ? gKey.slice(GALLERY_KEY_PREFIX_PENDING.length) : '';
                                   const url = isPending ? '' : gKey.slice(GALLERY_KEY_PREFIX_SERVER.length);
                                   const row = isPending ? pendingByLocalId.get(localId) : undefined;
-                                  const img = !isPending ? serverImageByUrl.get(url) : undefined;
+                                  const img = !isPending && url ? serverImageByUrl.get(url) : undefined;
                                   const previewSrc =
                                     row?.previewUrl ??
                                     (galleryUploadSlug && img ?
                                       resolveBusinessImageDisplayUrl(galleryUploadSlug, img)
-                                    : url);
-                                  if (!row && !img) return null;
+                                    : url || '');
+                                  if (isPending && !row) return null;
+                                  if (!isPending && !previewSrc) return null;
                                   const isStaged = Boolean(row);
                                   return (
                                     <div
@@ -2450,14 +2572,9 @@ export default function CreateWebsitePage() {
                                           />
                                         : img ?
                                           <RemoveRowTrashButton
-                                            ariaLabel="Remove image from gym"
-                                            disabled={
-                                              galleryDeletingUrl === img.image_url ||
-                                              !galleryUploadSlug ||
-                                              img.id == null ||
-                                              !Number.isFinite(img.id)
-                                            }
-                                            onClick={() => void removeServerGalleryImage(img)}
+                                            ariaLabel="Remove image from gallery (saved on Save)"
+                                            disabled={!galleryUploadSlug || img.id == null || !Number.isFinite(img.id)}
+                                            onClick={() => stageRemoveServerGalleryImage(img)}
                                           />
                                         : null}
                                       </div>

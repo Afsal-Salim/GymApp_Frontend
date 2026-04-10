@@ -14,6 +14,7 @@ const navHashItems = [
   { label: 'Home', href: '#home' },
   { label: 'About', href: '#about' },
   { label: 'Packages', href: '#packages' },
+  { label: 'FAQ', href: '#faq' },
   { label: 'Contacts', href: '#contacts' },
 ] as const;
 

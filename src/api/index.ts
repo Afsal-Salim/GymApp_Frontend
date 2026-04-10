@@ -59,7 +59,7 @@ export {
   CustomerRole,
   isAdminProfile,
 } from './auth';
-export { getProfileCached, peekProfileCache } from './profileCache';
+export { getProfileCached, peekProfileCache, syncProfileCacheAfterLogin } from './profileCache';
 export {
   getBusinessListPaginatedCached,
   peekBusinessListPage,

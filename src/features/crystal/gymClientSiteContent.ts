@@ -200,6 +200,11 @@ export type GymClientSiteContent = {
     captionsByUrl?: Record<string, string>;
     /** `image_url` values from GET `/businesses/<slug>/images/` in display order (builder + public strip). */
     imageOrder?: string[];
+    /**
+     * Builder preview only: full display order including unsaved photos as `data:image/…` URLs.
+     * Omitted from API payloads; `/preview` prefers this over `imageOrder` when present.
+     */
+    previewImageOrder?: string[];
   };
 };
 

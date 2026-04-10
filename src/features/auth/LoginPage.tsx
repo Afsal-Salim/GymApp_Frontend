@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { login, loginWithGoogle, setTokens, getProfileCached, setUserInfo } from '../../api';
+import { login, loginWithGoogle, setTokens, syncProfileCacheAfterLogin, setUserInfo } from '../../api';
 import { googleOAuthClientId } from '../../config/env';
 import { useToast } from '../../contexts/ToastContext';
 import './AuthPage.css';
@@ -152,9 +152,10 @@ export default function LoginPage() {
           const loginUsername =
             payload.customer?.username ?? payload.username ?? payload.user?.username;
           setUserInfo(loginEmail, loginUsername);
-          getProfileCached({ force: true })
-            .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
-            .catch(() => {});
+          const profile = await syncProfileCacheAfterLogin(data);
+          if (profile) {
+            setUserInfo(profile.email ?? loginEmail, profile.username ?? loginUsername);
+          }
           router.replace(buildReturnUrl(redirectTargetRef.current));
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Google sign-in failed';
@@ -220,9 +221,10 @@ export default function LoginPage() {
       const loginUsername =
         res.customer?.username ?? res.username ?? res.user?.username;
       setUserInfo(loginEmail, loginUsername);
-      getProfileCached({ force: true })
-        .then((p) => setUserInfo(p.email ?? loginEmail, p.username ?? loginUsername))
-        .catch(() => {});
+      const profile = await syncProfileCacheAfterLogin(data);
+      if (profile) {
+        setUserInfo(profile.email, profile.username);
+      }
       const from = state.from;
       if (from?.pathname) {
         router.replace(buildReturnUrl(from));

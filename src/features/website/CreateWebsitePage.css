@@ -359,28 +359,6 @@
 }
 
 /* Theme colors (brand accordion) */
-.create-website__theme-intro {
-  font-size: 0.875rem;
-  line-height: 1.55;
-  color: color-mix(in srgb, var(--bs-secondary) 82%, var(--bs-body-color) 18%);
-  margin-bottom: 1.25rem;
-  padding: 0.9rem 1.05rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bs-secondary) 5.5%, var(--bs-body-bg) 94.5%);
-  border: 1px solid color-mix(in srgb, var(--bs-body-color) 7%, transparent);
-}
-
-.create-website__theme-token {
-  font-size: 0.8125em;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-  padding: 0.14em 0.45em;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bs-body-color) 6.5%, transparent);
-  color: var(--bs-body-color);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
 .create-website__theme-presets-label {
   letter-spacing: 0.06em;
 }

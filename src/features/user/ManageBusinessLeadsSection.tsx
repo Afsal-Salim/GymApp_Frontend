@@ -382,11 +382,21 @@ export function ManageBusinessLeadsSection({ slug }: { slug: string }) {
   const patchEnquiry = async (id: number, body: Parameters<typeof patchBusinessEnquiry>[2]) => {
     setEnqSavingId(id);
     try {
-      await patchBusinessEnquiry(slug, id, body);
-      showToast('Enquiry updated.');
-      await loadEnquiries();
+      const updated = await patchBusinessEnquiry(slug, id, body);
+      setEnquiries((prev) => prev.map((row) => (row.id === id ? { ...row, ...updated } : row)));
+      showToast('Enquiry updated.', 'success');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Update failed.');
+      setEnqSavingId(null);
+      return;
+    }
+    try {
+      await loadEnquiries();
+    } catch (e) {
+      showToast(
+        e instanceof Error ? e.message : 'Could not refresh the list.',
+        'warning'
+      );
     } finally {
       setEnqSavingId(null);
     }
