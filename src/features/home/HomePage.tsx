@@ -17,7 +17,6 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import homeHeroBg from '../../assets/home-hero-bg.png';
 import homeHeroSideBg from '../../assets/home-hero-side-bg.png';
 
-const homeHeroBgUrl = typeof homeHeroBg === 'string' ? homeHeroBg : homeHeroBg.src;
 const homeHeroSideW = typeof homeHeroSideBg === 'object' ? homeHeroSideBg.width : 800;
 const homeHeroSideH = typeof homeHeroSideBg === 'object' ? homeHeroSideBg.height : 600;
 import { Accordion, Container, Row, Col, Card, Button } from 'react-bootstrap';
@@ -558,12 +557,17 @@ export default function HomePage() {
     <main ref={homeMainRef} className="crystal-home">
       {/* Hero section */}
       <section id="home" className="crystal-hero crystal-hero-v2">
-        {/* Common full-bleed gym photo + veil for entire hero (all breakpoints) */}
-        <div
-          className="crystal-hero-v2__bg"
-          style={{ backgroundImage: `url(${homeHeroBgUrl})` }}
-          aria-hidden
-        />
+        {/* Full-bleed gym photo: use <Image> like the side art so CSP / asset URLs match production (inline bg url() is often blocked). */}
+        <div className="crystal-hero-v2__bg" aria-hidden>
+          <Image
+            src={homeHeroBg}
+            alt=""
+            fill
+            priority
+            className="crystal-hero-v2__bg-image"
+            sizes="100vw"
+          />
+        </div>
         <div className="crystal-hero-v2__veil" aria-hidden />
         <div className="crystal-hero-v2__stage">
           <Container fluid className="crystal-hero-v2__main position-relative">

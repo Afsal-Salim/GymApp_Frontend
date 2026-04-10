@@ -218,9 +218,12 @@ html {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-position: center center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.crystal-hero-v2__bg-image {
+  object-fit: cover;
+  object-position: center center;
   filter: saturate(0.7) brightness(0.46) blur(0.5px);
 }
 
