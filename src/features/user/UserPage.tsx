@@ -34,7 +34,7 @@ import type {
   AnalyticsRangePreset,
 } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
-import { visitPublicGymSite } from '../../config/env';
+import { publicGymSiteUrl, visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { OverallLeadsByWebsiteChart } from './OverallLeadsByWebsiteChart';
 import { GYM_CLIENT_BRAND_LOGO_SRC, isLegacyCrystalGemLogoUrl } from '../crystal/gymClientBrandLogo';
@@ -149,6 +149,23 @@ function resolveBusinessListLogoUrl(b: BusinessListItem): string | null {
   return null;
 }
 
+function SiteQrLogoOverlay({ business }: { business: BusinessListItem }) {
+  const url = useMemo(() => resolveBusinessListLogoUrl(business), [business]);
+  const [bad, setBad] = useState(false);
+
+  useEffect(() => {
+    setBad(false);
+  }, [url]);
+
+  if (!url || bad) return null;
+
+  return (
+    <div className="user-page__site-qr-logo-wrap" aria-hidden>
+      <img src={url} alt="" className="user-page__site-qr-logo" onError={() => setBad(true)} />
+    </div>
+  );
+}
+
 function BusinessCardSiteLogo({
   business,
   label,
@@ -185,6 +202,14 @@ function BusinessCardSiteLogo({
   );
 }
 
+function BusinessCardQrIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm10 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2zm4-8h2v2h-2v-2zm0 4h2v2h-2v-2z" />
+    </svg>
+  );
+}
+
 function BusinessCardTrashIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -206,6 +231,7 @@ function BusinessCard({
   actionSlug,
   onRequestRemove,
   onRestore,
+  onOpenSiteQr,
 }: {
   b: BusinessListItem;
   onOpen: (slug: string) => void;
@@ -213,6 +239,7 @@ function BusinessCard({
   actionSlug: string | null;
   onRequestRemove: (b: BusinessListItem) => void;
   onRestore: (b: BusinessListItem) => void;
+  onOpenSiteQr: (b: BusinessListItem) => void;
 }) {
   const active = isActive(b);
   const archived = isBusinessArchived(b);
@@ -342,6 +369,18 @@ function BusinessCard({
                   >
                     <BusinessCardEditIcon />
                   </Link>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm user-page__business-action-btn user-page__business-action-btn--icon"
+                    title="QR code linking to your live site"
+                    aria-label="Generate QR code for website"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenSiteQr(b);
+                    }}
+                  >
+                    <BusinessCardQrIcon />
+                  </button>
                 </>
               : null}
             </div>
@@ -393,6 +432,9 @@ export default function UserPage() {
   const [allAnalyticsLoading, setAllAnalyticsLoading] = useState(false);
   const [allAnalyticsError, setAllAnalyticsError] = useState<string | null>(null);
   const [analyticsRange, setAnalyticsRange] = useState<AnalyticsRangePreset>('10d');
+  const [siteQrFor, setSiteQrFor] = useState<BusinessListItem | null>(null);
+  const [siteQrDataUrl, setSiteQrDataUrl] = useState<string | null>(null);
+  const [siteQrLoading, setSiteQrLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -450,6 +492,42 @@ export default function UserPage() {
       cancelled = true;
     };
   }, [businessPage, businessPageSize]);
+
+  useEffect(() => {
+    if (!siteQrFor?.slug?.trim()) {
+      setSiteQrDataUrl(null);
+      setSiteQrLoading(false);
+      return;
+    }
+    const landingUrl = publicGymSiteUrl(siteQrFor.slug.trim());
+    let cancelled = false;
+    setSiteQrLoading(true);
+    setSiteQrDataUrl(null);
+    void import('qrcode')
+      .then((qr) =>
+        qr.toDataURL(landingUrl, {
+          width: 256,
+          margin: 2,
+          errorCorrectionLevel: 'H',
+          color: { dark: '#0f172a', light: '#ffffff' },
+        })
+      )
+      .then((dataUrl) => {
+        if (!cancelled) setSiteQrDataUrl(dataUrl);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSiteQrDataUrl(null);
+          showToast('Could not generate QR code.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSiteQrLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [siteQrFor, showToast]);
 
   useEffect(() => {
     if (activeTab !== 'analytics') return;
@@ -921,6 +999,7 @@ export default function UserPage() {
                             actionSlug={recordActionSlug}
                             onRequestRemove={setRemoveConfirmBusiness}
                             onRestore={handleRestoreBusiness}
+                            onOpenSiteQr={setSiteQrFor}
                           />
                         </Col>
                       ))}
@@ -1050,6 +1129,77 @@ export default function UserPage() {
           </button>,
           document.body
         )}
+
+      <Modal
+        show={siteQrFor !== null}
+        onHide={() => setSiteQrFor(null)}
+        centered
+        className="user-page__site-qr-modal"
+        aria-labelledby="user-page-site-qr-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="user-page-site-qr-title">Site QR code</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="user-page__site-qr-body">
+          {(() => {
+            const slugSafe = siteQrFor?.slug?.trim() ?? '';
+            if (!slugSafe || !siteQrFor) return null;
+            const landingUrl = publicGymSiteUrl(slugSafe);
+            const displayName = (siteQrFor.name ?? slugSafe).trim() || slugSafe;
+            return (
+              <>
+                <p className="small text-muted mb-2">
+                  Scan to open <strong>{displayName}</strong>
+                  {"'"}s public landing page.
+                </p>
+                <code className="user-page__site-qr-url d-block">{landingUrl}</code>
+                {siteQrLoading ?
+                  <div className="py-4">
+                    <Spinner animation="border" role="status" />
+                  </div>
+                : siteQrDataUrl ?
+                  <div className="user-page__site-qr-frame">
+                    <img src={siteQrDataUrl} alt="" className="user-page__site-qr-img" width={256} height={256} />
+                    <SiteQrLogoOverlay business={siteQrFor} />
+                  </div>
+                : (
+                  <p className="text-danger small mb-0">Could not create QR code.</p>
+                )}
+                <div className="user-page__site-qr-actions">
+                  {siteQrDataUrl ?
+                    <Button
+                      as="a"
+                      variant="primary"
+                      size="sm"
+                      href={siteQrDataUrl}
+                      download={`${slugSafe}-website-qr.png`}
+                    >
+                      Download PNG
+                    </Button>
+                  : null}
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    type="button"
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          await navigator.clipboard.writeText(landingUrl);
+                          showToast('Link copied', 'success');
+                        } catch {
+                          showToast('Could not copy link');
+                        }
+                      })();
+                    }}
+                  >
+                    Copy link
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
+        </Modal.Body>
+      </Modal>
 
       {/* Business detail modal */}
       <Modal show={selectedBusiness !== null || detailLoading} onHide={closeModal} className="user-page__modal">

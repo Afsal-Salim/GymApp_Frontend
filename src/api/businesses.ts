@@ -9,6 +9,22 @@ const BASE = '/businesses';
 /** Coalesce concurrent GET `/businesses/<slug>/` (e.g. React Strict Mode dev double-mount). */
 const businessDetailInflight = new Map<string, Promise<BusinessDetail>>();
 
+/** Coalesce concurrent GET `/businesses/<slug>/active-subscription/` (bundle + page effects, Strict Mode). */
+const activeSubscriptionInflight = new Map<string, Promise<ActiveSubscriptionResponse>>();
+
+/** Coalesce concurrent GET `/businesses/public/<slug>/` (bundle, Strict Mode, multiple callers). */
+const publicBusinessBySlugInflight = new Map<string, Promise<PublicBusinessDetail>>();
+/** Short-lived success cache so a second mount after the first request finishes does not hit the network again. */
+const publicBusinessBySlugMemo = new Map<string, { until: number; data: PublicBusinessDetail }>();
+const PUBLIC_BUSINESS_MEMO_MS = 4000;
+
+/** Clears the in-memory public profile memo (e.g. after bundle invalidation or before a forced refetch). */
+export function clearPublicBusinessBySlugRuntimeMemo(slug: string): void {
+  const k = slug.trim().toLowerCase();
+  if (!k) return;
+  publicBusinessBySlugMemo.delete(k);
+}
+
 /**
  * Owner list endpoints accept `search` or `q` with identical behavior (case-insensitive OR across
  * documented fields). We always send `search` after normalizing.
@@ -89,6 +105,9 @@ type BusinessListApiResponse = {
   previous?: string | null;
 };
 
+/** Coalesce concurrent GET `/businesses/?page=&page_size=` (UserPage + Strict Mode). */
+const businessListPaginatedInflight = new Map<string, Promise<BusinessListPaginatedResponse>>();
+
 const OWNER_LIST_PAGE_SIZE_MAX = 100;
 
 function clampOwnerListPageSize(n: number): number {
@@ -151,6 +170,24 @@ export type OwnerCrystalLeadsListParams = {
   q?: string;
 };
 
+type CrystalLeadsPaginatedResult = { results: OwnerCrystalLeadItem[]; meta: BusinessListMeta; count: number };
+
+/** Coalesce concurrent crystal-leads list GETs (Strict Mode + overlapping effects). */
+const businessCrystalLeadsPaginatedInflight = new Map<string, Promise<CrystalLeadsPaginatedResult>>();
+
+function crystalLeadsListInflightKey(
+  slugKey: string,
+  page: number,
+  page_size: number,
+  params: OwnerCrystalLeadsListParams
+): string {
+  const sq = ownerListSearchQuery(params);
+  const searchTerm = 'search' in sq ? sq.search : '';
+  const lt = params.lead_type ?? '';
+  const rs = params.record_status ?? '';
+  return `${slugKey.toLowerCase()}\t${page}\t${page_size}\t${lt}\t${rs}\t${searchTerm}`;
+}
+
 /**
  * **GET** `/api/businesses/<slug>/crystal-leads/` — Bearer; owner.
  *
@@ -161,32 +198,43 @@ export type OwnerCrystalLeadsListParams = {
 export async function getBusinessCrystalLeadsPaginated(
   businessSlug: string,
   params: OwnerCrystalLeadsListParams = {}
-): Promise<{ results: OwnerCrystalLeadItem[]; meta: BusinessListMeta; count: number }> {
+): Promise<CrystalLeadsPaginatedResult> {
   const key = businessSlug.trim();
   if (!key) throw new Error('Business slug is required.');
   const page = params.page && params.page >= 1 ? params.page : 1;
   const page_size = clampOwnerListPageSize(params.page_size ?? 10);
-  try {
-    const { data } = await privateApi.get(`${BASE}/${encodeURIComponent(key)}/crystal-leads/`, {
-      params: {
-        page,
-        page_size,
-        ...(params.lead_type ? { lead_type: params.lead_type } : {}),
-        ...(params.record_status ? { record_status: params.record_status } : {}),
-        ...ownerListSearchQuery(params),
-      },
-    });
-    return parseMetaResultsList<OwnerCrystalLeadItem>(data, page, page_size);
-  } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) {
-      throw new Error('Business not found or you do not have access.');
+  const inflightKey = crystalLeadsListInflightKey(key, page, page_size, params);
+  const existing = businessCrystalLeadsPaginatedInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const promise = (async (): Promise<CrystalLeadsPaginatedResult> => {
+    try {
+      const { data } = await privateApi.get(`${BASE}/${encodeURIComponent(key)}/crystal-leads/`, {
+        params: {
+          page,
+          page_size,
+          ...(params.lead_type ? { lead_type: params.lead_type } : {}),
+          ...(params.record_status ? { record_status: params.record_status } : {}),
+          ...ownerListSearchQuery(params),
+        },
+      });
+      return parseMetaResultsList<OwnerCrystalLeadItem>(data, page, page_size);
+    } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 404) {
+        throw new Error('Business not found or you do not have access.');
+      }
+      if (axios.isAxiosError(e) && e.response?.status === 400) {
+        const body = e.response?.data as { detail?: string } | undefined;
+        throw new Error(typeof body?.detail === 'string' ? body.detail : 'Invalid filter.');
+      }
+      throw new Error(getAxiosErrorMessage(e, 'Failed to load crystal leads'));
     }
-    if (axios.isAxiosError(e) && e.response?.status === 400) {
-      const body = e.response?.data as { detail?: string } | undefined;
-      throw new Error(typeof body?.detail === 'string' ? body.detail : 'Invalid filter.');
-    }
-    throw new Error(getAxiosErrorMessage(e, 'Failed to load crystal leads'));
-  }
+  })().finally(() => {
+    businessCrystalLeadsPaginatedInflight.delete(inflightKey);
+  });
+
+  businessCrystalLeadsPaginatedInflight.set(inflightKey, promise);
+  return promise;
 }
 
 /**
@@ -386,23 +434,34 @@ export async function getBusinessListPaginated(
   page: number,
   pageSize: number
 ): Promise<BusinessListPaginatedResponse> {
-  const { data } = await privateApi.get<BusinessListApiResponse>(BASE + '/', {
-    params: { page, page_size: pageSize },
+  const key = `${page}:${pageSize}`;
+  const existing = businessListPaginatedInflight.get(key);
+  if (existing) return existing;
+
+  const promise = (async (): Promise<BusinessListPaginatedResponse> => {
+    const { data } = await privateApi.get<BusinessListApiResponse>(BASE + '/', {
+      params: { page, page_size: pageSize },
+    });
+    const raw = data as BusinessListApiResponse;
+    const results = Array.isArray(raw.results) ? raw.results : Array.isArray(data) ? (data as BusinessListItem[]) : [];
+    const meta = raw.meta;
+    const total = typeof meta?.total === 'number' ? meta.total : typeof raw.count === 'number' ? raw.count : results.length;
+    const totalPages = typeof meta?.total_pages === 'number' ? meta.total_pages : Math.ceil(total / pageSize) || 1;
+    const metaNormalized: BusinessListMeta = {
+      page: typeof meta?.page === 'number' ? meta.page : page,
+      page_size: typeof meta?.page_size === 'number' ? meta.page_size : pageSize,
+      total,
+      total_pages: totalPages,
+      has_next: typeof meta?.has_next === 'boolean' ? meta.has_next : page < totalPages,
+      has_previous: typeof meta?.has_previous === 'boolean' ? meta.has_previous : page > 1,
+    };
+    return { results, meta: metaNormalized, count: total };
+  })().finally(() => {
+    businessListPaginatedInflight.delete(key);
   });
-  const raw = data as BusinessListApiResponse;
-  const results = Array.isArray(raw.results) ? raw.results : Array.isArray(data) ? (data as BusinessListItem[]) : [];
-  const meta = raw.meta;
-  const total = typeof meta?.total === 'number' ? meta.total : typeof raw.count === 'number' ? raw.count : results.length;
-  const totalPages = typeof meta?.total_pages === 'number' ? meta.total_pages : Math.ceil(total / pageSize) || 1;
-  const metaNormalized: BusinessListMeta = {
-    page: typeof meta?.page === 'number' ? meta.page : page,
-    page_size: typeof meta?.page_size === 'number' ? meta.page_size : pageSize,
-    total,
-    total_pages: totalPages,
-    has_next: typeof meta?.has_next === 'boolean' ? meta.has_next : page < totalPages,
-    has_previous: typeof meta?.has_previous === 'boolean' ? meta.has_previous : page > 1,
-  };
-  return { results, meta: metaNormalized, count: total };
+
+  businessListPaginatedInflight.set(key, promise);
+  return promise;
 }
 
 /** List businesses for the current user (first page, 100 items). For full pagination use getBusinessListPaginated. */
@@ -535,6 +594,19 @@ export type AllWebsitesAnalyticsResponse = {
   range_applied?: string;
 };
 
+/** Coalesce concurrent GET `/businesses/analytics/` (UserPage tab + Strict Mode). */
+const allWebsitesAnalyticsInflight = new Map<string, Promise<WebsiteAnalytics[]>>();
+/** Coalesce concurrent GET `/businesses/<slug>/analytics/` (Manage page + Strict Mode). */
+const businessWebsiteAnalyticsInflight = new Map<string, Promise<WebsiteAnalytics>>();
+
+function analyticsInflightRangeKey(range?: AnalyticsRangePreset): string {
+  return range ?? 'default';
+}
+
+function analyticsInflightKeySite(slug: string, range?: AnalyticsRangePreset): string {
+  return `${slug.trim().toLowerCase()}:${analyticsInflightRangeKey(range)}`;
+}
+
 function analyticsAxiosError(e: unknown, fallback: string): Error {
   if (axios.isAxiosError(e) && e.response?.status === 400) {
     const body = e.response?.data;
@@ -552,14 +624,26 @@ function analyticsAxiosError(e: unknown, fallback: string): Error {
  * All owned websites’ analytics. **GET** `/api/businesses/analytics/?range=<preset>` (same window for every site).
  */
 export async function getAllWebsitesAnalytics(range?: AnalyticsRangePreset): Promise<WebsiteAnalytics[]> {
-  try {
-    const { data } = await privateApi.get<AllWebsitesAnalyticsResponse>(`${BASE}/analytics/`, {
-      params: range ? { range } : {},
-    });
-    return Array.isArray(data?.websites) ? data.websites : [];
-  } catch (e) {
-    throw analyticsAxiosError(e, 'Failed to load analytics');
-  }
+  const rk = analyticsInflightRangeKey(range);
+  const inflightKey = `all:${rk}`;
+  const existing = allWebsitesAnalyticsInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const promise = (async (): Promise<WebsiteAnalytics[]> => {
+    try {
+      const { data } = await privateApi.get<AllWebsitesAnalyticsResponse>(`${BASE}/analytics/`, {
+        params: range ? { range } : {},
+      });
+      return Array.isArray(data?.websites) ? data.websites : [];
+    } catch (e) {
+      throw analyticsAxiosError(e, 'Failed to load analytics');
+    }
+  })().finally(() => {
+    allWebsitesAnalyticsInflight.delete(inflightKey);
+  });
+
+  allWebsitesAnalyticsInflight.set(inflightKey, promise);
+  return promise;
 }
 
 /**
@@ -571,17 +655,29 @@ export async function getBusinessWebsiteAnalytics(
 ): Promise<WebsiteAnalytics> {
   const key = slug.trim();
   if (!key) throw new Error('Business slug is required.');
-  try {
-    const { data } = await privateApi.get<WebsiteAnalytics>(`${BASE}/${encodeURIComponent(key)}/analytics/`, {
-      params: options?.range ? { range: options.range } : {},
-    });
-    return data;
-  } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) {
-      throw new Error('Business not found or you do not have access.');
+  const range = options?.range;
+  const inflightKey = analyticsInflightKeySite(key, range);
+  const existing = businessWebsiteAnalyticsInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const promise = (async (): Promise<WebsiteAnalytics> => {
+    try {
+      const { data } = await privateApi.get<WebsiteAnalytics>(`${BASE}/${encodeURIComponent(key)}/analytics/`, {
+        params: range ? { range } : {},
+      });
+      return data;
+    } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 404) {
+        throw new Error('Business not found or you do not have access.');
+      }
+      throw analyticsAxiosError(e, 'Failed to load analytics');
     }
-    throw analyticsAxiosError(e, 'Failed to load analytics');
-  }
+  })().finally(() => {
+    businessWebsiteAnalyticsInflight.delete(inflightKey);
+  });
+
+  businessWebsiteAnalyticsInflight.set(inflightKey, promise);
+  return promise;
 }
 
 /** Public gym profile from GET /businesses/public/<slug>/ (no auth). */
@@ -616,16 +712,36 @@ export class PublicBusinessNotFoundError extends Error {
 
 /** Load basic business profile for the public client site. No owner or subscription fields. */
 export async function getPublicBusinessBySlug(slug: string): Promise<PublicBusinessDetail> {
-  try {
-    const { data } = await publicApi.get<PublicBusinessDetail>(`${BASE}/public/${encodeURIComponent(slug)}/`);
-    return data;
-  } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) {
-      const body = e.response?.data as { detail?: string } | undefined;
-      throw new PublicBusinessNotFoundError(slug, typeof body?.detail === 'string' ? body.detail : undefined);
-    }
-    throw new Error(getAxiosErrorMessage(e, 'Failed to load business'));
+  const key = slug.trim();
+  if (!key) throw new Error('Business slug is required.');
+  const inflightKey = key.toLowerCase();
+
+  const memo = publicBusinessBySlugMemo.get(inflightKey);
+  if (memo && Date.now() < memo.until) {
+    return memo.data;
   }
+
+  const existing = publicBusinessBySlugInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const promise = (async (): Promise<PublicBusinessDetail> => {
+    try {
+      const { data } = await publicApi.get<PublicBusinessDetail>(`${BASE}/public/${encodeURIComponent(key)}/`);
+      publicBusinessBySlugMemo.set(inflightKey, { data, until: Date.now() + PUBLIC_BUSINESS_MEMO_MS });
+      return data;
+    } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 404) {
+        const body = e.response?.data as { detail?: string } | undefined;
+        throw new PublicBusinessNotFoundError(key, typeof body?.detail === 'string' ? body.detail : undefined);
+      }
+      throw new Error(getAxiosErrorMessage(e, 'Failed to load business'));
+    }
+  })().finally(() => {
+    publicBusinessBySlugInflight.delete(inflightKey);
+  });
+
+  publicBusinessBySlugInflight.set(inflightKey, promise);
+  return promise;
 }
 
 /** `plan_tier` on GET `/businesses/<slug>/active-subscription/` (public). */
@@ -735,19 +851,30 @@ export function normalizeActiveSubscriptionResponse(raw: unknown, fallbackSlug: 
 export async function getActiveSubscription(slug: string): Promise<ActiveSubscriptionResponse> {
   const key = slug.trim();
   if (!key) throw new Error('Business slug is required.');
-  try {
-    const { data } = await publicApi.get<unknown>(`${BASE}/${encodeURIComponent(key)}/active-subscription/`);
-    return normalizeActiveSubscriptionResponse(data, key);
-  } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) {
-      const body = e.response?.data;
-      if (body && typeof body === 'object') {
-        return normalizeActiveSubscriptionResponse(body, key);
+  const inflightKey = key.toLowerCase();
+  const existing = activeSubscriptionInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const promise = (async (): Promise<ActiveSubscriptionResponse> => {
+    try {
+      const { data } = await publicApi.get<unknown>(`${BASE}/${encodeURIComponent(key)}/active-subscription/`);
+      return normalizeActiveSubscriptionResponse(data, key);
+    } catch (e) {
+      if (axios.isAxiosError(e) && e.response?.status === 404) {
+        const body = e.response?.data;
+        if (body && typeof body === 'object') {
+          return normalizeActiveSubscriptionResponse(body, key);
+        }
+        return inactiveActiveSubscriptionResponse(key, 'Not found.');
       }
-      return inactiveActiveSubscriptionResponse(key, 'Not found.');
+      throw new Error(getAxiosErrorMessage(e, 'Failed to check subscription'));
     }
-    throw new Error(getAxiosErrorMessage(e, 'Failed to check subscription'));
-  }
+  })().finally(() => {
+    activeSubscriptionInflight.delete(inflightKey);
+  });
+
+  activeSubscriptionInflight.set(inflightKey, promise);
+  return promise;
 }
 
 /** Response from GET /businesses/check-slug/?slug= (public, no auth). */
@@ -855,7 +982,8 @@ export type { CrystalWebsiteSetupPayload };
  */
 export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload): Promise<void> {
   try {
-    await privateApi.post(`${BASE}/website-setup/`, payload);
+    const { editBusinessSlug: _previewOnly, ...body } = payload;
+    await privateApi.post(`${BASE}/website-setup/`, body);
   } catch (e) {
     throw new Error(getAxiosErrorMessage(e, 'Failed to save website setup'));
   }

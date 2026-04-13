@@ -1,8 +1,14 @@
-import { GymLoadingScreen } from '../components';
+'use client';
 
-/** Route-change overlay: full-viewport gym animation (shared with public gym loading). */
+import { CrystalClientLogoLoader } from '../features/crystal/CrystalClientLogoLoader';
+import './RouteTransitionLoader.css';
+
+/** Brief route-change overlay on gym client paths — Crystal mark only (no generic dots). */
 export function RouteTransitionLoader({ active }: { active: boolean }) {
+  if (!active) return null;
   return (
-    <GymLoadingScreen active={active} variant="fixed" zIndex={1000} message="LOADING YOUR GYM..." />
+    <div className="route-transition-loader" role="status" aria-live="polite">
+      <CrystalClientLogoLoader />
+    </div>
   );
 }

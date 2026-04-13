@@ -14,11 +14,13 @@ import {
   formatHeroMemberRating,
   normalizeLegacyHeroBackgroundImageUrl,
   normalizeLocationMapUrl,
+  parseGymClientWebsiteThemeFromApi,
   parseLegacyRatingToMemberRating,
   withLegacyHeroBackgroundMigrated,
   type CrystalWebsiteSetupPayload,
   type GymClientAboutFeature,
   type GymClientSiteContent,
+  type GymClientWebsiteSectionThemeOverrides,
 } from '../../crystal/gymClientSiteContent';
 import { getPresetArtworkUrlForColors } from '../websiteThemePresets';
 
@@ -150,6 +152,20 @@ export type CreateWebsiteFormState = {
   textColor: string;
   /** Base color for light surfaces (cards/sections). */
   lightColor: string;
+  /** Optional hex; empty = default CSS for the About section outer background. */
+  aboutSectionBg: string;
+  /** Optional hex; empty = default derived card tint on About. */
+  aboutFeatureCardBg: string;
+  /** Optional hex; empty = default wash behind membership cards. */
+  packagesSectionBg: string;
+  /** Optional hex; empty = white package cards. */
+  packageCardBg: string;
+  /** Optional hex; empty = default soft gradient behind Contact / Visit. */
+  metaSectionBg: string;
+  /** Optional hex; empty = white Visit/Contact panels. */
+  metaPanelBg: string;
+  /** Optional hex; empty = default inner row chips in those panels. */
+  metaRowBg: string;
   logoUrl: string;
   gymName: string;
   businessDescription: string;
@@ -237,6 +253,13 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
     darkColor: '#0c0a09',
     textColor: GYM_CLIENT_DEFAULT_TEXT_HEX,
     lightColor: GYM_CLIENT_DEFAULT_LIGHT_HEX,
+    aboutSectionBg: '',
+    aboutFeatureCardBg: '',
+    packagesSectionBg: '',
+    packageCardBg: '',
+    metaSectionBg: '',
+    metaPanelBg: '',
+    metaRowBg: '',
     logoUrl: '',
     gymName: d.header.title,
     businessDescription: d.description.body,
@@ -319,20 +342,26 @@ function parsePreviewPayload(raw: string): CrystalWebsiteDraftPayload | null {
     if (!rec.content || typeof rec.content !== 'object') return null;
     const title = (rec.content as GymClientSiteContent).header?.title;
     if (typeof title !== 'string') return null;
-    const accent = rec.theme?.accentHex;
-    const dark = rec.theme?.darkHex;
-    const textRaw = (rec.theme as { textHex?: string } | undefined)?.textHex;
-    const lightRaw = (rec.theme as { lightHex?: string } | undefined)?.lightHex;
-    const textHex = typeof textRaw === 'string' && textRaw.trim() ? textRaw.trim() : GYM_CLIENT_DEFAULT_TEXT_HEX;
-    const lightHex = typeof lightRaw === 'string' && lightRaw.trim() ? lightRaw.trim() : GYM_CLIENT_DEFAULT_LIGHT_HEX;
-    const theme =
-      typeof accent === 'string' && typeof dark === 'string' ?
-        { accentHex: accent, darkHex: dark, textHex, lightHex }
-      : { accentHex: '#ea580c', darkHex: '#0c0a09', textHex: GYM_CLIENT_DEFAULT_TEXT_HEX, lightHex: GYM_CLIENT_DEFAULT_LIGHT_HEX };
+    const theme = parseGymClientWebsiteThemeFromApi(rec.theme ?? {}, {
+      accentHex: '#ea580c',
+      darkHex: '#0c0a09',
+      textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+      lightHex: GYM_CLIENT_DEFAULT_LIGHT_HEX,
+    });
+    const editRaw = (rec as { editBusinessSlug?: unknown }).editBusinessSlug;
+    const editT = typeof editRaw === 'string' ? editRaw.trim() : '';
+    const editNorm =
+      editT.length >= 2 &&
+      editT.length <= 48 &&
+      /^([a-z0-9]+(?:-[a-z0-9]+)*)$/i.test(editT) ?
+        editT.toLowerCase()
+      : undefined;
+
     return {
       slug: typeof rec.slug === 'string' && rec.slug ? rec.slug : 'preview',
       theme,
       content: withLegacyHeroBackgroundMigrated(rec.content as GymClientSiteContent),
+      ...(editNorm ? { editBusinessSlug: editNorm } : {}),
     };
   } catch {
     return null;
@@ -352,6 +381,22 @@ export function readCrystalWebsitePreviewFromStorage(): CrystalWebsiteDraftPaylo
   } catch {
     return null;
   }
+}
+
+/**
+ * Attach or remove {@link CrystalWebsiteSetupPayload.editBusinessSlug} for `/preview` “Edit setup” navigation.
+ */
+export function withPreviewEditReturn(
+  draft: CrystalWebsiteDraftPayload,
+  editBusinessSlug?: string | null
+): CrystalWebsiteDraftPayload {
+  const s = editBusinessSlug?.trim().toLowerCase();
+  if (!s) {
+    if (!('editBusinessSlug' in draft) || draft.editBusinessSlug === undefined) return draft;
+    const { editBusinessSlug: _, ...rest } = draft;
+    return rest as CrystalWebsiteDraftPayload;
+  }
+  return { ...draft, editBusinessSlug: s };
 }
 
 export function writeCrystalWebsitePreviewToStorage(payload: CrystalWebsiteDraftPayload): boolean {
@@ -633,6 +678,19 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
     };
   }
 
+  const sectionOverrides: Partial<GymClientWebsiteSectionThemeOverrides> = {};
+  const addSectionHex = (key: keyof GymClientWebsiteSectionThemeOverrides, raw: string) => {
+    const n = normalizeHexColor(raw.trim());
+    if (n) sectionOverrides[key] = n;
+  };
+  addSectionHex('aboutSectionBg', form.aboutSectionBg);
+  addSectionHex('aboutFeatureCardBg', form.aboutFeatureCardBg);
+  addSectionHex('packagesSectionBg', form.packagesSectionBg);
+  addSectionHex('packageCardBg', form.packageCardBg);
+  addSectionHex('metaSectionBg', form.metaSectionBg);
+  addSectionHex('metaPanelBg', form.metaPanelBg);
+  addSectionHex('metaRowBg', form.metaRowBg);
+
   return {
     slug,
     theme: {
@@ -640,6 +698,7 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
       darkHex: form.darkColor.trim(),
       textHex: form.textColor.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
       lightHex: form.lightColor.trim() || GYM_CLIENT_DEFAULT_LIGHT_HEX,
+      ...sectionOverrides,
     },
     content: base,
   };
@@ -692,11 +751,21 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
     darkColor: draft.theme.darkHex || '#0c0a09',
     textColor: draft.theme.textHex?.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
     lightColor: draft.theme.lightHex?.trim() || GYM_CLIENT_DEFAULT_LIGHT_HEX,
+    aboutSectionBg: draft.theme.aboutSectionBg?.trim() ?? '',
+    aboutFeatureCardBg: draft.theme.aboutFeatureCardBg?.trim() ?? '',
+    packagesSectionBg: draft.theme.packagesSectionBg?.trim() ?? '',
+    packageCardBg: draft.theme.packageCardBg?.trim() ?? '',
+    metaSectionBg: draft.theme.metaSectionBg?.trim() ?? '',
+    metaPanelBg: draft.theme.metaPanelBg?.trim() ?? '',
+    metaRowBg: draft.theme.metaRowBg?.trim() ?? '',
     logoUrl,
     gymName: c.header.title,
     businessDescription: c.description.body,
     heroBackgroundImage: normalizeLegacyHeroBackgroundImageUrl(c.layout.heroBackgroundImage ?? ''),
-    heroOverlay: c.layout.heroOverlay,
+    heroOverlay: (() => {
+      const v = Number(c.layout.heroOverlay);
+      return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.55;
+    })(),
     heroTextColor: normalizeHexColor((c.layout.heroTextColor ?? '').trim()) ?? '',
     titlePrefix: c.header.titlePrefix,
     tagline1: ti[0] ?? '',
@@ -788,18 +857,12 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
 function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPayload['theme'] | undefined {
   const wt = detail.website_theme;
   if (!wt || typeof wt !== 'object') return undefined;
-  const o = wt as Record<string, unknown>;
-  const accent = o.accentHex ?? o.accent_hex;
-  const dark = o.darkHex ?? o.dark_hex;
-  const text = o.textHex ?? o.text_hex;
-  const light = o.lightHex ?? o.light_hex;
-  if (typeof accent !== 'string' && typeof dark !== 'string' && typeof text !== 'string' && typeof light !== 'string') return undefined;
-  return {
-    accentHex: typeof accent === 'string' ? accent : '#ea580c',
-    darkHex: typeof dark === 'string' ? dark : '#0c0a09',
-    textHex: typeof text === 'string' ? text : GYM_CLIENT_DEFAULT_TEXT_HEX,
-    lightHex: typeof light === 'string' ? light : GYM_CLIENT_DEFAULT_LIGHT_HEX,
-  };
+  return parseGymClientWebsiteThemeFromApi(wt, {
+    accentHex: '#ea580c',
+    darkHex: '#0c0a09',
+    textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+    lightHex: GYM_CLIENT_DEFAULT_LIGHT_HEX,
+  });
 }
 
 /**
@@ -856,6 +919,13 @@ export function createWebsiteFormFromBusinessDetail(
         darkColor: theme.darkHex,
         textColor: theme.textHex,
         lightColor: theme.lightHex ?? GYM_CLIENT_DEFAULT_LIGHT_HEX,
+        aboutSectionBg: theme.aboutSectionBg ?? '',
+        aboutFeatureCardBg: theme.aboutFeatureCardBg ?? '',
+        packagesSectionBg: theme.packagesSectionBg ?? '',
+        packageCardBg: theme.packageCardBg ?? '',
+        metaSectionBg: theme.metaSectionBg ?? '',
+        metaPanelBg: theme.metaPanelBg ?? '',
+        metaRowBg: theme.metaRowBg ?? '',
       }
     : {}),
   };

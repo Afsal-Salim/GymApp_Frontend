@@ -449,8 +449,24 @@
   color: var(--bs-body-color);
 }
 
-.create-website__theme-custom-toggle {
-  font-weight: 600;
+.create-website__theme-tokens-heading {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bs-body-color);
+}
+
+.create-website__theme-token-map {
+  margin: 0;
+  padding-left: 1.15rem;
+  line-height: 1.55;
+}
+
+.create-website__theme-token-map li {
+  margin-bottom: 0.35rem;
+}
+
+.create-website__theme-token-map li:last-child {
+  margin-bottom: 0;
 }
 
 .create-website__theme-colors-grid {
@@ -468,7 +484,13 @@
 
 @media (min-width: 992px) {
   .create-website__theme-colors-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .create-website__theme-colors-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

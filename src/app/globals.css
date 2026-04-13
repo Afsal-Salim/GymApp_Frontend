@@ -1,1 +1,14 @@
 @import '../styles/base.css';
+
+/* Public gym load bridge: match loader ink to eliminate white flashes between shell and body */
+html.crystal-public-load-bridge,
+html.crystal-public-load-bridge body {
+  margin: 0;
+  min-height: 100%;
+  background-color: var(--crystal-bridge-bg, #09090b);
+}
+
+html.crystal-public-load-bridge #root {
+  min-height: 100%;
+  background-color: inherit;
+}

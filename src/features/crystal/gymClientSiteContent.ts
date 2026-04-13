@@ -1,6 +1,7 @@
 import type { PublicBusinessDetail } from '../../api';
 import clientDefaultHeroBackground from '../../assets/clientbg.png';
 import { publicGymSiteHostLabel, publicGymSiteUrl } from '../../config/env';
+import { normalizeHexColor } from '../../utils/hexColor';
 import { GYM_CLIENT_BRAND_LOGO_SRC } from './gymClientBrandLogo';
 
 export type GymClientNavItem = {
@@ -194,6 +195,8 @@ export type GymClientSiteContent = {
     sectionTitle: string;
     rows: GymClientDetailRow[];
   };
+  /** Heading above the Visit / Contact card row. Empty or omitted defaults to “Contact Us” in the UI. */
+  metaSectionHeading?: string;
   /** Optional gallery captions (URLs come from GET `/businesses/<slug>/images/`). Paid plans only in the builder. */
   gallery?: {
     sectionTitle: string;
@@ -213,23 +216,100 @@ export type GymClientSiteContent = {
  * Sent when the user clicks “Save & continue to plans” on the Crystal website builder.
  *
  * - `slug`: chosen public path (`/{slug}/`).
- * - `theme`: CSS variables for the live client (`--gym-client-accent`, `--gym-client-dark`, `--gym-client-text`, `--gym-client-light`).
+ * - `theme`: CSS variables for the live client (`--gym-client-accent`, `--gym-client-dark`, `--gym-client-text`, `--gym-client-light`),
+ *   plus optional section overrides (`aboutSectionBg`, `packagesSectionBg`, `metaSectionBg`, etc.) mapped to `--gym-section-*` vars.
  * - `content`: full public page model (same shape as preview). Image fields may be `https://` or `data:image/...` until the backend persists uploads.
  * - **Location / maps:** `content.contacts.locationMapUrl` — optional string, full `https://…` maps link (e.g. Google Maps share URL).
  *   Also persist on the business record as `location_map_url` if your API supports it.
  * - **Discounts:** `content.discountOffers.offers` may be `[]` when there are no deals; the client page hides the deals section.
  * - **Hero text:** optional `content.layout.heroTextColor` (`#rrggbb`) tints headline, taglines, subtitle, and the address/rating bar.
  */
+/** Optional solid overrides for major landing sections (stored in `website_theme`). */
+export type GymClientWebsiteSectionThemeOverrides = {
+  /** About (#about) outer band behind the headline and feature cards. */
+  aboutSectionBg?: string;
+  /** Three feature cards under the about headline. */
+  aboutFeatureCardBg?: string;
+  /** Memberships / pricing strip behind package cards. */
+  packagesSectionBg?: string;
+  /** Individual package card surface. */
+  packageCardBg?: string;
+  /** Contact / visit section wash (replaces the default soft gradient when set). */
+  metaSectionBg?: string;
+  /** Large “Visit” / “Contact” panels. */
+  metaPanelBg?: string;
+  /** Inner rows (hours, parking, email, etc.). */
+  metaRowBg?: string;
+  /** Gallery strip between mid-CTAs and trainers. Empty = derived from light / surface tokens. */
+  gallerySectionBg?: string;
+};
+
+export type GymClientWebsiteCoreTheme = {
+  accentHex: string;
+  darkHex: string;
+  textHex: string;
+  lightHex: string;
+};
+
+export type GymClientWebsiteParsedTheme = GymClientWebsiteCoreTheme & GymClientWebsiteSectionThemeOverrides;
+
+const WEBSITE_THEME_EXT_PICKS: { key: keyof GymClientWebsiteSectionThemeOverrides; snake: string }[] = [
+  { key: 'aboutSectionBg', snake: 'about_section_bg' },
+  { key: 'aboutFeatureCardBg', snake: 'about_feature_card_bg' },
+  { key: 'packagesSectionBg', snake: 'packages_section_bg' },
+  { key: 'packageCardBg', snake: 'package_card_bg' },
+  { key: 'metaSectionBg', snake: 'meta_section_bg' },
+  { key: 'metaPanelBg', snake: 'meta_panel_bg' },
+  { key: 'metaRowBg', snake: 'meta_row_bg' },
+  { key: 'gallerySectionBg', snake: 'gallery_section_bg' },
+];
+
+/**
+ * Merge API / preview `website_theme` JSON with defaults. Unknown keys are ignored; invalid hex is dropped.
+ */
+export function parseGymClientWebsiteThemeFromApi(
+  raw: unknown,
+  coreFallback: GymClientWebsiteCoreTheme
+): GymClientWebsiteParsedTheme {
+  if (!raw || typeof raw !== 'object') {
+    return { ...coreFallback };
+  }
+  const o = raw as Record<string, unknown>;
+  const pick = (camel: string, snake: string): string | undefined => {
+    const a = o[camel];
+    const b = o[snake];
+    const v = (typeof a === 'string' && a.trim() ? a : typeof b === 'string' && b.trim() ? b : '') as string;
+    return v.trim() || undefined;
+  };
+  const accent = pick('accentHex', 'accent_hex');
+  const dark = pick('darkHex', 'dark_hex');
+  const text = pick('textHex', 'text_hex');
+  const light = pick('lightHex', 'light_hex');
+  const base: GymClientWebsiteCoreTheme = {
+    accentHex: (accent && normalizeHexColor(accent)) || coreFallback.accentHex,
+    darkHex: (dark && normalizeHexColor(dark)) || coreFallback.darkHex,
+    textHex: (text && normalizeHexColor(text)) || coreFallback.textHex,
+    lightHex: (light && normalizeHexColor(light)) || coreFallback.lightHex,
+  };
+  const ext: GymClientWebsiteSectionThemeOverrides = {};
+  for (const { key, snake } of WEBSITE_THEME_EXT_PICKS) {
+    const rawHex = pick(key, snake);
+    if (!rawHex) continue;
+    const n = normalizeHexColor(rawHex);
+    if (n) ext[key] = n;
+  }
+  return { ...base, ...ext };
+}
+
 export type CrystalWebsiteSetupPayload = {
   slug: string;
-  theme: {
-    accentHex: string;
-    darkHex: string;
-    textHex: string;
-    /** Light surfaces/cards base (used for “mostly white” areas). */
-    lightHex?: string;
-  };
+  theme: GymClientWebsiteParsedTheme;
   content: GymClientSiteContent;
+  /**
+   * Client-only: written with browser preview storage so `/preview` “Edit setup” can return to
+   * `/user/business/<slug>/edit`. Omit when calling {@link submitWebsiteSetupDraft}.
+   */
+  editBusinessSlug?: string;
 };
 
 /** Bundled default hero cover for new sites (website builder + public defaults). */
@@ -461,6 +541,7 @@ export const GYM_CLIENT_SITE_DEFAULTS: GymClientSiteContent = {
       { id: 'slug', label: 'Website', value: '' },
     ],
   },
+  metaSectionHeading: 'Contact Us',
 };
 
 function cloneDiscountOffers(d: GymClientSiteContent['discountOffers']): GymClientSiteContent['discountOffers'] {

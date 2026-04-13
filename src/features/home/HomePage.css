@@ -223,7 +223,8 @@ html {
 
 .crystal-hero-v2__bg-image {
   object-fit: cover;
-  object-position: center center;
+  /* Asset has a tall transparent band below the photo — centering hides the subject; anchor to the opaque region */
+  object-position: center top;
   filter: saturate(0.7) brightness(0.46) blur(0.5px);
 }
 
@@ -295,6 +296,22 @@ html {
     flex: 1 1 auto;
     min-height: 0;
     align-self: stretch;
+  }
+}
+
+/* Below 1200px the side mockup is hidden: don’t stretch/center the stack in a tall stage — that leaves a huge gap above the bottom bar */
+@media (max-width: 1199.98px) {
+  .crystal-hero-v2__stage {
+    flex: 0 1 auto;
+  }
+
+  .crystal-hero-v2__main.container-fluid {
+    flex: 0 1 auto;
+    justify-content: flex-start;
+  }
+
+  .crystal-hero-v2__stack {
+    flex: 0 1 auto;
   }
 }
 

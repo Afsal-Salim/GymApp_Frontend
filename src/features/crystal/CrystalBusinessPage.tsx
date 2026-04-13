@@ -1,10 +1,22 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, type RefObject, type CSSProperties } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type FormEvent,
+  type RefObject,
+  type CSSProperties,
+} from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Button, Container, Row, Col, Card, Modal, Navbar, Nav } from 'react-bootstrap';
-import { PageContainer, WhatsAppLogoIcon, GymLoadingScreen } from '../../components';
+import { Button, Container, Row, Col, Card, Form, Modal, Navbar, Nav } from 'react-bootstrap';
+import { PageContainer, WhatsAppLogoIcon } from '../../components';
+import { CrystalClientIntroOverlay } from './CrystalClientIntroOverlay';
+import { CrystalClientLogoLoader } from './CrystalClientLogoLoader';
+import { CrystalClientPageSkeleton } from './CrystalClientPageSkeleton';
 import {
   fetchPublicGymBundle,
   getAccessToken,
@@ -28,6 +40,7 @@ import GymClientPlanVisitModal from './GymClientPlanVisitModal';
 import {
   applyPublicWebsiteContentOverlay,
   cloneGymClientSiteDefaults,
+  parseGymClientWebsiteThemeFromApi,
   resolveGymClientSiteContent,
   getHeroRatingDisplayText,
   gymVideoUrlToEmbedSrc,
@@ -36,78 +49,219 @@ import {
   withLegacyHeroBackgroundMigrated,
   type GymClientAboutFeature,
   type GymClientSiteContent,
+  type GymClientWebsiteParsedTheme,
 } from './gymClientSiteContent';
 import { crystalMarketingAbsoluteUrl, getPublicGymSlugFromHost } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import {
   CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL,
   STORAGE_ACCESS_TOKEN,
+  sessionCrystalClientIntroKey,
 } from '../../config/storageKeys';
 import {
   CRYSTAL_WEBSITE_PREVIEW_STORAGE_KEY,
   GYM_CLIENT_DEFAULT_TEXT_HEX,
   readCrystalWebsitePreviewFromStorage,
 } from '../website/setup/createWebsiteFormState';
-import { withBundledDefaultClientLogo } from './gymClientBrandLogo';
-import { buildGymClientWhatsAppHref } from './gymClientWhatsApp';
+import { resolveGymClientBrandLogoSrc, withBundledDefaultClientLogo } from './gymClientBrandLogo';
+import { buildGymClientWhatsAppHref, buildGymClientWhatsAppHrefWithCustomText } from './gymClientWhatsApp';
 import { recordGymClientLeadCta, recordGymClientWhatsAppClick } from './gymClientLeadTracking';
 import GymClientJoinLeadModal from './GymClientJoinLeadModal';
 import { GymClientMetaRowDisk, GymClientMidCtaIcon } from './GymClientDecorIcons';
 import { normalizeHexColor } from '../../utils/hexColor';
+import { clampPhoneDigitsInput } from '../../utils/phoneDigits';
 import './CrystalBusinessPage.css';
 
-/** Default theme for the marketing demo at `/preview?from=marketing` (matches website builder defaults). */
-const MARKETING_PREVIEW_THEME = {
-  accentHex: '#ea580c',
-  darkHex: '#0c0a09',
-  textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
-  lightHex: '#ffffff',
-} as const;
-
-/** Fallback when no draft / API theme (matches `.crystal-client-viewport` CSS defaults). */
-const CLIENT_THEME_FALLBACK = {
-  accentHex: '#ea580c',
-  darkHex: '#0c0a09',
-  textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
-  lightHex: '#ffffff',
-} as const;
-
-type ParsedWebsiteTheme = Partial<{
-  accentHex: string;
-  darkHex: string;
-  textHex: string;
-  lightHex: string;
-}>;
-
-function parseWebsiteThemeFromApi(raw: unknown): ParsedWebsiteTheme {
-  if (!raw || typeof raw !== 'object') return {};
-  const o = raw as Record<string, unknown>;
-  const pick = (camel: string, snake: string): string | undefined => {
-    const a = o[camel];
-    const b = o[snake];
-    const v = (typeof a === 'string' && a.trim() ? a : typeof b === 'string' && b.trim() ? b : '') as string;
-    return v.trim() || undefined;
-  };
-  return {
-    accentHex: pick('accentHex', 'accent_hex'),
-    darkHex: pick('darkHex', 'dark_hex'),
-    textHex: pick('textHex', 'text_hex'),
-    lightHex: pick('lightHex', 'light_hex'),
-  };
+function appendMailtoSubjectBody(mailtoHref: string, subject: string, body: string): string {
+  try {
+    const u = new URL(mailtoHref);
+    if (u.protocol !== 'mailto:') return mailtoHref;
+    u.searchParams.set('subject', subject);
+    u.searchParams.set('body', body);
+    return u.toString();
+  } catch {
+    return mailtoHref;
+  }
 }
 
-function gymClientThemeToCssVars(theme: {
-  accentHex: string;
-  darkHex: string;
-  textHex: string;
-  lightHex: string;
-}): CSSProperties {
-  return {
+function gymClientFooterEmailLooksValid(email: string): boolean {
+  const t = email.trim();
+  if (t.length < 5) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+}
+
+function GymClientFooterEnquiryForm({
+  gymName,
+  emailMailtoHref,
+  phoneDisplayForWa,
+  hasWhatsappLink,
+}: {
+  gymName: string;
+  emailMailtoHref: string | null;
+  phoneDisplayForWa: string | null;
+  hasWhatsappLink: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState<'idle' | 'sent' | 'blocked'>('idle');
+
+  const digits = clampPhoneDigitsInput(phone);
+  const phoneOk = digits.length === 10;
+  const emailOk = gymClientFooterEmailLooksValid(email);
+  const contactOk = emailOk || phoneOk;
+  const canRoute = Boolean(emailMailtoHref || (hasWhatsappLink && phoneDisplayForWa));
+  const canSubmit =
+    canRoute &&
+    name.trim().length >= 2 &&
+    message.trim().length >= 4 &&
+    contactOk;
+
+  const buildBody = () => {
+    const lines = [`Name: ${name.trim()}`];
+    if (emailOk) lines.push(`Email: ${email.trim()}`);
+    if (phoneOk) lines.push(`Phone: ${digits}`);
+    lines.push('');
+    lines.push(message.trim());
+    return lines.join('\n');
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    const body = buildBody();
+    const subject = `Website enquiry · ${gymName.trim() || 'Gym'}`;
+    if (emailMailtoHref) {
+      window.location.href = appendMailtoSubjectBody(emailMailtoHref, subject, body);
+      setNotice('sent');
+      return;
+    }
+    const wa =
+      phoneDisplayForWa ? buildGymClientWhatsAppHrefWithCustomText(phoneDisplayForWa, body) : null;
+    if (wa) {
+      window.open(wa, '_blank', 'noopener,noreferrer');
+      setNotice('sent');
+      return;
+    }
+    setNotice('blocked');
+  };
+
+  return (
+    <div className="crystal-client-footer__enquiry">
+      <h3 className="crystal-client-footer__enquiry-title">Enquiry</h3>
+      {!canRoute ?
+        <p className="crystal-client-footer__enquiry-hint mb-0">
+          Add a contact email (mailto) or phone number in your site settings so visitors can send an enquiry from here.
+        </p>
+      : (
+        <Form className="crystal-client-footer__enquiry-form" onSubmit={handleSubmit}>
+          <Form.Group className="mb-2" controlId="footer-enquiry-name">
+            <Form.Label className="crystal-client-footer__enquiry-label">Name</Form.Label>
+            <Form.Control
+              className="crystal-client-footer__enquiry-input"
+              placeholder="Your name"
+              autoComplete="name"
+              value={name}
+              onChange={(ev) => setName(ev.target.value)}
+              maxLength={80}
+            />
+          </Form.Group>
+          <Row className="g-2 mb-2">
+            <Col xs={12} sm={6}>
+              <Form.Group controlId="footer-enquiry-email">
+                <Form.Label className="crystal-client-footer__enquiry-label">Email</Form.Label>
+                <Form.Control
+                  type="email"
+                  className="crystal-client-footer__enquiry-input"
+                  placeholder="Email address"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(ev) => setEmail(ev.target.value)}
+                  maxLength={120}
+                />
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Form.Group controlId="footer-enquiry-phone">
+                <Form.Label className="crystal-client-footer__enquiry-label">Phone</Form.Label>
+                <Form.Control
+                  type="tel"
+                  inputMode="numeric"
+                  className="crystal-client-footer__enquiry-input"
+                  placeholder="10-digit mobile"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(ev) => setPhone(clampPhoneDigitsInput(ev.target.value))}
+                  maxLength={10}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <p className="crystal-client-footer__enquiry-rule small mb-2">
+            Enter a valid email or a 10-digit phone number — at least one is required.
+          </p>
+          <Form.Group className="mb-3" controlId="footer-enquiry-message">
+            <Form.Label className="crystal-client-footer__enquiry-label">Message</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              className="crystal-client-footer__enquiry-input crystal-client-footer__enquiry-textarea"
+              placeholder="Your message"
+              value={message}
+              onChange={(ev) => setMessage(ev.target.value)}
+              maxLength={2000}
+            />
+          </Form.Group>
+          <Button type="submit" variant="primary" className="crystal-client-footer__enquiry-submit" disabled={!canSubmit}>
+            Send enquiry
+          </Button>
+          {notice === 'sent' ?
+            <p className="crystal-client-footer__enquiry-sent small mb-0 mt-2" role="status">
+              If nothing opened, check your email app or try the contact section above.
+            </p>
+          : notice === 'blocked' ?
+            <p className="crystal-client-footer__enquiry-error small mb-0 mt-2" role="alert">
+              Could not open email or WhatsApp. Use the contact details on this page.
+            </p>
+          : null}
+        </Form>
+      )}
+    </div>
+  );
+}
+
+/** Default theme for the marketing demo at `/preview?from=marketing` (matches website builder defaults). */
+const MARKETING_PREVIEW_THEME: GymClientWebsiteParsedTheme = {
+  accentHex: '#ea580c',
+  darkHex: '#0c0a09',
+  textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+  lightHex: '#ffffff',
+};
+
+/** Fallback when no draft / API theme (matches `.crystal-client-viewport` CSS defaults). */
+const CLIENT_THEME_FALLBACK: GymClientWebsiteParsedTheme = {
+  accentHex: '#ea580c',
+  darkHex: '#0c0a09',
+  textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+  lightHex: '#ffffff',
+};
+
+function gymClientThemeToCssVars(theme: GymClientWebsiteParsedTheme): CSSProperties {
+  const vars: CSSProperties = {
     ['--gym-client-accent' as string]: theme.accentHex,
     ['--gym-client-dark' as string]: theme.darkHex,
     ['--gym-client-text' as string]: theme.textHex,
     ['--gym-client-light' as string]: theme.lightHex,
   };
+  if (theme.aboutSectionBg) (vars as Record<string, string>)['--gym-section-about-bg'] = theme.aboutSectionBg;
+  if (theme.aboutFeatureCardBg) (vars as Record<string, string>)['--gym-section-about-feature-card-bg'] = theme.aboutFeatureCardBg;
+  if (theme.packagesSectionBg) (vars as Record<string, string>)['--gym-section-packages-bg'] = theme.packagesSectionBg;
+  if (theme.packageCardBg) (vars as Record<string, string>)['--gym-section-package-card-bg'] = theme.packageCardBg;
+  if (theme.metaSectionBg) (vars as Record<string, string>)['--gym-section-meta-bg'] = theme.metaSectionBg;
+  if (theme.metaPanelBg) (vars as Record<string, string>)['--gym-section-meta-panel-bg'] = theme.metaPanelBg;
+  if (theme.metaRowBg) (vars as Record<string, string>)['--gym-section-meta-row-bg'] = theme.metaRowBg;
+  return vars;
 }
 
 function headerSecondaryOpensBookTrial(
@@ -401,17 +555,32 @@ function GymClientFooter({
   showTrainers,
   showDeals,
   showPackages,
+  enquiry,
 }: {
   content: GymClientSiteContent;
   showTrainers: boolean;
   showDeals: boolean;
   showPackages: boolean;
+  enquiry: {
+    gymName: string;
+    emailMailtoHref: string | null;
+    phoneDisplayForWa: string | null;
+    hasWhatsappLink: boolean;
+  };
 }) {
   return (
     <footer id="crystal-footer" className="crystal-client-footer">
       <Container>
-        <Row className="align-items-center g-4 py-4">
-          <Col md={4} className="text-center text-md-start">
+        <div className="crystal-client-footer__top py-4">
+          <div className="crystal-client-footer__enquiry-aside text-center text-md-start">
+            <GymClientFooterEnquiryForm
+              gymName={enquiry.gymName}
+              emailMailtoHref={enquiry.emailMailtoHref}
+              phoneDisplayForWa={enquiry.phoneDisplayForWa}
+              hasWhatsappLink={enquiry.hasWhatsappLink}
+            />
+          </div>
+          <div className="crystal-client-footer__brand-stack text-center text-md-start">
             <div className="d-flex align-items-center justify-content-center justify-content-md-start gap-2 mb-2">
               <img
                 src={content.logo.src}
@@ -424,40 +593,43 @@ function GymClientFooter({
               <span className="crystal-client-footer__brand">{content.footer.brandTitle}</span>
             </div>
             <p className="crystal-client-footer__tagline small mb-0">{content.footer.tagline}</p>
-          </Col>
-          <Col md={4} className="text-center">
-            <nav aria-label="Footer">
-              <ul className="crystal-client-footer__links list-unstyled d-flex flex-wrap justify-content-center gap-3 mb-0 small">
-                {content.footer.links
-                  .filter(
-                    (l) =>
-                      (showTrainers || l.href !== '#trainers') &&
-                      (showDeals || l.href !== '#deals') &&
-                      (showPackages || l.href !== '#pricing')
-                  )
-                  .map((l) => (
-                    <li key={l.label}>
-                      <a href={l.href} className="crystal-client-footer__link">
-                        {l.label}
-                      </a>
-                    </li>
-                  ))}
-              </ul>
-            </nav>
-          </Col>
-          <Col md={4} className="text-center text-md-end small">
-            {content.footer.finePrint ? <p className="crystal-client-footer__fine-print mb-2 mb-md-1">{content.footer.finePrint}</p> : null}
+          </div>
+          <nav className="crystal-client-footer__trail-nav small" aria-label="Footer">
+            <ul className="crystal-client-footer__links crystal-client-footer__links--footer-nav-grid list-unstyled mb-0 small">
+              {content.footer.links
+                .filter(
+                  (l) =>
+                    (showTrainers || l.href !== '#trainers') &&
+                    (showDeals || l.href !== '#deals') &&
+                    (showPackages || l.href !== '#pricing')
+                )
+                .map((l) => (
+                  <li key={l.label}>
+                    <a href={l.href} className="crystal-client-footer__link">
+                      {l.label}
+                    </a>
+                  </li>
+                ))}
+            </ul>
+          </nav>
+          <div className="crystal-client-footer__trail-meta small">
+            {content.footer.finePrint ? (
+              <p className="crystal-client-footer__fine-print crystal-client-footer__trail-line mb-0">{content.footer.finePrint}</p>
+            ) : null}
             {getPublicGymSlugFromHost() ? (
-              <a href={crystalMarketingAbsoluteUrl('/')} className="crystal-client-footer__crystal">
+              <a
+                href={crystalMarketingAbsoluteUrl('/')}
+                className="crystal-client-footer__crystal crystal-client-footer__trail-line d-inline-block"
+              >
                 ← Crystal home
               </a>
             ) : (
-              <Link href="/" className="crystal-client-footer__crystal">
+              <Link href="/" className="crystal-client-footer__crystal crystal-client-footer__trail-line d-inline-block">
                 ← Crystal home
               </Link>
             )}
-          </Col>
-        </Row>
+          </div>
+        </div>
       </Container>
     </footer>
   );
@@ -579,6 +751,9 @@ function GymClientSiteView({
   const whatsappHref = phoneContact
     ? buildGymClientWhatsAppHref(phoneContact.value, content.header.title)
     : null;
+  const emailMailtoHref =
+    content.contacts.items.find((c) => c.id === 'email' && c.href?.trim().toLowerCase().startsWith('mailto:'))?.href ??
+    null;
 
   const whatsappFabHintText = content.contacts.whatsappFabHint.trim();
   const showWhatsappFabHintBubble = Boolean(
@@ -613,9 +788,14 @@ function GymClientSiteView({
     } as CSSProperties)
   : undefined;
 
+  const rawHeroBg = (content.layout.heroBackgroundImage ?? '').trim();
+  const resolvedHeroBg = rawHeroBg ? resolveSiteBackgroundImageUrl(rawHeroBg) : '';
+  const heroOverlayRaw = Number(content.layout.heroOverlay);
+  const heroOverlayAlpha =
+    Number.isFinite(heroOverlayRaw) ? Math.min(1, Math.max(0, heroOverlayRaw)) : 0.55;
   const heroStyle = {
-    '--gym-hero-bg': `url(${content.layout.heroBackgroundImage})`,
-    '--gym-hero-overlay': String(content.layout.heroOverlay),
+    '--gym-hero-bg': resolvedHeroBg ? `url(${JSON.stringify(resolvedHeroBg)})` : 'none',
+    '--gym-hero-overlay-alpha': String(heroOverlayAlpha),
   } as CSSProperties;
 
   const heroTextResolved = normalizeHexColor(content.layout.heroTextColor?.trim() ?? '');
@@ -624,7 +804,7 @@ function GymClientSiteView({
   : undefined;
 
   /** Edge glow blobs use accent color; hide them when overlay is off so the photo stays clean at the sides. */
-  const showHeroAccentBlobs = Number(content.layout.heroOverlay) > 0.001;
+  const showHeroAccentBlobs = heroOverlayAlpha > 0.001;
 
   return (
     <div ref={shellRef} className="crystal-client-shell" id="top">
@@ -1066,13 +1246,21 @@ function GymClientSiteView({
       ) : null}
 
       {(visibleDetails.length > 0 || visibleContacts.length > 0) && (
-        <section className="crystal-client__section crystal-client__section--meta" aria-labelledby="crystal-client-meta">
+        <section
+          className="crystal-client__section crystal-client__section--meta"
+          aria-labelledby="crystal-client-meta-section"
+        >
           <Container className="crystal-client__meta-container">
+            <header className="crystal-client__meta-section-header">
+              <h2 id="crystal-client-meta-section" className="crystal-client__meta-section-title" data-reveal>
+                {(content.metaSectionHeading ?? '').trim() || 'Contact Us'}
+              </h2>
+            </header>
             <Row className="crystal-client__meta-row g-3 g-lg-3 justify-content-center align-items-stretch">
               {visibleDetails.length > 0 ? (
                 <Col xs={12} md={6} lg={6} id="visit" className="crystal-client__meta-col">
                   <div className="crystal-client__meta-panel">
-                    <h2 id="crystal-client-meta" className="crystal-client__section-title crystal-client__section-title--meta" data-reveal>
+                    <h2 id="crystal-client-visit-h" className="crystal-client__section-title crystal-client__section-title--meta" data-reveal>
                       {content.details.sectionTitle}
                     </h2>
                     <dl className="crystal-client__dl crystal-client__dl--meta-panel crystal-client__dl--pro" data-reveal>
@@ -1111,11 +1299,7 @@ function GymClientSiteView({
                   }
                 >
                   <div className="crystal-client__meta-panel">
-                    <h2
-                      className="crystal-client__section-title crystal-client__section-title--meta"
-                      data-reveal
-                      id={visibleDetails.length ? 'crystal-client-contact-h' : 'crystal-client-meta'}
-                    >
+                    <h2 id="crystal-client-contact-h" className="crystal-client__section-title crystal-client__section-title--meta" data-reveal>
                       {content.contacts.sectionTitle}
                     </h2>
                     <ul className="crystal-client__contact-list crystal-client__contact-list--pro list-unstyled mb-0" data-reveal>
@@ -1184,6 +1368,12 @@ function GymClientSiteView({
         showTrainers={trainersList.length > 0}
         showDeals={showDeals}
         showPackages={showPackages}
+        enquiry={{
+          gymName: content.header.title,
+          emailMailtoHref,
+          phoneDisplayForWa: phoneContact?.value ?? null,
+          hasWhatsappLink: Boolean(whatsappHref),
+        }}
       />
 
       <GymClientJoinLeadModal
@@ -1553,6 +1743,18 @@ export default function CrystalBusinessPage() {
   const [canReadPreviewStorage, setCanReadPreviewStorage] = useState(false);
   /** Bumped on cross-tab login/logout (`storage` event) so we re-check gym ownership. */
   const [authSessionRev, setAuthSessionRev] = useState(0);
+  /** True after loading has stayed active ≥500ms (enables branded intro overlay). */
+  const [introSlowGate, setIntroSlowGate] = useState(false);
+  /** Session + motion: allow branded intro for this slug (read on client). */
+  const [clientIntroAllowed, setClientIntroAllowed] = useState(false);
+  /** After intro exit completes; reset when slug changes. */
+  const [introDismissedAfterComplete, setIntroDismissedAfterComplete] = useState(false);
+  /** Timestamp when this slug entered `loading` (public routes); drives ≥1.5s dwell before site reveal. */
+  const [loadStartedAt, setLoadStartedAt] = useState<number | null>(null);
+  /** True after min dwell from `loadStartedAt` once data is ready (syncs intro exit + skeleton → site). */
+  const [shellRevealReady, setShellRevealReady] = useState(false);
+  /** Page shell fades in under the intro overlay during exit (crossfade bridge). */
+  const [introCrossfade, setIntroCrossfade] = useState(false);
 
   useLayoutEffect(() => {
     setCanReadPreviewStorage(true);
@@ -1567,6 +1769,52 @@ export default function CrystalBusinessPage() {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
+
+  useEffect(() => {
+    setIntroDismissedAfterComplete(false);
+    setIntroSlowGate(false);
+    setLoadStartedAt(null);
+    setShellRevealReady(false);
+    setIntroCrossfade(false);
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug || slug === 'preview') {
+      setClientIntroAllowed(false);
+      return;
+    }
+    try {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setClientIntroAllowed(false);
+        return;
+      }
+      if (window.sessionStorage.getItem(sessionCrystalClientIntroKey(slug)) === '1') {
+        setClientIntroAllowed(false);
+        return;
+      }
+    } catch {
+      setClientIntroAllowed(false);
+      return;
+    }
+    setClientIntroAllowed(true);
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug || slug === 'preview' || !loading) return;
+    setIntroSlowGate(false);
+    const id = window.setTimeout(() => setIntroSlowGate(true), 500);
+    return () => window.clearTimeout(id);
+  }, [slug, loading]);
+
+  useEffect(() => {
+    if (error) setIntroDismissedAfterComplete(true);
+  }, [error]);
+
+  useEffect(() => {
+    if (slug && slug !== 'preview' && loading) {
+      setLoadStartedAt(Date.now());
+    }
+  }, [slug, loading]);
 
   const previewDraft = useMemo(() => {
     if (slug !== 'preview' || isMarketingPreview) return null;
@@ -1640,31 +1888,86 @@ export default function CrystalBusinessPage() {
   }, [slug, siteContent]);
 
   /** Same tokens on viewport + portaled modals (navbar, hero, modal header gradient, etc.). */
-  const resolvedGymClientTheme = useMemo(() => {
+  const resolvedGymClientTheme = useMemo((): GymClientWebsiteParsedTheme => {
     if (slug === 'preview' && isMarketingPreview) {
       return { ...MARKETING_PREVIEW_THEME };
     }
     if (slug === 'preview' && previewDraft) {
-      return {
-        accentHex: previewDraft.theme.accentHex?.trim() || CLIENT_THEME_FALLBACK.accentHex,
-        darkHex: previewDraft.theme.darkHex?.trim() || CLIENT_THEME_FALLBACK.darkHex,
-        textHex: previewDraft.theme.textHex?.trim() || GYM_CLIENT_DEFAULT_TEXT_HEX,
-        lightHex: previewDraft.theme.lightHex?.trim() || CLIENT_THEME_FALLBACK.lightHex,
-      };
+      return parseGymClientWebsiteThemeFromApi(previewDraft.theme, {
+        accentHex: CLIENT_THEME_FALLBACK.accentHex,
+        darkHex: CLIENT_THEME_FALLBACK.darkHex,
+        textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+        lightHex: CLIENT_THEME_FALLBACK.lightHex,
+      });
     }
-    const fromApi = business ? parseWebsiteThemeFromApi(business.website_theme) : {};
-    return {
-      accentHex: fromApi.accentHex ?? CLIENT_THEME_FALLBACK.accentHex,
-      darkHex: fromApi.darkHex ?? CLIENT_THEME_FALLBACK.darkHex,
-      textHex: fromApi.textHex ?? CLIENT_THEME_FALLBACK.textHex,
-      lightHex: fromApi.lightHex ?? CLIENT_THEME_FALLBACK.lightHex,
-    };
+    return parseGymClientWebsiteThemeFromApi(business?.website_theme, CLIENT_THEME_FALLBACK);
   }, [slug, isMarketingPreview, previewDraft, business]);
 
   const clientThemeCssVars = useMemo(
     () => gymClientThemeToCssVars(resolvedGymClientTheme),
     [resolvedGymClientTheme]
   );
+
+  const introTagline = useMemo(() => {
+    if (!slug || slug === 'preview') return 'BUILD YOUR STRENGTH';
+    let h = 0;
+    for (let i = 0; i < slug.length; i++) h = (h + slug.charCodeAt(i) * (i + 1)) % 9001;
+    return h % 2 === 0 ? 'BUILD YOUR STRENGTH' : 'NO EXCUSES';
+  }, [slug]);
+
+  const dataReadyPublic = Boolean(slug && slug !== 'preview' && !loading && siteContent);
+  const publicLoadShell = Boolean(slug && slug !== 'preview' && !error && !notFound && (loading || dataReadyPublic));
+  const publicIntroLayer = Boolean(
+    publicLoadShell && introSlowGate && clientIntroAllowed && !introDismissedAfterComplete
+  );
+
+  useEffect(() => {
+    if (!dataReadyPublic) {
+      setShellRevealReady(false);
+      return;
+    }
+    if (loadStartedAt == null) {
+      setShellRevealReady(true);
+      return;
+    }
+    const wait = Math.max(0, 1500 - (Date.now() - loadStartedAt));
+    const id = window.setTimeout(() => setShellRevealReady(true), wait);
+    return () => window.clearTimeout(id);
+  }, [dataReadyPublic, loadStartedAt, slug]);
+
+  useEffect(() => {
+    if (!publicLoadShell || typeof document === 'undefined') return;
+    const html = document.documentElement;
+    html.style.setProperty('--crystal-bridge-bg', resolvedGymClientTheme.darkHex);
+    html.classList.add('crystal-public-load-bridge');
+    return () => {
+      html.classList.remove('crystal-public-load-bridge');
+      html.style.removeProperty('--crystal-bridge-bg');
+    };
+  }, [publicLoadShell, resolvedGymClientTheme.darkHex]);
+
+  useEffect(() => {
+    if (!dataReadyPublic || !siteContent || !slug || slug === 'preview') return;
+    const raw = (siteContent.layout.heroBackgroundImage ?? '').trim();
+    if (!raw) return;
+    const url = resolveSiteBackgroundImageUrl(raw);
+    if (!url) return;
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = url;
+    link.setAttribute('data-crystal-hero-preload', '1');
+    document.head.appendChild(link);
+    const img = new Image();
+    img.src = url;
+    return () => {
+      try {
+        link.parentNode?.removeChild(link);
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [dataReadyPublic, siteContent, slug]);
 
   useEffect(() => {
     if (!slug) {
@@ -1726,11 +2029,13 @@ export default function CrystalBusinessPage() {
   }, [slug]);
 
   /**
-   * Fresh subscription from `GET /businesses/<slug>/active-subscription/` on load and whenever we learn
-   * the viewer owns this gym — keeps `is_active` / `plan_tier` aligned for the owner recharge modal.
+   * Owner-only refresh of `GET /businesses/<slug>/active-subscription/`.
+   * Anonymous visitors already get subscription data from `fetchPublicGymBundle`; refetching here for every
+   * `isOwner` transition caused 3–4 duplicate calls on load (bundle + this effect + Strict Mode).
    */
   useEffect(() => {
     if (!slug || slug === 'preview') return;
+    if (isOwner !== true) return;
     let cancelled = false;
     getActiveSubscription(slug)
       .then((data) => {
@@ -1833,7 +2138,7 @@ export default function CrystalBusinessPage() {
       <PageContainer className="crystal-business-page crystal-business-page--client">
         <main className="crystal-business-page__main crystal-business-page__main--flush">
           <div className="crystal-client-viewport crystal-client-viewport--loading" style={clientThemeCssVars}>
-            <GymLoadingScreen active variant="embed" message="Loading preview…" />
+            <CrystalClientLogoLoader style={clientThemeCssVars} />
           </div>
         </main>
       </PageContainer>
@@ -1858,7 +2163,7 @@ export default function CrystalBusinessPage() {
         <PageContainer className="crystal-business-page crystal-business-page--client">
           <main className="crystal-business-page__main crystal-business-page__main--flush">
             <div className="crystal-client-viewport crystal-client-viewport--loading" style={clientThemeCssVars}>
-              <GymLoadingScreen active variant="embed" message="Loading your gym…" />
+              <CrystalClientLogoLoader style={clientThemeCssVars} />
             </div>
           </main>
         </PageContainer>
@@ -1880,16 +2185,78 @@ export default function CrystalBusinessPage() {
   );
 
   return (
-    <PageContainer className="crystal-business-page crystal-business-page--client">
+    <PageContainer
+      className={`crystal-business-page crystal-business-page--client${publicLoadShell ? ' crystal-business-page--load-bridge' : ''}`}
+    >
       <main className="crystal-business-page__main crystal-business-page__main--flush">
         <div className="crystal-business-page__content crystal-business-page__content--wide">
           {!slug ? (
             <div className="crystal-business-page__fallback">
               <p className="crystal-business-page__lead">No business selected.</p>
             </div>
+          ) : publicLoadShell ? (
+            <div
+              className={`crystal-client-viewport crystal-intro-load-shell${
+                loading || publicIntroLayer ? ' crystal-client-viewport--loading' : ''
+              }`}
+              style={clientThemeCssVars}
+            >
+              {loading || (publicLoadShell && !shellRevealReady) ? <CrystalClientPageSkeleton /> : null}
+              {dataReadyPublic && siteContent && shellRevealReady ? (
+                <div className="crystal-client-intro-host">
+                  <>
+                    <div
+                      className={`crystal-client-viewport${resolvedGymClientTheme.metaSectionBg ? ' crystal-client-viewport--meta-bg-override' : ''}${
+                        publicIntroLayer ? ' crystal-client-viewport--behind-intro' : ''
+                      }${introCrossfade ? ' crystal-client-viewport--crossfade-reveal' : ''}`}
+                      style={clientThemeCssVars}
+                    >
+                      <GymClientSiteView
+                        content={siteContent}
+                        businessSlug={slug ?? ''}
+                        themeCssVars={clientThemeCssVars}
+                        suppressPublicLeads={false}
+                        galleryStrip={clientGalleryStrip}
+                      />
+                    </div>
+                    {showCrystalOwnerRechargeModal && publicSubscription && slug !== 'preview' ? (
+                      <CrystalOwnerRechargeModal
+                        show
+                        onHide={() => setRechargeModalDismissed(true)}
+                        businessSlug={slug}
+                        subscription={publicSubscription}
+                        themeCssVars={clientThemeCssVars}
+                      />
+                    ) : null}
+                  </>
+                </div>
+              ) : null}
+              {publicIntroLayer ? (
+                <CrystalClientIntroOverlay
+                  style={clientThemeCssVars}
+                  logoSrc={resolveGymClientBrandLogoSrc(siteContent?.logo?.src)}
+                  brandName={siteContent?.header.title ?? ''}
+                  tagline={introTagline}
+                  contentReady={dataReadyPublic && shellRevealReady}
+                  loadStartedAt={loadStartedAt}
+                  onExitStart={() => setIntroCrossfade(true)}
+                  onComplete={() => {
+                    if (slug && slug !== 'preview') {
+                      try {
+                        window.sessionStorage.setItem(sessionCrystalClientIntroKey(slug), '1');
+                      } catch {
+                        /* ignore quota / private mode */
+                      }
+                    }
+                    setIntroCrossfade(false);
+                    setIntroDismissedAfterComplete(true);
+                  }}
+                />
+              ) : null}
+            </div>
           ) : loading ? (
             <div className="crystal-client-viewport crystal-client-viewport--loading" style={clientThemeCssVars}>
-              <GymLoadingScreen active variant="embed" message="Loading your gym…" />
+              <CrystalClientLogoLoader style={clientThemeCssVars} />
             </div>
           ) : error ? (
             <div className="crystal-business-page__fallback">
@@ -1926,12 +2293,23 @@ export default function CrystalBusinessPage() {
               ) : slug === 'preview' ?
                 <div className="crystal-preview-banner" role="status">
                   <span>Preview — not published</span>
-                  <Link href="/user/create-website?fromPreview=1" replace className="crystal-preview-banner__link">
+                  <Link
+                    href={
+                      previewDraft?.editBusinessSlug ?
+                        `/user/business/${encodeURIComponent(previewDraft.editBusinessSlug)}/edit?fromPreview=1`
+                      : '/user/create-website?fromPreview=1'
+                    }
+                    replace
+                    className="crystal-preview-banner__link"
+                  >
                     Edit setup
                   </Link>
                 </div>
               : null}
-              <div className="crystal-client-viewport" style={clientThemeCssVars}>
+              <div
+                className={`crystal-client-viewport${resolvedGymClientTheme.metaSectionBg ? ' crystal-client-viewport--meta-bg-override' : ''}`}
+                style={clientThemeCssVars}
+              >
                 <GymClientSiteView
                   content={siteContent}
                   businessSlug={

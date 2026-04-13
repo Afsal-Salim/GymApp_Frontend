@@ -10,7 +10,6 @@ import {
   Button,
   Card,
   Col,
-  Collapse,
   Container,
   Form,
   InputGroup,
@@ -61,6 +60,7 @@ import {
   mapFormToWebsiteDraft,
   parseCrystalWebsiteDraftJson,
   readCrystalWebsitePreviewFromStorage,
+  withPreviewEditReturn,
   writeCrystalWebsitePreviewToStorage,
   type CoachFormRow,
   type CreateWebsiteFormState,
@@ -723,6 +723,7 @@ function ThemeColorField({
   value,
   onChange,
   pickerTitle,
+  allowClear,
 }: {
   id: string;
   label: string;
@@ -731,6 +732,8 @@ function ThemeColorField({
   value: string;
   onChange: (hex: string) => void;
   pickerTitle: string;
+  /** When true, clearing the input and blurring saves empty string (site uses built‑in default for that token). */
+  allowClear?: boolean;
 }) {
   const [hexDraft, setHexDraft] = useState(value);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -739,6 +742,11 @@ function ThemeColorField({
   }, [value]);
 
   const commitHex = () => {
+    if (allowClear && !hexDraft.trim()) {
+      onChange('');
+      setHexDraft('');
+      return;
+    }
     const n = normalizeHexColor(hexDraft);
     if (n) {
       onChange(n);
@@ -748,7 +756,9 @@ function ThemeColorField({
     }
   };
 
-  const displayHex = normalizeHexColor(value) ?? '#e7e5e4';
+  const normalizedValue = normalizeHexColor(value);
+  const displayHex =
+    allowClear && !normalizedValue ? '#d4d4d8' : (normalizedValue ?? '#e7e5e4');
 
   return (
     <div className="create-website__theme-color-field">
@@ -892,11 +902,14 @@ export default function CreateWebsitePage() {
   );
   const formRef = useRef(form);
   formRef.current = form;
+
+  const previewEditSlugRef = useRef<string | undefined>(undefined);
+  previewEditSlugRef.current =
+    isEditMode && editRouteSlug?.trim() ? editRouteSlug.trim().toLowerCase() : undefined;
   const set = useCallback(<K extends keyof CreateWebsiteFormState>(key: K, value: CreateWebsiteFormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
   }, []);
 
-  const [themeManualOpen, setThemeManualOpen] = useState(false);
   /** After first-time save: modal prompts recharge (pricing) instead of a toast. */
   const [postSaveRechargeModalSlug, setPostSaveRechargeModalSlug] = useState<string | null>(null);
   /** Create flow: business slug exists after first successful save (enables S3 gallery uploads). */
@@ -1165,14 +1178,25 @@ export default function CreateWebsitePage() {
     };
   }, [editRouteSlug]);
 
-  /** “Edit setup” from preview passes state so we always merge the latest saved preview (same tab or new tab). */
+  /**
+   * “Edit setup” from `/preview`: merge latest preview draft. Create flow runs immediately; edit flow waits for
+   * `getBusinessDetail` so slug baseline exists (avoids false “URL taken” from preview slug alone).
+   */
   useEffect(() => {
-    if (isEditMode) return;
     const fromPreview = searchParams.get('fromPreview') === '1';
     if (!fromPreview) return;
     const draft = readCrystalWebsitePreviewFromStorage();
-    if (draft) setForm(draftPayloadToFormState(draft));
-  }, [searchParams, isEditMode]);
+    if (!draft) return;
+    if (isEditMode) {
+      if (!editReady) return;
+      const hint = draft.editBusinessSlug?.trim().toLowerCase();
+      const routeSlug = editRouteSlug?.trim().toLowerCase();
+      if (hint && routeSlug && hint !== routeSlug) return;
+      setForm(draftPayloadToFormState(draft));
+      return;
+    }
+    setForm(draftPayloadToFormState(draft));
+  }, [searchParams, isEditMode, editReady, editRouteSlug]);
 
   /**
    * After “Preview in this tab” or “View my site” from the save modal, the history stack can return here on Back.
@@ -1208,16 +1232,24 @@ export default function CreateWebsitePage() {
   /**
    * Push palette / About-background changes to preview storage immediately so `/preview` (other tab or quick
    * navigation) is not stuck behind the debounced writer.
+   *
+   * Skip when the URL slug field is still empty: SSR/hydration can start with an empty form before
+   * `fromPreview` merges localStorage — writing would persist `slug: "preview"` and wipe the user’s chosen URL.
    */
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     const f = formRef.current;
-    const slugForPreview = f.slug.trim().toLowerCase() || 'preview';
-    const draft = mapFormToWebsiteDraft({ ...f, slug: slugForPreview });
+    const slugTrim = f.slug.trim().toLowerCase();
+    if (!slugTrim) return;
+    const draft = mapFormToWebsiteDraft({ ...f, slug: slugTrim });
     writeCrystalWebsitePreviewToStorage(
-      applyPreviewGallerySlotsToDraft(draft, galleryVisualKeysRef.current, galleryPendingRef.current)
+      withPreviewEditReturn(
+        applyPreviewGallerySlotsToDraft(draft, galleryVisualKeysRef.current, galleryPendingRef.current),
+        previewEditSlugRef.current
+      )
     );
   }, [
+    form.slug,
     form.useDefaultPaletteArtwork,
     form.aboutBodyBgImageUrl,
     form.aboutBodyBgEnabled,
@@ -1231,11 +1263,16 @@ export default function CreateWebsitePage() {
 
   /** Live-sync preview draft to localStorage so `/preview` updates (debounced; runs in create and edit). */
   useEffect(() => {
-    const slugForPreview = form.slug.trim().toLowerCase() || 'preview';
     const t = window.setTimeout(() => {
-      const draft = mapFormToWebsiteDraft({ ...formRef.current, slug: slugForPreview });
+      const f = formRef.current;
+      const slugForPreview = f.slug.trim().toLowerCase();
+      if (!slugForPreview) return;
+      const draft = mapFormToWebsiteDraft({ ...f, slug: slugForPreview });
       writeCrystalWebsitePreviewToStorage(
-        applyPreviewGallerySlotsToDraft(draft, galleryVisualKeysRef.current, galleryPendingRef.current)
+        withPreviewEditReturn(
+          applyPreviewGallerySlotsToDraft(draft, galleryVisualKeysRef.current, galleryPendingRef.current),
+          previewEditSlugRef.current
+        )
       );
     }, PREVIEW_LIVE_SYNC_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
@@ -1754,7 +1791,10 @@ export default function CreateWebsitePage() {
     const slugForPreview = form.slug.trim().toLowerCase() || 'preview';
     const draft = mapFormToWebsiteDraft({ ...form, slug: slugForPreview });
     return writeCrystalWebsitePreviewToStorage(
-      applyPreviewGallerySlotsToDraft(draft, galleryVisualKeys, galleryPending)
+      withPreviewEditReturn(
+        applyPreviewGallerySlotsToDraft(draft, galleryVisualKeys, galleryPending),
+        previewEditSlugRef.current
+      )
     );
   };
 
@@ -2030,65 +2070,147 @@ export default function CreateWebsitePage() {
                           );
                         })}
                       </div>
-                      <div className="create-website__theme-custom-section mb-3">
-                        <Button
-                          type="button"
-                          variant="outline-secondary"
-                          size="sm"
-                          className="create-website__theme-custom-toggle"
-                          onClick={() => setThemeManualOpen((o) => !o)}
-                          aria-expanded={themeManualOpen}
-                          aria-controls="cw-theme-manual-colors"
-                          id="cw-theme-custom-toggle"
-                        >
-                          {themeManualOpen ? 'Hide customise colors' : 'Customise colors'}
-                        </Button>
-                        <Collapse in={themeManualOpen}>
-                          <div id="cw-theme-manual-colors" className="pt-2">
-                            <p className="small text-muted mb-3">
-                              Adjust accent, ink, text, and light surfaces individually. Each field opens a palette; use “Full
-                              spectrum” inside the modal for any hex.
-                            </p>
-                            <div className="create-website__theme-colors-grid mb-1">
-                              <ThemeColorField
-                                id="cw-accent"
-                                label="Accent color"
-                                hintId="cw-hint-accent"
-                                hint="Primary brand color — CTAs, links, badges, and gradient accents on the client page."
-                                value={form.accentColor}
-                                onChange={(hex) => set('accentColor', hex)}
-                                pickerTitle="Accent"
-                              />
-                              <ThemeColorField
-                                id="cw-dark"
-                                label="Dark / ink color"
-                                hintId="cw-hint-dark"
-                                hint="Used for surfaces, borders, and dark UI chrome on the public gym template."
-                                value={form.darkColor}
-                                onChange={(hex) => set('darkColor', hex)}
-                                pickerTitle="Dark / ink"
-                              />
-                              <ThemeColorField
-                                id="cw-text"
-                                label="Body text color"
-                                hintId="cw-hint-text"
-                                hint="Main text on light sections (about, pricing, contact). Set a dark color when your ink/surfaces are light so copy stays readable."
-                                value={form.textColor}
-                                onChange={(hex) => set('textColor', hex)}
-                                pickerTitle="Body text"
-                              />
-                              <ThemeColorField
-                                id="cw-light"
-                                label="Light surface color"
-                                hintId="cw-hint-light"
-                                hint="Controls the mostly white areas (light section backgrounds/cards/marquee strip)."
-                                value={form.lightColor}
-                                onChange={(hex) => set('lightColor', hex)}
-                                pickerTitle="Light surfaces"
-                              />
-                            </div>
-                          </div>
-                        </Collapse>
+                      <div className="create-website__theme-custom-section mb-3" id="cw-theme-manual-colors">
+                        <h4 className="create-website__theme-tokens-heading h6 mb-2">Site theme colours</h4>
+                        <p className="small text-muted mb-2">
+                          Every token below maps to a CSS variable on your live site. Presets fill all four at once; you can
+                          fine-tune each value here. Each control opens the colour modal (use “Full spectrum” for any hex).
+                        </p>
+                        <ul className="create-website__theme-token-map small text-muted mb-3">
+                          <li>
+                            <strong>Accent</strong> — primary buttons, links, badges, progress, and accent glows.
+                          </li>
+                          <li>
+                            <strong>Dark / ink</strong> — navbar, footer, enquiry strip, and other dark chrome (not the hero
+                            photo wash; that uses the slider under <em>Hero &amp; navigation CTAs</em>).
+                          </li>
+                          <li>
+                            <strong>Body text</strong> — main copy on light sections (about, packages, contact cards).
+                          </li>
+                          <li>
+                            <strong>Light surfaces</strong> — light section bases, cards, and subtle washes.
+                          </li>
+                        </ul>
+                        <div className="create-website__theme-colors-grid mb-1">
+                          <ThemeColorField
+                            id="cw-accent"
+                            label="Accent color"
+                            hintId="cw-hint-accent"
+                            hint="Primary brand colour — CTAs, links, badges, and gradient accents on the public page."
+                            value={form.accentColor}
+                            onChange={(hex) => set('accentColor', hex)}
+                            pickerTitle="Accent"
+                          />
+                          <ThemeColorField
+                            id="cw-dark"
+                            label="Dark / ink color"
+                            hintId="cw-hint-dark"
+                            hint="Dark UI chrome: top navigation, footer, and dark bands. Pair with a strong accent for a bold gym look."
+                            value={form.darkColor}
+                            onChange={(hex) => set('darkColor', hex)}
+                            pickerTitle="Dark / ink"
+                          />
+                          <ThemeColorField
+                            id="cw-text"
+                            label="Body text color"
+                            hintId="cw-hint-text"
+                            hint="Main text on light sections. Use a deep slate or black when your light surface is pale so copy stays readable."
+                            value={form.textColor}
+                            onChange={(hex) => set('textColor', hex)}
+                            pickerTitle="Body text"
+                          />
+                          <ThemeColorField
+                            id="cw-light"
+                            label="Light surface color"
+                            hintId="cw-hint-light"
+                            hint="Backgrounds for light sections, cards, and the marquee-style strip — usually off-white or a very pale tint."
+                            value={form.lightColor}
+                            onChange={(hex) => set('lightColor', hex)}
+                            pickerTitle="Light surfaces"
+                          />
+                        </div>
+                        <h4 className="create-website__theme-tokens-heading h6 mb-2 mt-4">Section surfaces (optional)</h4>
+                        <p className="small text-muted mb-2">
+                          Leave a field empty to use the built‑in default for that area. Use these when you want the About band,
+                          memberships strip, or Contact / Visit block to diverge from your global light surface colour (for
+                          example an all‑black memberships section with orange cards).
+                        </p>
+                        <div className="create-website__theme-colors-grid mb-1">
+                          <ThemeColorField
+                            id="cw-sec-about-bg"
+                            label="About section background"
+                            hintId="cw-hint-sec-about-bg"
+                            hint="Outer background behind the about headline and three feature cards (#about). Empty = same as “Light surfaces”."
+                            value={form.aboutSectionBg}
+                            onChange={(hex) => set('aboutSectionBg', hex)}
+                            pickerTitle="About section"
+                            allowClear
+                          />
+                          <ThemeColorField
+                            id="cw-sec-about-card"
+                            label="About feature cards"
+                            hintId="cw-hint-sec-about-card"
+                            hint="Background of each of the three highlight cards. Empty = automatic tint from your dark / ink and white mix."
+                            value={form.aboutFeatureCardBg}
+                            onChange={(hex) => set('aboutFeatureCardBg', hex)}
+                            pickerTitle="About cards"
+                            allowClear
+                          />
+                          <ThemeColorField
+                            id="cw-sec-pkg-bg"
+                            label="Memberships section background"
+                            hintId="cw-hint-sec-pkg-bg"
+                            hint="Full-width strip behind the pricing cards. Empty = default soft grey wash from your palette."
+                            value={form.packagesSectionBg}
+                            onChange={(hex) => set('packagesSectionBg', hex)}
+                            pickerTitle="Memberships section"
+                            allowClear
+                          />
+                          <ThemeColorField
+                            id="cw-sec-pkg-card"
+                            label="Membership card background"
+                            hintId="cw-hint-sec-pkg-card"
+                            hint="Each package tile. Empty = white (or your theme default card surface)."
+                            value={form.packageCardBg}
+                            onChange={(hex) => set('packageCardBg', hex)}
+                            pickerTitle="Membership card"
+                            allowClear
+                          />
+                          <ThemeColorField
+                            id="cw-sec-meta-bg"
+                            label="Contact / Visit section background"
+                            hintId="cw-hint-sec-meta-bg"
+                            hint="Replaces the soft gradient behind Contact Us when set (solid colour). Empty = default Crystal gradient."
+                            value={form.metaSectionBg}
+                            onChange={(hex) => set('metaSectionBg', hex)}
+                            pickerTitle="Contact section"
+                            allowClear
+                          />
+                          <ThemeColorField
+                            id="cw-sec-meta-panel"
+                            label="Visit / Contact panels"
+                            hintId="cw-hint-sec-meta-panel"
+                            hint="Large rounded panels for Visit and Contact. Empty = white."
+                            value={form.metaPanelBg}
+                            onChange={(hex) => set('metaPanelBg', hex)}
+                            pickerTitle="Visit / Contact panels"
+                            allowClear
+                          />
+                          <ThemeColorField
+                            id="cw-sec-meta-row"
+                            label="Contact info rows"
+                            hintId="cw-hint-sec-meta-row"
+                            hint="Inner chips (hours, parking, email, etc.). Empty = default light grey gradient."
+                            value={form.metaRowBg}
+                            onChange={(hex) => set('metaRowBg', hex)}
+                            pickerTitle="Contact rows"
+                            allowClear
+                          />
+                        </div>
+                        <p className="small text-muted mb-0">
+                          <strong>Hero text colour</strong> (headline, taglines, address bar on the hero) is under{' '}
+                          <em>Hero &amp; navigation CTAs</em> so it stays next to the hero image and overlay controls.
+                        </p>
                       </div>
                       <ImageUrlOrUploadField
                         id="cw-logo"
@@ -2126,7 +2248,7 @@ export default function CreateWebsitePage() {
                           htmlFor="cw-hero-overlay"
                           label={`Hero dark overlay (${form.heroOverlay.toFixed(2)})`}
                           hintId="cw-hint-overlay"
-                          hint="0 = image fully bright, 1 = very dark. Improves text contrast on busy photos."
+                          hint="0 = bright photo, 1 = strongest dimming. Uses a neutral black scrim so your background image stays visible; combine with Hero text colour for contrast."
                         />
                         <Form.Range
                           id="cw-hero-overlay"

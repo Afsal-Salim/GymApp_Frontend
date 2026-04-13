@@ -8,10 +8,6 @@ function bundledImageUrl(m: string | { src: string }): string {
   return typeof m === 'string' ? m : m.src;
 }
 
-/** Default body / light hex values aligned with {@link GYM_CLIENT_DEFAULT_TEXT_HEX} / {@link GYM_CLIENT_DEFAULT_LIGHT_HEX}. */
-const DEFAULT_TEXT_HEX = '#1c1917';
-const DEFAULT_LIGHT_HEX = '#ffffff';
-
 function normalizeHexColor(raw: string): string | null {
   let s = raw.trim();
   if (!s) return null;
@@ -43,50 +39,53 @@ export type WebsiteThemePreset = {
   artworkSrc: string;
 };
 
+/** Shared near-black base for nav/hero/dark UI — pairs with each accent for a bold gym look. */
+const PRESET_DARK_BLACK = '#09090b';
+
 export const WEBSITE_THEME_PRESETS: WebsiteThemePreset[] = [
   {
     id: 'ember',
     name: 'Ember',
-    accentColor: '#ea580c',
-    darkColor: '#0c0a09',
-    textColor: DEFAULT_TEXT_HEX,
-    lightColor: DEFAULT_LIGHT_HEX,
+    accentColor: '#f97316',
+    darkColor: PRESET_DARK_BLACK,
+    textColor: '#0f172a',
+    lightColor: '#fff7ed',
     artworkSrc: bundledImageUrl(emberArt),
   },
   {
     id: 'ocean',
     name: 'Ocean',
-    accentColor: '#0891b2',
-    darkColor: '#164e63',
+    accentColor: '#0ea5e9',
+    darkColor: PRESET_DARK_BLACK,
     textColor: '#0f172a',
-    lightColor: '#ecfeff',
+    lightColor: '#f0f9ff',
     artworkSrc: bundledImageUrl(oceanArt),
   },
   {
     id: 'forest',
     name: 'Forest',
-    accentColor: '#16a34a',
-    darkColor: '#14532d',
-    textColor: '#1c1917',
-    lightColor: '#f7fee7',
+    accentColor: '#22c55e',
+    darkColor: PRESET_DARK_BLACK,
+    textColor: '#0f172a',
+    lightColor: '#f0fdf4',
     artworkSrc: bundledImageUrl(forestArt),
   },
   {
     id: 'royal',
     name: 'Royal',
-    accentColor: '#7c3aed',
-    darkColor: '#1e1b4b',
-    textColor: '#312e81',
+    accentColor: '#a855f7',
+    darkColor: PRESET_DARK_BLACK,
+    textColor: '#0f172a',
     lightColor: '#faf5ff',
     artworkSrc: bundledImageUrl(royalArt),
   },
   {
     id: 'crimson',
     name: 'Crimson',
-    accentColor: '#dc2626',
-    darkColor: '#450a0a',
-    textColor: '#1c1917',
-    lightColor: '#fff7f7',
+    accentColor: '#ef4444',
+    darkColor: PRESET_DARK_BLACK,
+    textColor: '#0f172a',
+    lightColor: '#fff1f2',
     artworkSrc: bundledImageUrl(crimsonArt),
   },
 ];

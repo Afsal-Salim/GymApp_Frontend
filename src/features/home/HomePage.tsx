@@ -559,11 +559,13 @@ export default function HomePage() {
       <section id="home" className="crystal-hero crystal-hero-v2">
         {/* Full-bleed gym photo: use <Image> like the side art so CSP / asset URLs match production (inline bg url() is often blocked). */}
         <div className="crystal-hero-v2__bg" aria-hidden>
+          {/* Large PNG (~2MB+): skip `/_next/image` so CDN/origin never serves a truncated or flaky optimized response; browser loads the built static file as-is. */}
           <Image
             src={homeHeroBg}
             alt=""
             fill
             priority
+            unoptimized
             className="crystal-hero-v2__bg-image"
             sizes="100vw"
           />

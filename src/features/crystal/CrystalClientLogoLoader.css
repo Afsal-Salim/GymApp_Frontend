@@ -1,0 +1,35 @@
+.crystal-client-logo-loader {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(100vh, 100dvh);
+  width: 100%;
+  background: var(--gym-client-dark, #0c0a09);
+}
+
+.crystal-client-logo-loader__mark {
+  width: clamp(4.25rem, 14vw, 6rem);
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 8px 28px color-mix(in srgb, var(--gym-client-accent, #38bdf8) 35%, transparent));
+  animation: crystal-client-logo-loader-breathe 1.35s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crystal-client-logo-loader__mark {
+    animation: none;
+  }
+}
+
+@keyframes crystal-client-logo-loader-breathe {
+  0%,
+  100% {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}

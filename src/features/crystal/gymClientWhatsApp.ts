@@ -21,3 +21,10 @@ export function buildGymClientWhatsAppHref(phoneDisplay: string, gymName: string
   const text = gymClientWhatsAppPrefillMessage(gymName);
   return `https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`;
 }
+
+/** wa.me with visitor-written text (e.g. footer enquiry). */
+export function buildGymClientWhatsAppHrefWithCustomText(phoneDisplay: string, message: string): string | null {
+  const waPhone = normalizePhoneForWhatsApp(phoneDisplay);
+  if (!waPhone) return null;
+  return `https://wa.me/${waPhone}?text=${encodeURIComponent(message.trim())}`;
+}

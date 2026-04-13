@@ -1,6 +1,11 @@
 import { STORAGE_PUBLIC_GYM_BUNDLE_CACHE } from '../config/storageKeys';
 import type { ActiveSubscriptionResponse, PublicBusinessDetail } from './businesses';
-import { getActiveSubscription, getPublicBusinessBySlug, normalizeActiveSubscriptionResponse } from './businesses';
+import {
+  clearPublicBusinessBySlugRuntimeMemo,
+  getActiveSubscription,
+  getPublicBusinessBySlug,
+  normalizeActiveSubscriptionResponse,
+} from './businesses';
 
 const MAX_AGE_MS = 10 * 60 * 1000;
 const MAX_SLUGS = 32;
@@ -93,6 +98,8 @@ export async function fetchPublicGymBundle(slug: string, options?: { force?: boo
   if (!force) {
     const hit = peekPublicGymBundle(key);
     if (hit) return hit;
+  } else {
+    clearPublicBusinessBySlugRuntimeMemo(key);
   }
   const business = await getPublicBusinessBySlug(key);
   const subscription = await getActiveSubscription(key);
@@ -104,6 +111,7 @@ export async function fetchPublicGymBundle(slug: string, options?: { force?: boo
 export function invalidatePublicGymBundleCache(slug: string): void {
   const key = normalizeSlug(slug);
   if (!key) return;
+  clearPublicBusinessBySlugRuntimeMemo(key);
   const ls = browserLocalStorage();
   if (!ls) return;
   try {

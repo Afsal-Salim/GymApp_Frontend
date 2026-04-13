@@ -1150,7 +1150,7 @@
   padding-top: 0.9rem;
   border-top: 1px solid #e8eef4;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
   flex-shrink: 0;
 }
@@ -1223,6 +1223,68 @@
   .user-page__business-card-actions:not(.user-page__business-card-actions--single) {
     grid-template-columns: 1fr;
   }
+}
+
+/* ----- Site QR modal (profile → Websites) ----- */
+.user-page__site-qr-modal .modal-content {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.user-page__site-qr-body {
+  text-align: center;
+}
+
+.user-page__site-qr-url {
+  font-size: 0.8125rem;
+  word-break: break-all;
+  color: #475569;
+  margin-bottom: 1rem;
+}
+
+.user-page__site-qr-frame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  border-radius: 12px;
+  padding: 0.5rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+}
+
+.user-page__site-qr-img {
+  display: block;
+  width: min(240px, 100%);
+  height: auto;
+  border-radius: 8px;
+}
+
+.user-page__site-qr-logo-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.user-page__site-qr-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  background: #fff;
+  padding: 4px;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
+}
+
+.user-page__site-qr-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 /* ----- Modal (business details): fits viewport; body scrolls; footer always visible ----- */
