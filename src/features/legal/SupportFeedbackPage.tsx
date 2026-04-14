@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Alert, Button, Form, Spinner } from 'react-bootstrap';
+import { Alert, Button, Form, Pagination, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import {
+  CLIENT_SUPPORT_LIST_PAGE_SIZE,
   getAccessToken,
   listClientSupportMessages,
   postClientSupportMessage,
@@ -45,8 +46,12 @@ export default function SupportFeedbackPage() {
   const [message, setMessage] = useState('');
 
   const [items, setItems] = useState<ClientSupportMessage[]>([]);
+  const [listPage, setListPage] = useState(1);
+  const [listTotalPages, setListTotalPages] = useState(1);
+  const [listTotalCount, setListTotalCount] = useState(0);
   const [listLoading, setListLoading] = useState(authed);
   const [listError, setListError] = useState<string | null>(null);
+  const [listReloadKey, setListReloadKey] = useState(0);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -56,19 +61,24 @@ export default function SupportFeedbackPage() {
     setListLoading(true);
     setListError(null);
     try {
-      const rows = await listClientSupportMessages();
-      setItems(rows);
+      const { results, meta } = await listClientSupportMessages({
+        page: listPage,
+        page_size: CLIENT_SUPPORT_LIST_PAGE_SIZE,
+      });
+      setItems(results);
+      setListTotalPages(Math.max(1, meta.total_pages));
+      setListTotalCount(meta.total);
     } catch (e) {
       setListError(e instanceof Error ? e.message : 'Could not load your messages.');
     } finally {
       setListLoading(false);
     }
-  }, []);
+  }, [listPage]);
 
   useEffect(() => {
     if (!authed) return;
     void loadList();
-  }, [authed, loadList]);
+  }, [authed, listPage, listReloadKey, loadList]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,12 +99,13 @@ export default function SupportFeedbackPage() {
 
     setSubmitting(true);
     try {
-      const saved = await postClientSupportMessage({
+      await postClientSupportMessage({
         kind,
         message: trimmed,
         subject: subject.trim() || undefined,
       });
-      setItems((prev) => [saved, ...prev.filter((r) => r.id !== saved.id)]);
+      setListPage(1);
+      setListReloadKey((k) => k + 1);
       setMessage('');
       setSubject('');
       showToast('Message sent. We will get back to you as soon as we can.', 'success');
@@ -204,7 +215,7 @@ export default function SupportFeedbackPage() {
 
               <section className="support-feedback-page__history" aria-labelledby="support-history-heading">
                 <h2 id="support-history-heading" className="h5 mb-3">
-                  Your recent messages
+                  Your messages
                 </h2>
                 {listLoading ? (
                   <div className="text-muted d-flex align-items-center gap-2 py-3">
@@ -236,6 +247,26 @@ export default function SupportFeedbackPage() {
                     ))}
                   </ul>
                 )}
+                {!listLoading && !listError && listTotalCount > 0 ? (
+                  <div className="support-feedback-page__pagination d-flex flex-wrap align-items-center justify-content-between gap-2 pt-1">
+                    <p className="small text-muted mb-0">
+                      {listTotalCount} total · {CLIENT_SUPPORT_LIST_PAGE_SIZE} per page · page {listPage} of{' '}
+                      {listTotalPages}
+                    </p>
+                    {listTotalPages > 1 ? (
+                      <Pagination className="mb-0">
+                        <Pagination.Prev
+                          disabled={listPage <= 1}
+                          onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                        />
+                        <Pagination.Next
+                          disabled={listPage >= listTotalPages}
+                          onClick={() => setListPage((p) => Math.min(listTotalPages, p + 1))}
+                        />
+                      </Pagination>
+                    ) : null}
+                  </div>
+                ) : null}
               </section>
             </>
           )}

@@ -11,6 +11,9 @@ import '@/layouts/MainLayout.css';
 
 const SHOW_IN_DEVELOPMENT_BANNER = true;
 
+/** Overlay duration — long enough to cover slow dev compiles; root `loading.tsx` covers the rest of slow RSC. */
+const ROUTE_TRANSITION_OVERLAY_MS = 2800;
+
 function InDevelopmentBanner({ pathname }: { pathname: string }) {
   if (!SHOW_IN_DEVELOPMENT_BANNER) return null;
   const pathOnly = pathname.split('?')[0];
@@ -59,65 +62,58 @@ function shouldHideMainLayoutChrome(pathname: string): boolean {
   return isDedicatedNotFoundPath(pathname) || isGymPublicSitePath(pathname);
 }
 
-const CLIENT_GYM_ROUTE_LOADER_EXCLUDED_SEGMENTS = new Set<string>([
-  ...MARKETING_APP_PATH_FIRST_SEGMENTS,
-  'preview',
-  'crystal',
-]);
-
-function shouldShowClientGymRouteLoader(pathname: string): boolean {
-  if (isDedicatedNotFoundPath(pathname)) return false;
-  if (getPublicGymSlugFromHost()) return true;
-  const seg = pathname.split('/').filter(Boolean)[0];
-  if (!seg) return false;
-  if (CLIENT_GYM_ROUTE_LOADER_EXCLUDED_SEGMENTS.has(seg)) return false;
-  return true;
-}
-
 /**
- * Public gym UI (`CrystalBusinessPage`) already shows skeleton + branded intro — skip the global
- * Crystal overlay so the logo does not flash twice (overlay feels like a static pop on top of intro).
+ * Marketing host `/:slug` public gym — `CrystalBusinessPage` already shows intro/skeleton; skip the
+ * global Crystal overlay so it does not stack. Gym **subdomain** navigations still use the global loader.
  */
 function shouldSuppressRouteLoaderForCrystalGymClient(pathname: string): boolean {
-  if (getPublicGymSlugFromHost()) return true;
+  if (getPublicGymSlugFromHost()) return false;
   const pathOnly = pathname.split('?')[0];
   const parts = pathOnly.split('/').filter(Boolean);
   if (parts.length !== 1) return false;
   return !MARKETING_APP_PATH_FIRST_SEGMENTS.has(parts[0]!);
 }
 
-/** Per-gym dashboard routes (`/user/business/...`) — excluded from gym loader; show overlay only after leaving the session’s first URL. */
-function shouldShowUserBusinessRouteLoader(pathname: string, sessionBootPath: string): boolean {
-  if (isDedicatedNotFoundPath(pathname)) return false;
-  if (!pathname.startsWith('/user/business/')) return false;
-  return pathname !== sessionBootPath;
-}
-
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showRouteLoader, setShowRouteLoader] = useState(false);
   const bootPathRef = useRef<string | null>(null);
+  const prevPathnameRef = useRef<string | null>(null);
+
   if (bootPathRef.current === null) {
     bootPathRef.current = pathname;
   }
-  /** Avoid page-enter motion on the first URL (prevents a second “pop” from React Strict remounts / layout). */
   const showPageRouteEnterMotion = pathname !== bootPathRef.current;
   const hideMarketingChrome = shouldHideMainLayoutChrome(pathname);
   const notFoundLayout = isDedicatedNotFoundPath(pathname);
 
   useEffect(() => {
-    const boot = bootPathRef.current ?? pathname;
-    const gym =
-      shouldShowClientGymRouteLoader(pathname) && !shouldSuppressRouteLoaderForCrystalGymClient(pathname);
-    const userBiz = shouldShowUserBusinessRouteLoader(pathname, boot);
-    if (!gym && !userBiz) {
+    if (prevPathnameRef.current === null) {
+      prevPathnameRef.current = pathname;
+      return;
+    }
+
+    const prevOnly = prevPathnameRef.current.split('?')[0];
+    const pathOnly = pathname.split('?')[0];
+    if (prevOnly === pathOnly) {
+      return;
+    }
+
+    prevPathnameRef.current = pathname;
+
+    if (isDedicatedNotFoundPath(pathname)) {
       setShowRouteLoader(false);
       return;
     }
+
+    if (shouldSuppressRouteLoaderForCrystalGymClient(pathname)) {
+      setShowRouteLoader(false);
+      return;
+    }
+
     setShowRouteLoader(true);
-    const ms = userBiz ? 1200 : 780;
-    const t = setTimeout(() => setShowRouteLoader(false), ms);
-    return () => clearTimeout(t);
+    const t = window.setTimeout(() => setShowRouteLoader(false), ROUTE_TRANSITION_OVERLAY_MS);
+    return () => window.clearTimeout(t);
   }, [pathname]);
 
   return (

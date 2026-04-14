@@ -15,6 +15,51 @@ import {
 
 type RetryableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
+/** Coalesce concurrent 401 recoveries so parallel requests share one `POST /auth/refresh/` call. */
+let accessTokenRefreshInFlight: Promise<string> | null = null;
+
+async function refreshAccessTokenShared(): Promise<string> {
+  if (accessTokenRefreshInFlight) return accessTokenRefreshInFlight;
+
+  accessTokenRefreshInFlight = (async (): Promise<string> => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      clearTokens();
+      throw new Error('No refresh token');
+    }
+    const { data } = await axios.post(
+      `${apiBaseUrl}${authRefreshPath}`,
+      { refresh: refreshToken },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    const newAccessToken = data.access ?? data.access_token ?? data.accessToken ?? data.token;
+    if (!newAccessToken) {
+      clearTokens();
+      throw new Error('No access token in refresh response');
+    }
+
+    setAccessToken(newAccessToken);
+    const newRefresh = data.refresh ?? data.refresh_token ?? data.refreshToken;
+    if (newRefresh) {
+      setTokens(newAccessToken, newRefresh);
+    }
+
+    const refreshedCustomer = data.customer;
+    if (refreshedCustomer && typeof refreshedCustomer === 'object') {
+      primeProfileCache(refreshedCustomer as object);
+    }
+
+    return newAccessToken;
+  })();
+
+  try {
+    return await accessTokenRefreshInFlight;
+  } finally {
+    accessTokenRefreshInFlight = null;
+  }
+}
+
 export const protectedApi = axios.create({
   baseURL: apiBaseUrl,
   headers: {
@@ -57,42 +102,18 @@ protectedApi.interceptors.response.use(
 
     originalRequest._retried = true;
 
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) {
+    if (!getRefreshToken()) {
       clearTokens();
       return Promise.reject(error);
     }
 
     try {
-      const { data } = await axios.post(
-        `${apiBaseUrl}${authRefreshPath}`,
-        { refresh: refreshToken },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      const newAccessToken =
-        data.access ?? data.access_token ?? data.accessToken ?? data.token;
-      if (!newAccessToken) {
-        clearTokens();
-        return Promise.reject(error);
-      }
-
-      setAccessToken(newAccessToken);
-      const newRefresh = data.refresh ?? data.refresh_token ?? data.refreshToken;
-      if (newRefresh) {
-        setTokens(newAccessToken, newRefresh);
-      }
-
-      const refreshedCustomer = data.customer;
-      if (refreshedCustomer && typeof refreshedCustomer === 'object') {
-        primeProfileCache(refreshedCustomer as object);
-      }
-
+      const newAccessToken = await refreshAccessTokenShared();
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       return protectedApi(originalRequest);
-    } catch (refreshError) {
+    } catch {
       clearTokens();
-      return Promise.reject(refreshError);
+      return Promise.reject(error);
     }
   }
 );

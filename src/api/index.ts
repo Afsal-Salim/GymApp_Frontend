@@ -156,9 +156,11 @@ export {
   type CrystalWhatsAppClickBody,
 } from './publicCrystalClientLeads';
 export {
+  CLIENT_SUPPORT_LIST_PAGE_SIZE,
   listClientSupportMessages,
   postClientSupportMessage,
   type ClientSupportMessage,
+  type ClientSupportListResponse,
   type ClientSupportMessageKind,
   type PostClientSupportPayload,
 } from './support';
