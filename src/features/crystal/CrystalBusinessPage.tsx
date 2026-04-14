@@ -63,7 +63,7 @@ import {
   GYM_CLIENT_DEFAULT_TEXT_HEX,
   readCrystalWebsitePreviewFromStorage,
 } from '../website/setup/createWebsiteFormState';
-import { resolveGymClientBrandLogoSrc, withBundledDefaultClientLogo } from './gymClientBrandLogo';
+import { withBundledDefaultClientLogo } from './gymClientBrandLogo';
 import { buildGymClientWhatsAppHref, buildGymClientWhatsAppHrefWithCustomText } from './gymClientWhatsApp';
 import { recordGymClientLeadCta, recordGymClientWhatsAppClick } from './gymClientLeadTracking';
 import GymClientJoinLeadModal from './GymClientJoinLeadModal';
@@ -1908,18 +1908,14 @@ export default function CrystalBusinessPage() {
     [resolvedGymClientTheme]
   );
 
-  const introTagline = useMemo(() => {
-    if (!slug || slug === 'preview') return 'BUILD YOUR STRENGTH';
-    let h = 0;
-    for (let i = 0; i < slug.length; i++) h = (h + slug.charCodeAt(i) * (i + 1)) % 9001;
-    return h % 2 === 0 ? 'BUILD YOUR STRENGTH' : 'NO EXCUSES';
-  }, [slug]);
-
   const dataReadyPublic = Boolean(slug && slug !== 'preview' && !loading && siteContent);
   const publicLoadShell = Boolean(slug && slug !== 'preview' && !error && !notFound && (loading || dataReadyPublic));
   const publicIntroLayer = Boolean(
     publicLoadShell && introSlowGate && clientIntroAllowed && !introDismissedAfterComplete
   );
+  /** No skeleton under the single Crystal splash — theme bridge background only until intro or site. */
+  const publicLoadMinimalIntro =
+    Boolean(slug && slug !== 'preview' && !error && !notFound && clientIntroAllowed && !introDismissedAfterComplete);
 
   useEffect(() => {
     if (!dataReadyPublic) {
@@ -2201,7 +2197,11 @@ export default function CrystalBusinessPage() {
               }`}
               style={clientThemeCssVars}
             >
-              {loading || (publicLoadShell && !shellRevealReady) ? <CrystalClientPageSkeleton /> : null}
+              {publicLoadMinimalIntro ?
+                null
+              : loading || (publicLoadShell && !shellRevealReady) ?
+                <CrystalClientPageSkeleton />
+              : null}
               {dataReadyPublic && siteContent && shellRevealReady ? (
                 <div className="crystal-client-intro-host">
                   <>
@@ -2234,9 +2234,6 @@ export default function CrystalBusinessPage() {
               {publicIntroLayer ? (
                 <CrystalClientIntroOverlay
                   style={clientThemeCssVars}
-                  logoSrc={resolveGymClientBrandLogoSrc(siteContent?.logo?.src)}
-                  brandName={siteContent?.header.title ?? ''}
-                  tagline={introTagline}
                   contentReady={dataReadyPublic && shellRevealReady}
                   loadStartedAt={loadStartedAt}
                   onExitStart={() => setIntroCrossfade(true)}

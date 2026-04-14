@@ -1,18 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { CRYSTAL_LOGO_MARK_SRC } from './CrystalClientLogoLoader';
 import './CrystalClientIntroOverlay.css';
 
 export type CrystalClientIntroOverlayProps = {
   style?: CSSProperties;
-  /** Resolved logo URL (bundled default or gym logo). */
-  logoSrc: string;
-  /** Gym name shown after shimmer (uppercased in UI). */
-  brandName: string;
-  tagline: string;
   /** True when public bundle + site model are ready (intro can finish). */
   contentReady: boolean;
-  /** When this fetch began (ms); used so the sequence runs at least ~1.5s before exit. */
+  /** When this fetch began (ms); used for a short minimum dwell before exit. */
   loadStartedAt: number | null;
   /** Fired once when exit begins so the page can crossfade in under the overlay. */
   onExitStart?: () => void;
@@ -20,26 +16,22 @@ export type CrystalClientIntroOverlayProps = {
   onComplete: () => void;
 };
 
-const PHASE_SHIMMER = 2;
-const PHASE_TITLE = 3;
-const PHASE_PULSE = 4;
-const PHASE_ARMED = 5;
+/** One motion: Crystal mark + “Crystal” wordmark, then exit when content is ready. */
+const BRAND_MOTION_MS = 1200;
+const MIN_DWELL_FROM_LOAD_MS = 800;
 
 /**
- * Full-screen branded intro: logo reveal → shimmer sweep → title + tagline → energy pulse → exit blur/fade.
- * Parent only mounts when slow fetch (over 500ms) and session / motion checks pass.
+ * Full-screen splash: single entrance animation (product logo + wordmark only), then fade out
+ * when the gym page is ready. No shimmer, gym title, tagline, or pulse phases.
  */
 export function CrystalClientIntroOverlay({
   style,
-  logoSrc,
-  brandName,
-  tagline,
   contentReady,
   loadStartedAt,
   onExitStart,
   onComplete,
 }: CrystalClientIntroOverlayProps) {
-  const [phase, setPhase] = useState(1);
+  const [brandMotionDone, setBrandMotionDone] = useState(false);
   const [exiting, setExiting] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const completeRef = useRef(false);
@@ -57,36 +49,21 @@ export function CrystalClientIntroOverlay({
       finish();
       return;
     }
-    let cancelled = false;
-    const tick = (ms: number, fn: () => void) =>
-      window.setTimeout(() => {
-        if (!cancelled) fn();
-      }, ms);
-    const t1 = tick(1500, () => setPhase(PHASE_SHIMMER));
-    const t2 = tick(3000, () => setPhase(PHASE_TITLE));
-    const t3 = tick(4000, () => setPhase(PHASE_PULSE));
-    const t4 = tick(5000, () => setPhase(PHASE_ARMED));
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-      window.clearTimeout(t4);
-    };
+    const id = window.setTimeout(() => setBrandMotionDone(true), BRAND_MOTION_MS);
+    return () => window.clearTimeout(id);
   }, [reducedMotion, finish]);
 
   useEffect(() => {
     if (reducedMotion) return;
-    if (phase < PHASE_ARMED || !contentReady || exiting) return;
-    const minHoldMs = 1500;
+    if (!brandMotionDone || !contentReady || exiting) return;
     const extra =
-      loadStartedAt != null ? Math.max(0, minHoldMs - (Date.now() - loadStartedAt)) : 0;
+      loadStartedAt != null ? Math.max(0, MIN_DWELL_FROM_LOAD_MS - (Date.now() - loadStartedAt)) : 0;
     const id = window.setTimeout(() => {
       onExitStart?.();
       setExiting(true);
     }, extra);
     return () => window.clearTimeout(id);
-  }, [phase, contentReady, exiting, reducedMotion, loadStartedAt, onExitStart]);
+  }, [brandMotionDone, contentReady, exiting, reducedMotion, loadStartedAt, onExitStart]);
 
   useEffect(() => {
     if (!exiting || reducedMotion) return;
@@ -104,8 +81,6 @@ export function CrystalClientIntroOverlay({
     };
   }, [exiting, finish, reducedMotion]);
 
-  const displayName = (brandName.trim() || 'Crystal Gym').toUpperCase();
-
   return (
     <div
       ref={rootRef}
@@ -116,23 +91,11 @@ export function CrystalClientIntroOverlay({
     >
       <div className="crystal-intro__vignette" aria-hidden />
       <div className="crystal-intro__inner">
-        <div
-          className={`crystal-intro__logo-wrap${phase >= 2 ? ' crystal-intro__logo-wrap--settled' : ''}${
-            phase >= PHASE_SHIMMER ? ' crystal-intro__logo-wrap--shimmer' : ''
-          }`}
-        >
-          <img src={logoSrc} alt="" className="crystal-intro__logo" decoding="async" />
-          <div className="crystal-intro__shimmer-sweep" aria-hidden />
-          {phase >= PHASE_PULSE && !exiting ?
-            <div className="crystal-intro__energy" aria-hidden>
-              <span className="crystal-intro__energy-ring" />
-            </div>
-          : null}
-        </div>
-
-        <div className={`crystal-intro__titles${phase >= PHASE_TITLE ? ' crystal-intro__titles--visible' : ''}`}>
-          <p className="crystal-intro__name">{displayName}</p>
-          <p className="crystal-intro__tag">{tagline}</p>
+        <div className="crystal-intro__brand">
+          <div className="crystal-intro__logo-wrap">
+            <img src={CRYSTAL_LOGO_MARK_SRC} alt="" className="crystal-intro__logo" decoding="async" />
+          </div>
+          <p className="crystal-intro__wordmark">Crystal</p>
         </div>
       </div>
     </div>

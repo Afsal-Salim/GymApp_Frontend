@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -36,10 +37,21 @@ import type {
 import { useToast } from '../../contexts/ToastContext';
 import { publicGymSiteUrl, visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
-import { OverallLeadsByWebsiteChart } from './OverallLeadsByWebsiteChart';
 import { GYM_CLIENT_BRAND_LOGO_SRC, isLegacyCrystalGemLogoUrl } from '../crystal/gymClientBrandLogo';
 import logo from '../../assets/logo.svg';
 import './UserPage.css';
+
+const OverallLeadsByWebsiteChart = dynamic(
+  () => import('./OverallLeadsByWebsiteChart').then((mod) => ({ default: mod.OverallLeadsByWebsiteChart })),
+  {
+    loading: () => (
+      <div className="user-page__loading user-page__loading--center py-4 text-muted small">
+        <Spinner animation="border" size="sm" className="me-2" aria-hidden />
+        Loading chart…
+      </div>
+    ),
+  }
+);
 
 function formatDate(s: string | undefined): string {
   if (!s) return '—';

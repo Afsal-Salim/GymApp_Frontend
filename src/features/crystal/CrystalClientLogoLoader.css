@@ -1,22 +1,55 @@
+/* Same marketing hero blues as intro / HomePage hero v2 */
 .crystal-client-logo-loader {
+  --crystal-load-deep: #030b1a;
+  --crystal-load-mid: #052456;
+  --crystal-load-accent: #0084ff;
+  --crystal-load-neon: #4dc3ff;
+  --crystal-load-ice: #b9e8ff;
+
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: min(100vh, 100dvh);
   width: 100%;
-  background: var(--gym-client-dark, #0c0a09);
+  background-color: #050a12;
+  background-image: linear-gradient(
+    92deg,
+    var(--crystal-load-deep) 0%,
+    var(--crystal-load-mid) 28%,
+    var(--crystal-load-accent) 52%,
+    var(--crystal-load-neon) 72%,
+    var(--crystal-load-ice) 100%
+  );
+  background-size: 240% 100%;
+  background-position: 0% 50%;
+  animation: crystal-client-logo-loader-bg 6s ease-in-out infinite alternate;
+}
+
+@keyframes crystal-client-logo-loader-bg {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
 }
 
 .crystal-client-logo-loader__mark {
   width: clamp(4.25rem, 14vw, 6rem);
   height: auto;
   display: block;
-  filter: drop-shadow(0 8px 28px color-mix(in srgb, var(--gym-client-accent, #38bdf8) 35%, transparent));
+  filter: drop-shadow(0 6px 28px rgba(0, 132, 255, 0.45)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.1));
   animation: crystal-client-logo-loader-breathe 1.35s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .crystal-client-logo-loader {
+    animation: none;
+    background-size: 100% 100%;
+    background-position: 50% 50%;
+  }
+
   .crystal-client-logo-loader__mark {
     animation: none;
   }
@@ -25,7 +58,7 @@
 @keyframes crystal-client-logo-loader-breathe {
   0%,
   100% {
-    opacity: 0.88;
+    opacity: 0.9;
     transform: scale(1);
   }
   50% {

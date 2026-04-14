@@ -25,11 +25,7 @@ export default function PublicCrystalCatchAllClient() {
   }, [slug, rest]);
 
   if (isPublicSiteSubdomainRoutingActive() && slug && slug !== 'preview' && slug !== 'crystal') {
-    return (
-      <div className="container py-5 text-center text-muted small" role="status">
-        Redirecting to your gym site…
-      </div>
-    );
+    return null;
   }
 
   return (

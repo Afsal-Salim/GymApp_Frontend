@@ -74,6 +74,25 @@ function shouldShowClientGymRouteLoader(pathname: string): boolean {
   return true;
 }
 
+/**
+ * Public gym UI (`CrystalBusinessPage`) already shows skeleton + branded intro — skip the global
+ * Crystal overlay so the logo does not flash twice (overlay feels like a static pop on top of intro).
+ */
+function shouldSuppressRouteLoaderForCrystalGymClient(pathname: string): boolean {
+  if (getPublicGymSlugFromHost()) return true;
+  const pathOnly = pathname.split('?')[0];
+  const parts = pathOnly.split('/').filter(Boolean);
+  if (parts.length !== 1) return false;
+  return !MARKETING_APP_PATH_FIRST_SEGMENTS.has(parts[0]!);
+}
+
+/** Per-gym dashboard routes (`/user/business/...`) — excluded from gym loader; show overlay only after leaving the session’s first URL. */
+function shouldShowUserBusinessRouteLoader(pathname: string, sessionBootPath: string): boolean {
+  if (isDedicatedNotFoundPath(pathname)) return false;
+  if (!pathname.startsWith('/user/business/')) return false;
+  return pathname !== sessionBootPath;
+}
+
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showRouteLoader, setShowRouteLoader] = useState(false);
@@ -87,12 +106,17 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
   const notFoundLayout = isDedicatedNotFoundPath(pathname);
 
   useEffect(() => {
-    if (!shouldShowClientGymRouteLoader(pathname)) {
+    const boot = bootPathRef.current ?? pathname;
+    const gym =
+      shouldShowClientGymRouteLoader(pathname) && !shouldSuppressRouteLoaderForCrystalGymClient(pathname);
+    const userBiz = shouldShowUserBusinessRouteLoader(pathname, boot);
+    if (!gym && !userBiz) {
       setShowRouteLoader(false);
       return;
     }
     setShowRouteLoader(true);
-    const t = setTimeout(() => setShowRouteLoader(false), 780);
+    const ms = userBiz ? 1200 : 780;
+    const t = setTimeout(() => setShowRouteLoader(false), ms);
     return () => clearTimeout(t);
   }, [pathname]);
 
