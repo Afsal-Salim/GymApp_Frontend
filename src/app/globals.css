@@ -1,4 +1,27 @@
 @import '../styles/base.css';
+/* Same full-viewport gradient + Crystal mark as profile / route transition (`RouteTransitionLoader`). */
+@import '../layouts/RouteTransitionLoader.css';
+@import '../features/crystal/CrystalClientLogoLoader.css';
+
+/* First-paint home loader (`HomeInitialLoaderSsr`) — exit class used by `HomeInitialLoaderClient`. */
+.home-initial-loader-ssr.route-transition-loader {
+  z-index: 1102;
+}
+
+.home-initial-loader-ssr {
+  transition: opacity 0.32s ease;
+}
+
+.home-initial-loader-ssr--exit {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-initial-loader-ssr {
+    transition-duration: 0.12s;
+  }
+}
 
 /* Public gym load bridge: match loader ink to eliminate white flashes between shell and body */
 html.crystal-public-load-bridge,
@@ -13,24 +36,3 @@ html.crystal-public-load-bridge #root {
   background-color: inherit;
 }
 
-/* Root `app/loading.tsx` — visible during RSC transitions for routes without a local `loading.tsx` */
-.app-route-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: min(56vh, 520px);
-  padding: 2rem 1rem;
-}
-
-.app-route-loading__inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.app-route-loading__spinner {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-width: 0.2em;
-}

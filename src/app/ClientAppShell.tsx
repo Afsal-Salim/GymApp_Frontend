@@ -11,8 +11,20 @@ import '@/layouts/MainLayout.css';
 
 const SHOW_IN_DEVELOPMENT_BANNER = true;
 
-/** Overlay duration — long enough to cover slow dev compiles; root `loading.tsx` covers the rest of slow RSC. */
+/** Overlay duration — long enough to cover slow dev compiles and dynamic route RSC. */
 const ROUTE_TRANSITION_OVERLAY_MS = 2800;
+
+/**
+ * Static marketing / legal pages (footer: Services, Support, Privacy, Terms). No transition overlay —
+ * they are mostly static and should feel instant.
+ */
+function isStaticMarketingShellPath(pathname: string): boolean {
+  const pathOnly = pathname.split('?')[0];
+  if (pathOnly.startsWith('/legal/')) return true;
+  if (pathOnly === '/services/custom') return true;
+  if (pathOnly === '/support') return true;
+  return false;
+}
 
 function InDevelopmentBanner({ pathname }: { pathname: string }) {
   if (!SHOW_IN_DEVELOPMENT_BANNER) return null;
@@ -107,6 +119,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     }
 
     if (shouldSuppressRouteLoaderForCrystalGymClient(pathname)) {
+      setShowRouteLoader(false);
+      return;
+    }
+
+    if (isStaticMarketingShellPath(pathname)) {
       setShowRouteLoader(false);
       return;
     }

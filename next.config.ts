@@ -29,6 +29,8 @@ function shouldEnableApiProxy(): boolean {
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  /** Hide `X-Powered-By: Next.js` in production responses. */
+  poweredByHeader: false,
   transpilePackages: ['@mui/material', '@mui/icons-material'],
   experimental: {
     optimizePackageImports: ['@mui/material', '@mui/icons-material'],

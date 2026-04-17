@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import HomeInitialLoaderClient from '@/app/_components/HomeInitialLoaderClient';
+import HomeInitialLoaderSsr from '@/app/_components/HomeInitialLoaderSsr';
 import HomeLandingJsonLd from '@/app/_components/HomeLandingJsonLd';
 import HomePage from '@/features/home/HomePage';
 import { getMarketingSiteOrigin } from '@/lib/siteUrl';
@@ -38,6 +40,8 @@ export default function Home() {
   return (
     <>
       <HomeLandingJsonLd />
+      <HomeInitialLoaderSsr />
+      <HomeInitialLoaderClient />
       <HomePage />
     </>
   );

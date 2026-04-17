@@ -3,6 +3,7 @@ import { Card, Form, Pagination, Spinner, Table } from 'react-bootstrap';
 import {
   getBusinessCrystalLeadsPaginated,
   getBusinessEnquiriesPaginated,
+  isAxiosOrAbortCanceled,
   patchBusinessEnquiry,
   type BusinessEnquiryItem,
   type BusinessListMeta,
@@ -313,60 +314,80 @@ export function ManageBusinessLeadsSection({ slug }: { slug: string }) {
     setLeadPage(1);
   }, [debouncedLeadSearch]);
 
-  const loadLeads = useCallback(async () => {
+  const loadLeads = useCallback(async (signal?: AbortSignal) => {
     setLeadsLoading(true);
     setLeadsError(null);
     try {
       const search = debouncedLeadSearch.trim();
-      const res = await getBusinessCrystalLeadsPaginated(slug, {
-        page: leadPage,
-        page_size: PAGE_SIZE,
-        ...(leadType ? { lead_type: leadType } : {}),
-        ...(search ? { search } : {}),
-      });
+      const res = await getBusinessCrystalLeadsPaginated(
+        slug,
+        {
+          page: leadPage,
+          page_size: PAGE_SIZE,
+          ...(leadType ? { lead_type: leadType } : {}),
+          ...(search ? { search } : {}),
+        },
+        signal ? { signal } : undefined
+      );
+      if (signal?.aborted) return;
       setLeads(res.results);
       setLeadMeta(res.meta);
     } catch (e) {
+      if (isAxiosOrAbortCanceled(e)) return;
       setLeads([]);
       setLeadMeta(null);
       setLeadsError(e instanceof Error ? e.message : 'Failed to load modal leads.');
     } finally {
-      setLeadsLoading(false);
+      if (!signal?.aborted) {
+        setLeadsLoading(false);
+      }
     }
   }, [slug, leadPage, leadType, debouncedLeadSearch]);
 
   useEffect(() => {
-    loadLeads();
+    const ac = new AbortController();
+    void loadLeads(ac.signal);
+    return () => ac.abort();
   }, [loadLeads]);
 
   useEffect(() => {
     setEnqPage(1);
   }, [debouncedEnqSearch]);
 
-  const loadEnquiries = useCallback(async () => {
+  const loadEnquiries = useCallback(async (signal?: AbortSignal) => {
     setEnqLoading(true);
     setEnqError(null);
     try {
       const search = debouncedEnqSearch.trim();
-      const res = await getBusinessEnquiriesPaginated(slug, {
-        page: enqPage,
-        page_size: PAGE_SIZE,
-        ...(enqStatus ? { enquiry_status: enqStatus } : {}),
-        ...(search ? { search } : {}),
-      });
+      const res = await getBusinessEnquiriesPaginated(
+        slug,
+        {
+          page: enqPage,
+          page_size: PAGE_SIZE,
+          ...(enqStatus ? { enquiry_status: enqStatus } : {}),
+          ...(search ? { search } : {}),
+        },
+        signal ? { signal } : undefined
+      );
+      if (signal?.aborted) return;
       setEnquiries(res.results);
       setEnqMeta(res.meta);
     } catch (e) {
+      if (isAxiosOrAbortCanceled(e)) return;
       setEnquiries([]);
       setEnqMeta(null);
       setEnqError(e instanceof Error ? e.message : 'Failed to load enquiries.');
     } finally {
-      setEnqLoading(false);
+      if (!signal?.aborted) {
+        setEnqLoading(false);
+      }
     }
   }, [slug, enqPage, enqStatus, debouncedEnqSearch]);
 
   useEffect(() => {
-    loadEnquiries();
+    const ac = new AbortController();
+    void loadEnquiries(ac.signal);
+    return () => ac.abort();
   }, [loadEnquiries]);
 
   const displayLeads = useMemo(

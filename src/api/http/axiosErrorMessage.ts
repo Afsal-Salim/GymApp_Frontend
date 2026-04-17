@@ -44,3 +44,10 @@ export function getAxiosErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
   return fallback;
 }
+
+/** True when the request was aborted (AbortSignal) or canceled (Axios). Ignore these in UI error handlers. */
+export function isAxiosOrAbortCanceled(error: unknown): boolean {
+  if (axios.isCancel(error)) return true;
+  if (!axios.isAxiosError(error)) return false;
+  return error.code === 'ERR_CANCELED' || error.name === 'CanceledError';
+}

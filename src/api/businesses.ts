@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { CrystalWebsiteSetupPayload } from '../features/crystal/gymClientSiteContent';
 import type { BusinessLogoPayload } from './businessLogo';
 import { privateApi } from './interceptor';
-import { getAxiosErrorMessage } from './http/axiosErrorMessage';
+import { getAxiosErrorMessage, isAxiosOrAbortCanceled } from './http/axiosErrorMessage';
 import { publicApi } from './http/publicApi';
 
 const BASE = '/businesses';
@@ -198,19 +198,20 @@ function crystalLeadsListInflightKey(
  * `search` or `q` (same behavior), `page`, `page_size`. Search applies after type/record filters;
  * matches string fields in payload: name, email, message, notes.
  */
+export type OwnerListFetchOptions = { signal?: AbortSignal };
+
 export async function getBusinessCrystalLeadsPaginated(
   businessSlug: string,
-  params: OwnerCrystalLeadsListParams = {}
+  params: OwnerCrystalLeadsListParams = {},
+  options?: OwnerListFetchOptions
 ): Promise<CrystalLeadsPaginatedResult> {
   const key = businessSlug.trim();
   if (!key) throw new Error('Business slug is required.');
   const page = params.page && params.page >= 1 ? params.page : 1;
   const page_size = clampOwnerListPageSize(params.page_size ?? 10);
   const inflightKey = crystalLeadsListInflightKey(key, page, page_size, params);
-  const existing = businessCrystalLeadsPaginatedInflight.get(inflightKey);
-  if (existing) return existing;
 
-  const promise = (async (): Promise<CrystalLeadsPaginatedResult> => {
+  const execute = async (): Promise<CrystalLeadsPaginatedResult> => {
     try {
       const { data } = await privateApi.get(`${BASE}/${encodeURIComponent(key)}/crystal-leads/`, {
         params: {
@@ -220,9 +221,11 @@ export async function getBusinessCrystalLeadsPaginated(
           ...(params.record_status ? { record_status: params.record_status } : {}),
           ...ownerListSearchQuery(params),
         },
+        signal: options?.signal,
       });
       return parseMetaResultsList<OwnerCrystalLeadItem>(data, page, page_size);
     } catch (e) {
+      if (isAxiosOrAbortCanceled(e)) throw e;
       if (axios.isAxiosError(e) && e.response?.status === 404) {
         throw new Error('Business not found or you do not have access.');
       }
@@ -232,7 +235,16 @@ export async function getBusinessCrystalLeadsPaginated(
       }
       throw new Error(getAxiosErrorMessage(e, 'Failed to load crystal leads'));
     }
-  })().finally(() => {
+  };
+
+  if (options?.signal) {
+    return execute();
+  }
+
+  const existing = businessCrystalLeadsPaginatedInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const promise = execute().finally(() => {
     businessCrystalLeadsPaginatedInflight.delete(inflightKey);
   });
 
@@ -318,6 +330,24 @@ export type BusinessEnquiriesListParams = {
   q?: string;
 };
 
+type EnquiriesPaginatedResult = { results: BusinessEnquiryItem[]; meta: BusinessListMeta; count: number };
+
+/** Coalesce concurrent enquiries list GETs (overlapping effects). */
+const businessEnquiriesPaginatedInflight = new Map<string, Promise<EnquiriesPaginatedResult>>();
+
+function enquiriesListInflightKey(
+  slugKey: string,
+  page: number,
+  page_size: number,
+  params: BusinessEnquiriesListParams
+): string {
+  const sq = ownerListSearchQuery(params);
+  const searchTerm = 'search' in sq ? sq.search : '';
+  const es = params.enquiry_status ?? '';
+  const rs = params.record_status ?? '';
+  return `${slugKey.toLowerCase()}\t${page}\t${page_size}\t${es}\t${rs}\t${searchTerm}`;
+}
+
 export type PostPublicBusinessEnquiryBody = {
   name: string;
   email: string;
@@ -360,29 +390,50 @@ export async function postPublicBusinessEnquiry(
  */
 export async function getBusinessEnquiriesPaginated(
   businessSlug: string,
-  params: BusinessEnquiriesListParams = {}
-): Promise<{ results: BusinessEnquiryItem[]; meta: BusinessListMeta; count: number }> {
+  params: BusinessEnquiriesListParams = {},
+  options?: OwnerListFetchOptions
+): Promise<EnquiriesPaginatedResult> {
   const key = businessSlug.trim();
   if (!key) throw new Error('Business slug is required.');
   const page = params.page && params.page >= 1 ? params.page : 1;
   const page_size = clampOwnerListPageSize(params.page_size ?? 10);
-  try {
-    const { data } = await privateApi.get(`${BASE}/${encodeURIComponent(key)}/enquiries/`, {
-      params: {
-        page,
-        page_size,
-        ...(params.enquiry_status ? { enquiry_status: params.enquiry_status } : {}),
-        ...(params.record_status ? { record_status: params.record_status } : {}),
-        ...ownerListSearchQuery(params),
-      },
-    });
-    return parseMetaResultsList<BusinessEnquiryItem>(data, page, page_size);
-  } catch (e) {
-    if (axios.isAxiosError(e) && e.response?.status === 404) {
-      throw new Error('Business not found or you do not have access.');
+  const inflightKey = enquiriesListInflightKey(key, page, page_size, params);
+
+  const execute = async (): Promise<EnquiriesPaginatedResult> => {
+    try {
+      const { data } = await privateApi.get(`${BASE}/${encodeURIComponent(key)}/enquiries/`, {
+        params: {
+          page,
+          page_size,
+          ...(params.enquiry_status ? { enquiry_status: params.enquiry_status } : {}),
+          ...(params.record_status ? { record_status: params.record_status } : {}),
+          ...ownerListSearchQuery(params),
+        },
+        signal: options?.signal,
+      });
+      return parseMetaResultsList<BusinessEnquiryItem>(data, page, page_size);
+    } catch (e) {
+      if (isAxiosOrAbortCanceled(e)) throw e;
+      if (axios.isAxiosError(e) && e.response?.status === 404) {
+        throw new Error('Business not found or you do not have access.');
+      }
+      throw new Error(getAxiosErrorMessage(e, 'Failed to load enquiries'));
     }
-    throw new Error(getAxiosErrorMessage(e, 'Failed to load enquiries'));
+  };
+
+  if (options?.signal) {
+    return execute();
   }
+
+  const existing = businessEnquiriesPaginatedInflight.get(inflightKey);
+  if (existing) return existing;
+
+  const promise = execute().finally(() => {
+    businessEnquiriesPaginatedInflight.delete(inflightKey);
+  });
+
+  businessEnquiriesPaginatedInflight.set(inflightKey, promise);
+  return promise;
 }
 
 /**

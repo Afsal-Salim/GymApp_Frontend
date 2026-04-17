@@ -6,7 +6,7 @@
 export { publicApi } from './http/publicApi';
 export { protectedApi } from './http/protectedApi';
 export { privateApi } from './interceptor';
-export { getAxiosErrorMessage } from './http/axiosErrorMessage';
+export { getAxiosErrorMessage, isAxiosOrAbortCanceled } from './http/axiosErrorMessage';
 export {
   getAccessToken,
   getRefreshToken,
@@ -149,6 +149,7 @@ export {
   type PatchOwnerCrystalLeadBody,
   type BusinessEnquiryItem,
   type BusinessEnquiriesListParams,
+  type OwnerListFetchOptions,
   type PostPublicBusinessEnquiryBody,
   type PatchBusinessEnquiryBody,
 } from './businesses';

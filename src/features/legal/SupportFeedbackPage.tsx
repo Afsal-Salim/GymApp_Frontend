@@ -13,6 +13,7 @@ import {
   type ClientSupportMessageKind,
 } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import './UserContentPolicyPage.css';
 import './SupportFeedbackPage.css';
 
@@ -55,6 +56,8 @@ export default function SupportFeedbackPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const showListLoadingSpinner = useDelayedLoading(listLoading, 400);
 
   const loadList = useCallback(async () => {
     if (!getAccessToken()) return;
@@ -217,19 +220,19 @@ export default function SupportFeedbackPage() {
                 <h2 id="support-history-heading" className="h5 mb-3">
                   Your messages
                 </h2>
-                {listLoading ? (
-                  <div className="text-muted d-flex align-items-center gap-2 py-3">
-                    <Spinner animation="border" size="sm" role="status" />
-                    <span>Loading…</span>
-                  </div>
-                ) : listError ? (
+                {listError ? (
                   <Alert variant="warning" className="mb-0">
                     {listError}{' '}
                     <Button variant="outline-dark" size="sm" className="ms-2" type="button" onClick={() => void loadList()}>
                       Retry
                     </Button>
                   </Alert>
-                ) : items.length === 0 ? (
+                ) : listLoading && showListLoadingSpinner ? (
+                  <div className="text-muted d-flex align-items-center gap-2 py-3">
+                    <Spinner animation="border" size="sm" role="status" />
+                    <span>Loading…</span>
+                  </div>
+                ) : listLoading ? null : items.length === 0 ? (
                   <p className="text-muted small mb-0">No messages yet. Your submissions will appear here.</p>
                 ) : (
                   <ul className="support-feedback-page__history-list list-unstyled mb-0">
