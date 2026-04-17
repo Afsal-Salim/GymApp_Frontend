@@ -22,6 +22,7 @@ import {
   type GymClientAboutFeature,
   type GymClientSiteContent,
   type GymClientWebsiteSectionThemeOverrides,
+  type ProWebsiteTemplateKey,
 } from '../../crystal/gymClientSiteContent';
 import { getPresetArtworkUrlForColors } from '../websiteThemePresets';
 
@@ -35,6 +36,17 @@ export const GYM_CLIENT_DEFAULT_LIGHT_HEX = '#ffffff';
 export const CREATE_WEBSITE_MAX_OFFERS = 5;
 export const CREATE_WEBSITE_MAX_PACKAGES = 5;
 export const CREATE_WEBSITE_MAX_COACHES = 5;
+
+/** Edit page: full-page template selector (Pro plan only on save). */
+export const PRO_WEBSITE_TEMPLATE_OPTIONS: { value: '' | ProWebsiteTemplateKey; label: string }[] = [
+  { value: '', label: 'Crystal default theme' },
+  { value: 'autopilot', label: 'TrainHouse template' },
+  { value: 'fitcore', label: 'FitCore template' },
+  { value: 'sonicflow', label: 'IronPulse (SonicFlow) template' },
+  { value: 'vital', label: 'Vital template' },
+  { value: 'sole', label: 'Sole template' },
+  { value: 'zen', label: 'Zen template' },
+];
 
 export type DiscountOfferFormRow = {
   title: string;
@@ -235,6 +247,11 @@ export type CreateWebsiteFormState = {
   galleryCaptions: Record<string, string>;
   /** Gallery `image_url` order (saved in `website_content.gallery.imageOrder`). */
   galleryImageOrder: string[];
+  /**
+   * Saved as `website_content.proTemplateKey`. Pro subscription required to apply on save.
+   * Empty string = standard Crystal layout.
+   */
+  proTemplateKey: '' | ProWebsiteTemplateKey;
 };
 
 export function initCreateWebsiteForm(): CreateWebsiteFormState {
@@ -320,6 +337,7 @@ export function initCreateWebsiteForm(): CreateWebsiteFormState {
     gallerySectionTitle: 'Gallery',
     galleryCaptions: {},
     galleryImageOrder: [],
+    proTemplateKey: '',
   };
 }
 
@@ -679,6 +697,20 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
     };
   }
 
+  const tpl = form.proTemplateKey.trim().toLowerCase();
+  if (
+    tpl === 'autopilot' ||
+    tpl === 'fitcore' ||
+    tpl === 'sonicflow' ||
+    tpl === 'vital' ||
+    tpl === 'sole' ||
+    tpl === 'zen'
+  ) {
+    base.proTemplateKey = tpl;
+  } else {
+    delete base.proTemplateKey;
+  }
+
   const sectionOverrides: Partial<GymClientWebsiteSectionThemeOverrides> = {};
   const addSectionHex = (key: keyof GymClientWebsiteSectionThemeOverrides, raw: string) => {
     const n = normalizeHexColor(raw.trim());
@@ -850,6 +882,20 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
       return raw
         .filter((u): u is string => typeof u === 'string' && u.trim() !== '')
         .map((u) => u.trim());
+    })(),
+    proTemplateKey: (() => {
+      const raw = c.proTemplateKey;
+      const s = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+      return (
+        s === 'autopilot' ||
+        s === 'fitcore' ||
+        s === 'sonicflow' ||
+        s === 'vital' ||
+        s === 'sole' ||
+        s === 'zen'
+      ) ?
+          s
+        : '';
     })(),
   };
 }

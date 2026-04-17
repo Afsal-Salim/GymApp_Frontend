@@ -30,6 +30,7 @@ function InDevelopmentBanner({ pathname }: { pathname: string }) {
   if (!SHOW_IN_DEVELOPMENT_BANNER) return null;
   const pathOnly = pathname.split('?')[0];
   if (pathOnly === '/404' || pathOnly.startsWith('/404/')) return null;
+  if (pathOnly.startsWith('/templates/')) return null;
   return (
     <div
       role="status"
@@ -58,6 +59,11 @@ function ScrollToTop({ pathname }: { pathname: string }) {
   return null;
 }
 
+function isStandaloneTemplatePath(pathname: string): boolean {
+  const pathOnly = pathname.split('?')[0];
+  return pathOnly.startsWith('/templates/');
+}
+
 function isDedicatedNotFoundPath(pathname: string): boolean {
   const path = pathname.split('?')[0];
   return path === '/404' || path.startsWith('/404/');
@@ -71,7 +77,11 @@ function isGymPublicSitePath(pathname: string): boolean {
 }
 
 function shouldHideMainLayoutChrome(pathname: string): boolean {
-  return isDedicatedNotFoundPath(pathname) || isGymPublicSitePath(pathname);
+  return (
+    isDedicatedNotFoundPath(pathname) ||
+    isGymPublicSitePath(pathname) ||
+    isStandaloneTemplatePath(pathname)
+  );
 }
 
 /**
@@ -124,6 +134,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     }
 
     if (isStaticMarketingShellPath(pathname)) {
+      setShowRouteLoader(false);
+      return;
+    }
+
+    if (isStandaloneTemplatePath(pathname)) {
       setShowRouteLoader(false);
       return;
     }

@@ -50,6 +50,7 @@ import {
   type GymClientAboutFeature,
   type GymClientSiteContent,
   type GymClientWebsiteParsedTheme,
+  type ProWebsiteTemplateKey,
 } from './gymClientSiteContent';
 import { crystalMarketingAbsoluteUrl, getPublicGymSlugFromHost } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
@@ -71,6 +72,15 @@ import { GymClientMetaRowDisk, GymClientMidCtaIcon } from './GymClientDecorIcons
 import { normalizeHexColor } from '../../utils/hexColor';
 import { clampPhoneDigitsInput } from '../../utils/phoneDigits';
 import './CrystalBusinessPage.css';
+
+const PRO_TEMPLATE_PUBLIC_PATHS: Record<ProWebsiteTemplateKey, string> = {
+  autopilot: '/templates/client-autopilot',
+  fitcore: '/templates/client-fitcore',
+  sonicflow: '/templates/client-sonicflow',
+  vital: '/templates/client-vital',
+  sole: '/templates/client-sole',
+  zen: '/templates/client-zen',
+};
 
 function appendMailtoSubjectBody(mailtoHref: string, subject: string, body: string): string {
   try {
@@ -1704,6 +1714,15 @@ function CrystalOwnerRechargeModal({
   );
 }
 
+function CrystalProTemplateFrame({ templateKey }: { templateKey: ProWebsiteTemplateKey }) {
+  const src = PRO_TEMPLATE_PUBLIC_PATHS[templateKey];
+  return (
+    <div className="crystal-client-template-host">
+      <iframe src={src} title="Client page template" className="crystal-client-template-frame" loading="lazy" />
+    </div>
+  );
+}
+
 export default function CrystalBusinessPage() {
   const params = useParams<{ slug?: string }>();
   const routeSlug = typeof params.slug === 'string' ? params.slug : undefined;
@@ -2179,6 +2198,11 @@ export default function CrystalBusinessPage() {
       ownerIsOnTrialForClientRechargeModal(publicSubscription) &&
       !rechargeModalDismissed
   );
+  const activeProTemplateKey =
+    siteContent?.proTemplateKey &&
+    (slug === 'preview' || (publicSubscription && resolvePlanTier(publicSubscription) === 'pro')) ?
+      siteContent.proTemplateKey
+    : null;
 
   return (
     <PageContainer
@@ -2211,13 +2235,17 @@ export default function CrystalBusinessPage() {
                       }${introCrossfade ? ' crystal-client-viewport--crossfade-reveal' : ''}`}
                       style={clientThemeCssVars}
                     >
-                      <GymClientSiteView
-                        content={siteContent}
-                        businessSlug={slug ?? ''}
-                        themeCssVars={clientThemeCssVars}
-                        suppressPublicLeads={false}
-                        galleryStrip={clientGalleryStrip}
-                      />
+                      {activeProTemplateKey ? (
+                        <CrystalProTemplateFrame templateKey={activeProTemplateKey} />
+                      ) : (
+                        <GymClientSiteView
+                          content={siteContent}
+                          businessSlug={slug ?? ''}
+                          themeCssVars={clientThemeCssVars}
+                          suppressPublicLeads={false}
+                          galleryStrip={clientGalleryStrip}
+                        />
+                      )}
                     </div>
                     {showCrystalOwnerRechargeModal && publicSubscription && slug !== 'preview' ? (
                       <CrystalOwnerRechargeModal
@@ -2307,18 +2335,22 @@ export default function CrystalBusinessPage() {
                 className={`crystal-client-viewport${resolvedGymClientTheme.metaSectionBg ? ' crystal-client-viewport--meta-bg-override' : ''}`}
                 style={clientThemeCssVars}
               >
-                <GymClientSiteView
-                  content={siteContent}
-                  businessSlug={
-                    slug === 'preview' ?
-                      isMarketingPreview ? 'demo'
-                      : (previewDraft?.slug ?? 'preview')
-                    : (slug ?? '')
-                  }
-                  themeCssVars={clientThemeCssVars}
-                  suppressPublicLeads={slug === 'preview'}
-                  galleryStrip={slug === 'preview' ? previewGalleryStrip : clientGalleryStrip}
-                />
+                {activeProTemplateKey ? (
+                  <CrystalProTemplateFrame templateKey={activeProTemplateKey} />
+                ) : (
+                  <GymClientSiteView
+                    content={siteContent}
+                    businessSlug={
+                      slug === 'preview' ?
+                        isMarketingPreview ? 'demo'
+                        : (previewDraft?.slug ?? 'preview')
+                      : (slug ?? '')
+                    }
+                    themeCssVars={clientThemeCssVars}
+                    suppressPublicLeads={slug === 'preview'}
+                    galleryStrip={slug === 'preview' ? previewGalleryStrip : clientGalleryStrip}
+                  />
+                )}
               </div>
               {showCrystalOwnerRechargeModal && publicSubscription && slug !== 'preview' ? (
                 <CrystalOwnerRechargeModal

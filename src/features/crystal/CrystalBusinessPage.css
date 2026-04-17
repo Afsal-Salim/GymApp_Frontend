@@ -3727,3 +3727,15 @@ a.crystal-client__address-map-link {
   background: #fff;
   transform: scale(1.15);
 }
+
+.crystal-client-template-host {
+  width: 100%;
+}
+
+.crystal-client-template-frame {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  border: 0;
+  background: #fff;
+}

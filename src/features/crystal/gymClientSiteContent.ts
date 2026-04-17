@@ -105,6 +105,9 @@ export type GymClientAboutFeature = {
   icon: 'coaches' | 'facility' | 'results';
 };
 
+/** Pro subscription: optional full-page HTML template for the public site (builder stores key in `website_content`). */
+export type ProWebsiteTemplateKey = 'autopilot' | 'fitcore' | 'sonicflow' | 'vital' | 'sole' | 'zen';
+
 /**
  * Public gym site at `/:slug` — swap `GYM_CLIENT_SITE_DEFAULTS` or merge API JSON later.
  */
@@ -210,6 +213,11 @@ export type GymClientSiteContent = {
      */
     previewImageOrder?: string[];
   };
+  /**
+   * Pro plan only: which bundled full-page template to use for the public site.
+   * Omit or unset = standard Crystal gym layout from this content object.
+   */
+  proTemplateKey?: ProWebsiteTemplateKey;
 };
 
 /**
@@ -689,8 +697,25 @@ export function applyPublicWebsiteContentOverlay(
   raw: Record<string, unknown> | undefined | null
 ): GymClientSiteContent {
   if (!raw || typeof raw !== 'object') return base;
+  const ptRaw = raw.proTemplateKey;
+  const pt =
+    typeof ptRaw === 'string' ?
+      ptRaw.trim().toLowerCase()
+    : '';
+  const proTemplateKey: ProWebsiteTemplateKey | undefined =
+    pt === 'autopilot' ||
+    pt === 'fitcore' ||
+    pt === 'sonicflow' ||
+    pt === 'vital' ||
+    pt === 'sole' ||
+    pt === 'zen' ?
+      pt
+    : undefined;
+
   const g = raw.gallery;
-  if (!g || typeof g !== 'object') return base;
+  if (!g || typeof g !== 'object') {
+    return proTemplateKey ? { ...base, proTemplateKey } : base;
+  }
   const ge = g as { sectionTitle?: unknown; captionsByUrl?: unknown; imageOrder?: unknown };
   const sectionTitle = typeof ge.sectionTitle === 'string' && ge.sectionTitle.trim() ? ge.sectionTitle.trim() : 'Gallery';
   const capsRaw = ge.captionsByUrl;
@@ -712,6 +737,7 @@ export function applyPublicWebsiteContentOverlay(
   }
   return {
     ...base,
+    ...(proTemplateKey ? { proTemplateKey } : {}),
     gallery: {
       sectionTitle,
       ...(captionsByUrl ? { captionsByUrl } : {}),

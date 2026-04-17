@@ -1,0 +1,1065 @@
+/**
+ * AutoPilot client landing template (GrapesJS export).
+ * Scoped under `.autopilot-pro-template` to avoid clashing with the main app (Bootstrap, etc.).
+ * Edit freely for Pro client pages.
+ */
+
+.autopilot-pro-template {
+  --ap-bg: #07080d;
+  --ap-surface: #0f1118;
+  --ap-surface-2: #161a24;
+  --ap-border: rgba(255, 255, 255, 0.08);
+  --ap-text: #e8eaef;
+  --ap-muted: #9aa3b2;
+  --ap-accent: #38bdf8;
+  --ap-accent-2: #a78bfa;
+  --ap-radius: 14px;
+  --ap-max: 1180px;
+  --ap-font: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
+
+  box-sizing: border-box;
+  font-family: var(--ap-font);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ap-text);
+  background: var(--ap-bg);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.autopilot-pro-template *,
+.autopilot-pro-template *::before,
+.autopilot-pro-template *::after {
+  box-sizing: border-box;
+}
+
+.autopilot-pro-template img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.autopilot-pro-template a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.autopilot-pro-template .gjs-container {
+  width: 100%;
+  max-width: var(--ap-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(1rem, 4vw, 2rem);
+  padding-right: clamp(1rem, 4vw, 2rem);
+}
+
+.autopilot-pro-template .gjs-section {
+  position: relative;
+  padding: clamp(3rem, 8vw, 5.5rem) 0;
+}
+
+.autopilot-pro-template .section-padding {
+  padding-top: clamp(3.5rem, 9vw, 6rem);
+  padding-bottom: clamp(3.5rem, 9vw, 6rem);
+}
+
+.autopilot-pro-template .gjs-plg-flex-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.autopilot-pro-template .gjs-plg-flex-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* —— Header —— */
+.autopilot-pro-template .header-section {
+  padding: 1rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(7, 8, 13, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--ap-border);
+}
+
+.autopilot-pro-template .navbar {
+  width: 100%;
+}
+
+.autopilot-pro-template .navbar-cnt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.autopilot-pro-template .logo-img {
+  height: 40px;
+  width: auto;
+}
+
+.autopilot-pro-template .navbar-items-c {
+  display: flex;
+  align-items: center;
+}
+
+.autopilot-pro-template .navbar-menu-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.autopilot-pro-template .nav-link {
+  color: var(--ap-muted);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.autopilot-pro-template .nav-link:hover {
+  color: var(--ap-text);
+}
+
+.autopilot-pro-template .navbar-menu-toggle {
+  display: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: var(--ap-text);
+}
+
+.autopilot-pro-template .navbar-menu-toggle .gjs-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+}
+
+.autopilot-pro-template .btn-primary,
+.autopilot-pro-template .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.15s;
+}
+
+.autopilot-pro-template .btn-primary {
+  background: linear-gradient(135deg, var(--ap-accent), #0ea5e9);
+  color: #041016;
+  border-color: transparent;
+}
+
+.autopilot-pro-template .btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.autopilot-pro-template .btn-secondary {
+  background: transparent;
+  border-color: var(--ap-border);
+  color: var(--ap-text);
+}
+
+.autopilot-pro-template .btn-secondary:hover {
+  border-color: var(--ap-accent);
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .btn-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+}
+
+@media (max-width: 960px) {
+  .autopilot-pro-template .navbar-menu-toggle {
+    display: flex;
+  }
+
+  .autopilot-pro-template .navbar-items-c {
+    width: 100%;
+    order: 3;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem 0 0;
+  }
+
+  .autopilot-pro-template .navbar--open .navbar-items-c {
+    display: flex;
+  }
+
+  .autopilot-pro-template .navbar-menu-nav {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .autopilot-pro-template .navbar-cnt .btn-primary {
+    margin-left: auto;
+  }
+}
+
+/* —— Hero —— */
+.autopilot-pro-template .hero-section {
+  padding-top: clamp(2rem, 6vw, 4rem);
+  padding-bottom: clamp(3rem, 10vw, 6rem);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56, 189, 248, 0.18), transparent),
+    var(--ap-bg);
+}
+
+.autopilot-pro-template .hero-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .autopilot-pro-template .hero-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.autopilot-pro-template .hero-title {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.autopilot-pro-template .hero-title em {
+  font-style: normal;
+  background: linear-gradient(120deg, var(--ap-text), var(--ap-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.autopilot-pro-template .hero-second-title {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 600;
+  margin: 0;
+  color: var(--ap-muted);
+}
+
+.autopilot-pro-template .hero-desc {
+  color: var(--ap-muted);
+  max-width: 28ch;
+  margin: 0;
+}
+
+.autopilot-pro-template .hero-icon-wrapper {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  align-items: center;
+  justify-content: center;
+  background: var(--ap-surface-2);
+  border: 1px solid var(--ap-border);
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .hero-social-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.autopilot-pro-template .hero-visual-text {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  color: var(--ap-muted);
+}
+
+.autopilot-pro-template .social-icon-container {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.autopilot-pro-template .social-link {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border);
+  color: var(--ap-muted);
+  transition:
+    color 0.2s,
+    border-color 0.2s;
+}
+
+.autopilot-pro-template .social-link:hover {
+  color: var(--ap-accent);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.autopilot-pro-template .social-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+}
+
+/* —— Section titles —— */
+.autopilot-pro-template .section-title-row {
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.autopilot-pro-template .section-title-line {
+  width: 48px;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--ap-accent), var(--ap-accent-2));
+}
+
+.autopilot-pro-template .section-title {
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.autopilot-pro-template .section-desc {
+  color: var(--ap-muted);
+  font-size: 1.05rem;
+  max-width: 52ch;
+  margin: 0;
+}
+
+.autopilot-pro-template .base-link {
+  color: var(--ap-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* —— About —— */
+.autopilot-pro-template .about-row {
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: flex-start;
+}
+
+.autopilot-pro-template .about-img-col {
+  position: relative;
+  flex: 1 1 320px;
+}
+
+.autopilot-pro-template .about-content {
+  flex: 1 1 400px;
+  gap: 1.5rem;
+}
+
+.autopilot-pro-template .about-icon-wrapper {
+  position: absolute;
+  bottom: 12%;
+  right: 8%;
+  display: flex;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  background: var(--ap-accent);
+  color: #041016;
+  box-shadow: 0 12px 40px rgba(56, 189, 248, 0.35);
+}
+
+.autopilot-pro-template .about-card {
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius);
+  padding: 1rem;
+  gap: 0.75rem;
+}
+
+.autopilot-pro-template .about-card-title {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.autopilot-pro-template .about-card-desc {
+  color: var(--ap-muted);
+  font-size: 0.9rem;
+}
+
+/* —— Badges & services grid —— */
+.autopilot-pro-template .badge-row {
+  gap: 1rem;
+}
+
+.autopilot-pro-template .badge-col,
+.autopilot-pro-template .badge-col-reverse {
+  flex: 1 1 180px;
+  gap: 0.65rem;
+}
+
+.autopilot-pro-template .badge {
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-surface);
+}
+
+.autopilot-pro-template .badge-active {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.autopilot-pro-template .badge p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ap-muted);
+}
+
+.autopilot-pro-template .badge-active p {
+  color: var(--ap-text);
+}
+
+.autopilot-pro-template .services-img-col {
+  flex: 1 1 280px;
+}
+
+.autopilot-pro-template .services-content {
+  flex: 1 1 400px;
+}
+
+.autopilot-pro-template .services-grid {
+  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.autopilot-pro-template .service-card {
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius);
+  padding: 1.25rem;
+  min-height: 140px;
+  justify-content: space-between;
+}
+
+.autopilot-pro-template .service-title {
+  font-size: 1.05rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.autopilot-pro-template .service-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--ap-accent);
+}
+
+/* —— Portfolio —— */
+.autopilot-pro-template .portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.autopilot-pro-template .portfolio-card {
+  background: var(--ap-surface);
+  border-radius: var(--ap-radius);
+  overflow: hidden;
+  border: 1px solid var(--ap-border);
+}
+
+.autopilot-pro-template .portfolio-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+}
+
+.autopilot-pro-template .portfolio-content {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.autopilot-pro-template .portfolio-tag {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .portfolio-title {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.autopilot-pro-template .portfolio-desc {
+  color: var(--ap-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.autopilot-pro-template .portfolio-content-inner {
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.autopilot-pro-template .portfolio-link-box .portfolio-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ap-surface-2);
+  color: var(--ap-accent);
+  border: 1px solid var(--ap-border);
+}
+
+/* —— Why us —— */
+.autopilot-pro-template .whyus-container {
+  max-width: var(--ap-max);
+}
+
+.autopilot-pro-template .whyus-content-row {
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+}
+
+.autopilot-pro-template .whyus-img-col {
+  flex: 1 1 360px;
+  position: relative;
+  min-height: 320px;
+}
+
+.autopilot-pro-template .whyus-img-main {
+  border-radius: var(--ap-radius);
+  border: 1px solid var(--ap-border);
+}
+
+.autopilot-pro-template .whyus-img-float {
+  position: absolute;
+  bottom: -8%;
+  right: -4%;
+  max-width: 45%;
+  border-radius: var(--ap-radius);
+  border: 1px solid var(--ap-border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.autopilot-pro-template .whyus-features-col {
+  flex: 1 1 400px;
+  gap: 1.5rem;
+}
+
+.autopilot-pro-template .whyus-stats-row {
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.autopilot-pro-template .whyus-stats-col {
+  flex: 1 1 120px;
+  gap: 0.35rem;
+}
+
+.autopilot-pro-template .whyus-stats-number {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 700;
+  color: var(--ap-text);
+}
+
+.autopilot-pro-template .whyus-stats-number em,
+.autopilot-pro-template .whyus-stats-number u {
+  font-style: normal;
+  text-decoration: none;
+  background: linear-gradient(120deg, var(--ap-accent), var(--ap-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.autopilot-pro-template .whyus-stats-label {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ap-muted);
+}
+
+/* —— Pricing —— */
+.autopilot-pro-template .pricing-grid {
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.autopilot-pro-template .pricing-card {
+  flex: 1 1 280px;
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius);
+  padding: 2rem 1.5rem;
+  position: relative;
+  gap: 1rem;
+}
+
+.autopilot-pro-template .pricing-card-featured {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.12);
+  background: linear-gradient(160deg, rgba(56, 189, 248, 0.08), var(--ap-surface));
+}
+
+.autopilot-pro-template .pricing-badge {
+  position: absolute;
+  top: 0;
+  right: 1.5rem;
+  transform: translateY(-50%);
+  background: var(--ap-accent);
+  color: #041016;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+}
+
+.autopilot-pro-template .pricing-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.autopilot-pro-template .pricing-price-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  flex-wrap: wrap;
+}
+
+.autopilot-pro-template .pricing-currency {
+  font-size: 1.25rem;
+  color: var(--ap-muted);
+}
+
+.autopilot-pro-template .pricing-amount {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.autopilot-pro-template .pricing-period {
+  color: var(--ap-muted);
+  font-size: 0.95rem;
+}
+
+.autopilot-pro-template .pricing-desc {
+  color: var(--ap-muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.autopilot-pro-template .pricing-features {
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.autopilot-pro-template .pricing-feature {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.autopilot-pro-template .pricing-item-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .feature-text {
+  font-size: 0.9rem;
+  color: var(--ap-muted);
+}
+
+/* —— Testimonials (static grid; Swiper JS not bundled) —— */
+.autopilot-pro-template .testimonial-grid {
+  margin-top: 2rem;
+}
+
+.autopilot-pro-template .testimonial-grid .swiper-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.autopilot-pro-template .testimonial-item {
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.25rem;
+  min-height: 220px;
+}
+
+.autopilot-pro-template .testimonial-icon {
+  color: var(--ap-accent-2);
+  width: 36px;
+  height: 36px;
+}
+
+.autopilot-pro-template .testimonial-text {
+  color: var(--ap-text);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.autopilot-pro-template .testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.autopilot-pro-template .testimonial-line {
+  width: 40px;
+  height: 2px;
+  background: var(--ap-border);
+  border-radius: 2px;
+}
+
+.autopilot-pro-template .testimonial-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.autopilot-pro-template .testimonial-name {
+  font-weight: 600;
+}
+
+.autopilot-pro-template .testimonial-role {
+  font-size: 0.85rem;
+  color: var(--ap-muted);
+}
+
+.autopilot-pro-template .testimonial-link-box {
+  display: inline-flex;
+}
+
+.autopilot-pro-template .testimonial-link-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ap-border);
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .swiper-pagination {
+  display: none;
+}
+
+/* —— FAQ —— */
+.autopilot-pro-template .faq-item {
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border);
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.autopilot-pro-template .faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+}
+
+.autopilot-pro-template .faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.autopilot-pro-template .faq-question {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.autopilot-pro-template .gjs-plg-accordion-marker svg {
+  width: 22px;
+  height: 22px;
+  fill: var(--ap-muted);
+}
+
+.autopilot-pro-template .gjs-plg-accordion-content {
+  padding: 0 1.25rem 1.15rem;
+}
+
+.autopilot-pro-template .faq-answer {
+  margin: 0;
+  color: var(--ap-muted);
+  font-size: 0.95rem;
+}
+
+/* —— CTA —— */
+.autopilot-pro-template .cta-section {
+  padding: clamp(3rem, 8vw, 5rem) 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 70% 50%, rgba(167, 139, 250, 0.12), transparent),
+    var(--ap-bg);
+}
+
+.autopilot-pro-template .cta-container {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.autopilot-pro-template .cta-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .cta-title {
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.autopilot-pro-template .text-highlight {
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .cta-desc {
+  color: var(--ap-muted);
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.autopilot-pro-template .cta-row .gjs-plg-flex-column {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+/* —— News —— */
+.autopilot-pro-template .news-grid {
+  gap: 1.5rem;
+}
+
+.autopilot-pro-template .news-col {
+  flex: 1 1 300px;
+  gap: 1rem;
+}
+
+.autopilot-pro-template .news-card {
+  background: var(--ap-surface);
+  border: 1px solid var(--ap-border);
+  border-radius: var(--ap-radius);
+  overflow: hidden;
+}
+
+.autopilot-pro-template .news-card-main {
+  flex-direction: column;
+}
+
+.autopilot-pro-template .news-card-side,
+.autopilot-pro-template .news-card-tall {
+  align-items: stretch;
+}
+
+.autopilot-pro-template .news-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 160px;
+}
+
+.autopilot-pro-template .news-content {
+  padding: 1.25rem;
+  gap: 0.5rem;
+}
+
+.autopilot-pro-template .news-category {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ap-accent);
+}
+
+.autopilot-pro-template .news-title {
+  font-size: 1.15rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.autopilot-pro-template .news-title-side {
+  font-size: 1rem;
+}
+
+.autopilot-pro-template .news-date {
+  font-size: 0.85rem;
+  color: var(--ap-muted);
+}
+
+/* —— Footer —— */
+.autopilot-pro-template .footer-section {
+  padding: clamp(3rem, 8vw, 5rem) 0 2rem;
+  border-top: 1px solid var(--ap-border);
+}
+
+.autopilot-pro-template .footer-content {
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.autopilot-pro-template .footer-col {
+  flex: 1 1 280px;
+}
+
+.autopilot-pro-template .footer-desc {
+  color: var(--ap-muted);
+  margin: 0.75rem 0 0;
+}
+
+.autopilot-pro-template .footer-logo-img {
+  max-height: 48px;
+  width: auto;
+}
+
+.autopilot-pro-template .gjs-divider {
+  height: 1px;
+  background: var(--ap-border);
+  margin: 2rem 0 1rem;
+}
+
+.autopilot-pro-template .footer-copyright {
+  text-align: center;
+  color: var(--ap-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* —— Misc GrapesJS helpers —— */
+.autopilot-pro-template .gjs-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.autopilot-pro-template .gjs-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.autopilot-pro-template .base-img-fluid {
+  width: 100%;
+  border-radius: var(--ap-radius);
+}
+
+.autopilot-pro-template .base-img {
+  border-radius: var(--ap-radius);
+}
+
+/* Reference theme alignment (AutoPilot original look) */
+.autopilot-pro-template {
+  background: radial-gradient(circle at 14% 10%, rgba(41, 124, 255, 0.22) 0%, rgba(7, 8, 13, 0) 36%), #07080d;
+}
+
+.autopilot-pro-template .header-section {
+  background: rgba(7, 10, 20, 0.88);
+}
+
+.autopilot-pro-template .nav-link {
+  color: #2f8dff;
+}
+
+.autopilot-pro-template .nav-link:hover {
+  color: #8ec3ff;
+}
+
+.autopilot-pro-template .btn-primary,
+.autopilot-pro-template .btn-secondary {
+  border-radius: 10px;
+}
+
+/* Global preview layout normalization */
+.autopilot-pro-template {
+  overflow-x: hidden;
+}
+
+.autopilot-pro-template .gjs-container {
+  width: min(1200px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(16px, 3vw, 28px);
+  padding-right: clamp(16px, 3vw, 28px);
+}
+
+.autopilot-pro-template .gjs-section {
+  overflow: hidden;
+}
+
+.autopilot-pro-template .gjs-plg-flex-row > .gjs-plg-flex-column {
+  min-width: 0;
+}
+
+.autopilot-pro-template img {
+  max-width: 100%;
+  height: auto;
+}
+
+.autopilot-pro-template .gjs-plg-accordion-header .gjs-icon,
+.autopilot-pro-template .gjs-plg-accordion-summary .gjs-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+  .autopilot-pro-template .gjs-plg-flex-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .autopilot-pro-template .btn-primary,
+  .autopilot-pro-template .btn-secondary,
+  .autopilot-pro-template .gjs-link-box {
+    max-width: 100%;
+  }
+}

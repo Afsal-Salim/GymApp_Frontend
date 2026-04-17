@@ -132,6 +132,8 @@ export const MARKETING_APP_PATH_FIRST_SEGMENTS = new Set([
   'services',
   '404',
   'gym-by-host',
+  /** Standalone HTML/CSS templates (e.g. Pro client page previews), not gym sites */
+  'templates',
 ]);
 
 const RESERVED_PUBLIC_SITE_SUBDOMAINS = new Set([

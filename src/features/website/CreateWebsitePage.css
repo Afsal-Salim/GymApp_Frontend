@@ -1047,3 +1047,134 @@
   align-items: center;
   gap: 0.35rem;
 }
+
+.create-website__current-template {
+  border: 1px solid color-mix(in srgb, var(--bs-body-color) 10%, transparent);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-primary) 8%);
+}
+
+.create-website__current-template-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.create-website__template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.create-website__template-card-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.create-website__template-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--bs-body-color) 12%, transparent);
+  border-radius: 12px;
+  background: var(--bs-body-bg);
+  padding: 0.6rem;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+.create-website__template-card:hover {
+  border-color: color-mix(in srgb, var(--bs-primary) 45%, transparent);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.create-website__template-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--bs-primary) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.create-website__template-card--selected {
+  border-color: color-mix(in srgb, var(--bs-primary) 60%, transparent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--bs-primary) 20%, transparent),
+    0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.create-website__template-card-visual {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  min-height: 84px;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background:
+    linear-gradient(160deg, rgba(17, 24, 39, 0.35), rgba(17, 24, 39, 0.8)),
+    linear-gradient(135deg, #7c3aed, #ef4444);
+}
+
+.create-website__template-card-visual--live {
+  position: relative;
+  min-height: 112px;
+  padding: 0;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.create-website__template-card-visual--default {
+  background:
+    linear-gradient(160deg, rgba(17, 24, 39, 0.22), rgba(17, 24, 39, 0.55)),
+    linear-gradient(135deg, #0f766e, #0891b2);
+}
+
+.create-website__template-card-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  pointer-events: none;
+  background: #fff;
+}
+
+.create-website__template-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.create-website__template-card-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--bs-body-color);
+}
+
+.create-website__template-card-desc {
+  font-size: 0.775rem;
+  line-height: 1.42;
+  color: color-mix(in srgb, var(--bs-body-color) 60%, transparent);
+}
+
+.create-website__template-preview-btn {
+  align-self: flex-start;
+}
+
+.create-website__template-preview-frame {
+  display: block;
+  width: 100%;
+  height: min(82vh, 920px);
+  border: 0;
+}

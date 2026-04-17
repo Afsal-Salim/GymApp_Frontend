@@ -60,6 +60,7 @@ import {
   formatMemberRatingPreview,
   initCreateWebsiteForm,
   mapFormToWebsiteDraft,
+  PRO_WEBSITE_TEMPLATE_OPTIONS,
   parseCrystalWebsiteDraftJson,
   readCrystalWebsitePreviewFromStorage,
   withPreviewEditReturn,
@@ -97,6 +98,23 @@ const SLUG_REGEX = /^([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
 const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024; // 1 MB — logo, about body, coach photos, gallery
 const MAX_HERO_BG_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB — hero background only (large landscape)
+type ProTemplateKey = Exclude<CreateWebsiteFormState['proTemplateKey'], ''>;
+const PRO_TEMPLATE_PREVIEW_PATHS: Record<ProTemplateKey, string> = {
+  autopilot: '/templates/client-autopilot',
+  fitcore: '/templates/client-fitcore',
+  sonicflow: '/templates/client-sonicflow',
+  vital: '/templates/client-vital',
+  sole: '/templates/client-sole',
+  zen: '/templates/client-zen',
+};
+const PRO_TEMPLATE_CARD_DESCRIPTIONS: Record<ProTemplateKey, string> = {
+  autopilot: 'Bold multi-section gym layout with membership pricing and training zones.',
+  fitcore: 'Modern fitness layout with clean sections and strong CTA flow.',
+  sonicflow: 'Dark premium style with sections for programs and coaches.',
+  vital: 'Energetic high-contrast gym landing with plan highlights.',
+  sole: 'Grid-heavy commercial style adapted for gym program cards.',
+  zen: 'Minimal calm visual language adapted for performance gyms.',
+};
 
 function formatImageUploadMaxLabel(maxBytes: number): string {
   const mb = maxBytes / (1024 * 1024);
@@ -266,6 +284,12 @@ function planTierIsTrial(sub: ActiveSubscriptionResponse | null): boolean {
   if (!sub) return false;
   const t = (sub.plan_tier ?? sub.subscription?.plan_tier ?? '').toString().trim().toLowerCase();
   return t === 'trial';
+}
+
+function planTierIsPro(sub: ActiveSubscriptionResponse | null): boolean {
+  if (!sub?.has_active_subscription) return false;
+  const t = (sub.plan_tier ?? sub.subscription?.plan_tier ?? '').toString().trim().toLowerCase();
+  return t === 'pro';
 }
 
 function isDataImageUrl(s: string): boolean {
@@ -988,6 +1012,10 @@ export default function CreateWebsitePage() {
 
   /** After first-time save: modal prompts recharge (pricing) instead of a toast. */
   const [postSaveRechargeModalSlug, setPostSaveRechargeModalSlug] = useState<string | null>(null);
+  /** Edit flow: user selected a Pro template but subscription is not Pro. */
+  const [proTemplateBlockedModalOpen, setProTemplateBlockedModalOpen] = useState(false);
+  /** In-page template preview modal (no new tab). */
+  const [templatePreviewKey, setTemplatePreviewKey] = useState<ProTemplateKey | null>(null);
   /** Create flow: business slug exists after first successful save (enables S3 gallery uploads). */
   const [committedBusinessSlug, setCommittedBusinessSlug] = useState<string | null>(null);
   const [galleryList, setGalleryList] = useState<ListBusinessImagesResponse | null>(null);
@@ -1743,6 +1771,24 @@ export default function CreateWebsitePage() {
       </span>
     );
 
+  const proTemplateCards = useMemo(
+    () =>
+      PRO_WEBSITE_TEMPLATE_OPTIONS.filter((o): o is { value: ProTemplateKey; label: string } => Boolean(o.value)).map(
+        (o) => ({
+          key: o.value,
+          label: o.label,
+          previewPath: PRO_TEMPLATE_PREVIEW_PATHS[o.value],
+          description: PRO_TEMPLATE_CARD_DESCRIPTIONS[o.value],
+        })
+      ),
+    []
+  );
+  const isProOnBuilder = planTierIsPro(builderSubscription);
+  const selectedTemplateLabel =
+    form.proTemplateKey ?
+      proTemplateCards.find((c) => c.key === form.proTemplateKey)?.label ?? 'Selected Pro template'
+    : 'Crystal default theme';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const slug = form.slug.trim().toLowerCase();
@@ -1772,6 +1818,24 @@ export default function CreateWebsitePage() {
       if (!editRouteSlug?.trim() || !baseline) {
         showToast('Missing business to edit.');
         return;
+      }
+      const tpl = form.proTemplateKey.trim().toLowerCase();
+      const wantsProTemplate =
+        tpl === 'autopilot' ||
+        tpl === 'fitcore' ||
+        tpl === 'sonicflow' ||
+        tpl === 'vital' ||
+        tpl === 'sole' ||
+        tpl === 'zen';
+      if (wantsProTemplate) {
+        if (!builderSubscription) {
+          showToast('Subscription status is still loading. Try again in a moment.', 'warning');
+          return;
+        }
+        if (!planTierIsPro(builderSubscription)) {
+          setProTemplateBlockedModalOpen(true);
+          return;
+        }
       }
       const pendingSnapshot = [...galleryPending];
       const visualKeysSnapshot = [...galleryVisualKeys];
@@ -2133,6 +2197,23 @@ export default function CreateWebsitePage() {
                         </div>
                         <Form.Text id="cw-slug-help">{slugHelp}</Form.Text>
                       </Form.Group>
+                      <div className="create-website__current-template mt-3">
+                        <div className="create-website__current-template-top">
+                          <h4 className="h6 mb-1">Current client page template</h4>
+                          {!form.proTemplateKey ? (
+                            <span className="badge text-bg-success">Default</span>
+                          ) : (
+                            <span className="badge text-bg-warning">Pro</span>
+                          )}
+                        </div>
+                        <p className="small text-muted mb-1">
+                          {selectedTemplateLabel}
+                          {form.proTemplateKey ? ' is selected for your public client page.' : ' is active for your public client page.'}
+                        </p>
+                        <p className="small text-muted mb-0">
+                          Pro templates can be saved only when your subscription tier is Pro.
+                        </p>
+                      </div>
                       <Row className="g-3">
                         <Col md={6}>
                           <Form.Group>
@@ -2391,6 +2472,88 @@ export default function CreateWebsitePage() {
                       : null}
                     </Accordion.Body>
                   </Accordion.Item>
+
+                  {isEditMode ?
+                    <Accordion.Item eventKey="template" className="create-website__accordion-item">
+                      <Accordion.Header>Page template (Pro)</Accordion.Header>
+                      <Accordion.Body>
+                        <p className="small text-muted mb-3">
+                          Pick the default Crystal layout or a Pro template. Selection applies to your public client page.
+                          Pro templates require an active <strong>Pro</strong> subscription at save time.
+                        </p>
+                        {!isProOnBuilder ? (
+                          <div className="alert alert-warning py-2 px-3 small mb-3" role="status">
+                            Pro templates are visible for browsing, but saving one requires a Pro subscription.
+                          </div>
+                        ) : null}
+                        <div className="create-website__template-grid" role="radiogroup" aria-label="Client page templates">
+                          <button
+                            type="button"
+                            className={`create-website__template-card${form.proTemplateKey === '' ? ' create-website__template-card--selected' : ''}`}
+                            onClick={() => set('proTemplateKey', '')}
+                            aria-pressed={form.proTemplateKey === ''}
+                          >
+                            <span className="create-website__template-card-visual create-website__template-card-visual--default">
+                              Crystal default
+                            </span>
+                            <span className="create-website__template-card-title-row">
+                              <span className="create-website__template-card-title">Crystal default theme</span>
+                              <span className="badge text-bg-success">Default</span>
+                            </span>
+                            <span className="create-website__template-card-desc">
+                              Keep the current Crystal client page layout and your custom brand/content configuration.
+                            </span>
+                          </button>
+                          {proTemplateCards.map((template) => {
+                            const selected = form.proTemplateKey === template.key;
+                            return (
+                              <div key={template.key} className="create-website__template-card-shell">
+                                <button
+                                  type="button"
+                                  className={`create-website__template-card${selected ? ' create-website__template-card--selected' : ''}`}
+                                  onClick={() => set('proTemplateKey', template.key)}
+                                  aria-pressed={selected}
+                                >
+                                  <span className="create-website__template-card-visual create-website__template-card-visual--live">
+                                    <iframe
+                                      src={template.previewPath}
+                                      title={`${template.label} card preview`}
+                                      loading="lazy"
+                                      tabIndex={-1}
+                                      className="create-website__template-card-frame"
+                                    />
+                                  </span>
+                                  <span className="create-website__template-card-title-row">
+                                    <span className="create-website__template-card-title">{template.label}</span>
+                                    <span className="badge text-bg-warning">Pro</span>
+                                  </span>
+                                  <span className="create-website__template-card-desc">{template.description}</span>
+                                </button>
+                                <Button
+                                  type="button"
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  className="create-website__template-preview-btn"
+                                  onClick={() => setTemplatePreviewKey(template.key)}
+                                >
+                                  Preview
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="light"
+                                  size="sm"
+                                  className="create-website__template-preview-btn"
+                                  onClick={() => window.open(template.previewPath, '_blank', 'noopener,noreferrer')}
+                                >
+                                  Preview in new tab
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  : null}
 
                   <Accordion.Item eventKey="hero" className="create-website__accordion-item">
                     <Accordion.Header>Hero &amp; navigation CTAs</Accordion.Header>
@@ -3288,6 +3451,43 @@ export default function CreateWebsitePage() {
       </Modal>
 
       <Modal
+        show={templatePreviewKey !== null}
+        onHide={() => setTemplatePreviewKey(null)}
+        centered
+        size="xl"
+        aria-labelledby="create-website-template-preview-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="create-website-template-preview-title" as="h2" className="h5 mb-0">
+            {templatePreviewKey ?
+              `${proTemplateCards.find((c) => c.key === templatePreviewKey)?.label ?? 'Template'} preview`
+            : 'Template preview'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0">
+          {templatePreviewKey ? (
+            <iframe
+              src={PRO_TEMPLATE_PREVIEW_PATHS[templatePreviewKey]}
+              title="Template preview"
+              className="create-website__template-preview-frame"
+            />
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            type="button"
+            variant="outline-secondary"
+            onClick={() => {
+              if (!templatePreviewKey) return;
+              window.open(PRO_TEMPLATE_PREVIEW_PATHS[templatePreviewKey], '_blank', 'noopener,noreferrer');
+            }}
+          >
+            Open in new tab
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
         show={galleryPreviewSrc !== null}
         onHide={() => setGalleryPreviewSrc(null)}
         centered
@@ -3309,6 +3509,39 @@ export default function CreateWebsitePage() {
             />
           : null}
         </Modal.Body>
+      </Modal>
+
+      <Modal
+        show={proTemplateBlockedModalOpen}
+        onHide={() => setProTemplateBlockedModalOpen(false)}
+        centered
+        aria-labelledby="create-website-pro-template-modal-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="create-website-pro-template-modal-title">Pro subscription required</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-0">
+            Full-page templates can be used only with an active <strong>Pro</strong> subscription. Upgrade your plan,
+            then save again—or choose &quot;Crystal default theme&quot; and save without a template.
+          </p>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button type="button" variant="outline-secondary" onClick={() => setProTemplateBlockedModalOpen(false)}>
+            OK
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => {
+              setProTemplateBlockedModalOpen(false);
+              const s = (editBaselineSlug ?? editRouteSlug ?? '').trim().toLowerCase();
+              if (s) router.push(`${PLANS_PAGE_PATH}/${encodeURIComponent(s)}`);
+            }}
+          >
+            View plans
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       <Modal
