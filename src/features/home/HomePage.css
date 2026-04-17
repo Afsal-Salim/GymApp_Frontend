@@ -164,7 +164,7 @@ html {
 /* Hero section – full-height with background image */
 .crystal-hero {
   position: relative;
-  min-height: 85vh;
+  /* min-height: 85vh; */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -189,7 +189,7 @@ html {
 .crystal-hero-v2 {
   --crystal-hero-accent: #0084ff;
   --crystal-hero-accent-soft: #4dc3ff;
-  min-height: min(100vh, 1024px);
+  /* min-height: min(100vh, 1024px); */
   padding-top: 0;
   background: #050a12 !important;
   background-image: none !important;
@@ -209,7 +209,7 @@ html {
 
 @supports (height: 100dvh) {
   .crystal-hero-v2 {
-    min-height: min(100dvh, 1024px);
+    /* min-height: min(100dvh, 1024px); */
   }
 }
 
@@ -769,13 +769,14 @@ html {
   font-weight: 500;
 }
 
-/* Bottom feature bar */
+/* Bottom feature bar — solid base under rgba + blur so the white page bg never shows through at any width */
 .crystal-hero-v2-bottom {
   position: relative;
   z-index: 3;
   flex-shrink: 0;
   border-top: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(2, 6, 23, 0.55);
+  background-color: #050a12;
+  background-image: linear-gradient(180deg, rgba(15, 23, 42, 0.4) 0%, rgba(2, 6, 23, 0.88) 100%);
   backdrop-filter: blur(12px);
 }
 
@@ -809,6 +810,16 @@ html {
   font-size: 0.75rem;
   color: #64748b;
   line-height: 1.35;
+}
+
+/*
+ * Hairline between hero and the next section: body is white; flex/subpixel rounding can expose a 1px gap.
+ * Pull the following section up slightly so its background covers the seam (safe with py-* padding).
+ */
+.crystal-home .crystal-hero-v2 + section {
+  margin-top: -1px;
+  position: relative;
+  z-index: 1;
 }
 
 .crystal-hero-title {
@@ -1870,7 +1881,7 @@ html {
 /* ---------- Mobile friendly ---------- */
 @media (max-width: 767px) {
   .crystal-hero {
-    min-height: 75vh;
+    /* min-height: 75vh; */
     padding: 2rem 0;
   }
 

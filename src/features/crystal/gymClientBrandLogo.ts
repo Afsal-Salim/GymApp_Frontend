@@ -1,6 +1,6 @@
 /**
  * Single bundled brand logo for the public gym client (navbar, footer, loaders, modals, small accents).
- * Override per business via API `logo_url` → `content.logo.src` in `resolveGymClientSiteContent`.
+ * Override per business via API `logo.url` / `logo_url` / `website_content.logo.src` in `resolveGymClientSiteContent`.
  */
 import brandLogoAsset from '../../assets/clientlogo.png';
 

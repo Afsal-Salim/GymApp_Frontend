@@ -25,6 +25,7 @@ import {
   BusinessDeactivateBlockedError,
   invalidateUserBusinessListCache,
   invalidateUserAnalyticsCache,
+  resolveBusinessLogoDisplayUrl,
 } from '../../api';
 import type {
   UserProfile,
@@ -140,25 +141,12 @@ function isBundledDefaultClientLogoUrl(url: string): boolean {
 }
 
 /**
- * Prefer API `logo_url`, then saved builder `website_content.logo.src` when it is a real custom asset.
+ * Prefer structured `logo.url`, then `logo_url`, then `website_content.logo.src` when it is a real custom asset.
  */
 function resolveBusinessListLogoUrl(b: BusinessListItem): string | null {
-  const fromApi = typeof b.logo_url === 'string' ? b.logo_url.trim() : '';
-  if (fromApi && !isLegacyCrystalGemLogoUrl(fromApi) && !isBundledDefaultClientLogoUrl(fromApi)) {
-    return fromApi;
-  }
-  const wc = b.website_content;
-  if (!wc || typeof wc !== 'object') return null;
-  const logoBlock = (wc as { logo?: { src?: unknown } }).logo;
-  const fromContent = typeof logoBlock?.src === 'string' ? logoBlock.src.trim() : '';
-  if (
-    fromContent &&
-    !isLegacyCrystalGemLogoUrl(fromContent) &&
-    !isBundledDefaultClientLogoUrl(fromContent)
-  ) {
-    return fromContent;
-  }
-  return null;
+  const raw = resolveBusinessLogoDisplayUrl(b).trim();
+  if (!raw || isLegacyCrystalGemLogoUrl(raw) || isBundledDefaultClientLogoUrl(raw)) return null;
+  return raw;
 }
 
 function SiteQrLogoOverlay({ business }: { business: BusinessListItem }) {

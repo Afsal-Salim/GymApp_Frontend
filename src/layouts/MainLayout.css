@@ -91,6 +91,23 @@
   min-height: 0;
 }
 
+/*
+ * Override the flex shrink above: `.crystal-client-viewport { min-height: 0 }` wins over
+ * `.crystal-client-viewport--loading` from CrystalBusinessPage.css and collapses the outlet,
+ * so the logo loader/skeleton sits at the wrong vertical position. Force full-viewport min
+ * height whenever the client shell is loading or using the intro/skeleton wrapper.
+ */
+.main-layout__page:has(.crystal-business-page--client) .crystal-client-viewport.crystal-client-viewport--loading,
+.main-layout__page:has(.crystal-business-page--client) .crystal-client-viewport.crystal-intro-load-shell {
+  min-height: min(100vh, 100dvh);
+  flex: 1 1 auto;
+}
+
+.main-layout__page:has(.crystal-business-page--client) .crystal-client-viewport.crystal-client-viewport--loading {
+  display: flex;
+  flex-direction: column;
+}
+
 @keyframes main-layout-page-in {
   from {
     opacity: 0;

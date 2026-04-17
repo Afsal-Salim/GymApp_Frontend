@@ -87,6 +87,12 @@ export {
   type ListBusinessImagesResponse,
 } from './businessImages';
 export {
+  deleteBusinessLogo,
+  resolveBusinessLogoDisplayUrl,
+  uploadBusinessLogo,
+  type BusinessLogoPayload,
+} from './businessLogo';
+export {
   getBusinessDetail,
   getBusinessFirstRecharge,
   getBusinessList,

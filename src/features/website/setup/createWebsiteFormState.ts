@@ -1,4 +1,5 @@
 import type { BusinessDetail } from '../../../api/businesses';
+import { resolveBusinessLogoDisplayUrl } from '../../../api/businessLogo';
 import { normalizeHexColor } from '../../../utils/hexColor';
 import { clampPhoneDigitsInput } from '../../../utils/phoneDigits';
 import { publicGymSiteHostLabel, publicGymSiteUrl } from '../../../config/env';
@@ -878,10 +879,7 @@ export function createWebsiteFormFromBusinessDetail(
   const fromRoute = routeSlugForFallback?.trim().toLowerCase() ?? '';
   const slug = fromApi || fromRoute;
   const mapUrl = typeof detail.location_map_url === 'string' ? detail.location_map_url.trim() : '';
-  const logoUrl =
-    typeof (detail as { logo_url?: unknown }).logo_url === 'string' ?
-      (detail as { logo_url: string }).logo_url.trim()
-    : '';
+  const logoUrl = resolveBusinessLogoDisplayUrl(detail);
 
   const theme = themeFromBusinessDetail(detail);
   const wcRaw = detail.website_content;

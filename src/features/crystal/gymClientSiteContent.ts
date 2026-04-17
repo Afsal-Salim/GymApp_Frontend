@@ -1,4 +1,5 @@
 import type { PublicBusinessDetail } from '../../api';
+import { resolveBusinessLogoDisplayUrl } from '../../api/businessLogo';
 import clientDefaultHeroBackground from '../../assets/clientbg.png';
 import { publicGymSiteHostLabel, publicGymSiteUrl } from '../../config/env';
 import { normalizeHexColor } from '../../utils/hexColor';
@@ -672,7 +673,7 @@ export function resolveGymClientSiteContent(business: PublicBusinessDetail): Gym
 
   c.logo.alt = `${business.name ?? c.header.title} logo`;
 
-  const apiLogo = business.logo_url?.trim();
+  const apiLogo = resolveBusinessLogoDisplayUrl(business).trim();
   if (apiLogo) {
     c.logo.src = apiLogo;
   }

@@ -32,6 +32,8 @@ import {
   resolveBusinessImageDisplayUrl,
   submitWebsiteSetupDraft,
   uploadBusinessImage,
+  uploadBusinessLogo,
+  deleteBusinessLogo,
   type ActiveSubscriptionResponse,
   type BusinessUploadedImage,
   type ListBusinessImagesResponse,
@@ -282,6 +284,76 @@ function canPreviewImageSrc(s: string): boolean {
   }
 }
 
+type LogoStagingSnapshot = {
+  /** From last GET detail — S3 vs external URL vs none. */
+  serverLogoCanonical: 's3' | 'url' | null;
+  /** Staged device file; uploaded on Save (same pattern as gallery pending rows). */
+  logoStagedFile: File | null;
+  /** Staged removal of server logo; DELETE on Save when S3. */
+  logoStagedDelete: boolean;
+};
+
+/** Avoid persisting presigned S3 URLs or data URLs into `website_content.logo.src` on PATCH. */
+function applyLogoPersistenceToDraftContent(
+  content: { logo: { src: string; alt: string } },
+  form: CreateWebsiteFormState,
+  opts: LogoStagingSnapshot
+): void {
+  const gymName = form.gymName.trim();
+  content.logo.alt = `${gymName || 'Gym'} logo`;
+  if (opts.logoStagedFile) {
+    content.logo.src = '';
+    return;
+  }
+  if (opts.logoStagedDelete) {
+    content.logo.src = '';
+    return;
+  }
+  if (opts.serverLogoCanonical === 's3') {
+    content.logo.src = '';
+    return;
+  }
+  const t = form.logoUrl.trim();
+  if (!t || isDataImageUrl(t)) {
+    content.logo.src = '';
+    return;
+  }
+  try {
+    const u = new URL(t);
+    content.logo.src = u.protocol === 'http:' || u.protocol === 'https:' ? t : '';
+  } catch {
+    content.logo.src = '';
+  }
+}
+
+function buildLogoPatchUrl(
+  form: CreateWebsiteFormState,
+  opts: LogoStagingSnapshot
+): { omitLogoUrl: boolean; logo_url?: string } {
+  if (opts.logoStagedFile) {
+    return { omitLogoUrl: true };
+  }
+  if (opts.logoStagedDelete) {
+    return { omitLogoUrl: false, logo_url: '' };
+  }
+  if (opts.serverLogoCanonical === 's3') {
+    return { omitLogoUrl: true };
+  }
+  const t = form.logoUrl.trim();
+  const logoUrlForApi =
+    !t || isDataImageUrl(t) ?
+      ''
+    : (() => {
+        try {
+          const u = new URL(t);
+          return u.protocol === 'http:' || u.protocol === 'https:' ? t : '';
+        } catch {
+          return '';
+        }
+      })();
+  return { omitLogoUrl: false, logo_url: logoUrlForApi };
+}
+
 function RemoveRowTrashButton({
   ariaLabel,
   onClick,
@@ -327,6 +399,8 @@ type ImageUrlOrUploadFieldProps = {
   disabledNotice?: ReactNode;
   /** Max file size for device upload; hero background allows a higher cap. */
   maxUploadBytes?: number;
+  /** Called after validation, before the default data-URL read (e.g. stage file for save like gallery). */
+  onChooseLocalFile?: (file: File) => void;
 };
 
 function ImageUrlOrUploadField({
@@ -343,6 +417,7 @@ function ImageUrlOrUploadField({
   disabled = false,
   disabledNotice,
   maxUploadBytes = MAX_IMAGE_UPLOAD_BYTES,
+  onChooseLocalFile,
 }: ImageUrlOrUploadFieldProps) {
   const uploadMaxLabel = formatImageUploadMaxLabel(maxUploadBytes);
   const uploadOnly = sourceMode === 'upload-only';
@@ -381,6 +456,7 @@ function ImageUrlOrUploadField({
       showToast(`Image must be ${uploadMaxLabel} or smaller.`, 'warning');
       return;
     }
+    onChooseLocalFile?.(file);
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result;
@@ -1152,11 +1228,25 @@ export default function CreateWebsitePage() {
 
   const [editReady, setEditReady] = useState(!isEditMode);
   const [editBaselineSlug, setEditBaselineSlug] = useState<string | null>(null);
+  /** From GET detail — whether the saved logo lives in S3 vs external URL (controls PATCH semantics). */
+  const [serverLogoCanonical, setServerLogoCanonical] = useState<'s3' | 'url' | null>(null);
+  /** Staged logo file — POST `/logo/` on Save (same idea as gallery pending uploads). */
+  const [logoStagedFile, setLogoStagedFile] = useState<File | null>(null);
+  /** Staged removal — DELETE `/logo/` on Save when {@link serverLogoCanonical} is `s3`. */
+  const [logoStagedDelete, setLogoStagedDelete] = useState(false);
+
+  const editLogoSlug = useMemo(
+    () => (editBaselineSlug ?? editRouteSlug?.trim().toLowerCase() ?? '').trim(),
+    [editBaselineSlug, editRouteSlug]
+  );
 
   useEffect(() => {
     if (!editRouteSlug) {
       setEditReady(true);
       setEditBaselineSlug(null);
+      setServerLogoCanonical(null);
+      setLogoStagedFile(null);
+      setLogoStagedDelete(false);
       return;
     }
     let cancelled = false;
@@ -1166,6 +1256,9 @@ export default function CreateWebsitePage() {
         if (cancelled) return;
         setForm(createWebsiteFormFromBusinessDetail(d, editRouteSlug));
         setEditBaselineSlug(d.slug?.trim().toLowerCase() ?? editRouteSlug.trim().toLowerCase());
+        setServerLogoCanonical(d.logo?.type === 's3' ? 's3' : d.logo?.type === 'url' ? 'url' : null);
+        setLogoStagedFile(null);
+        setLogoStagedDelete(false);
       })
       .catch(() => {
         if (!cancelled) showToast('Failed to load business.');
@@ -1177,6 +1270,36 @@ export default function CreateWebsitePage() {
       cancelled = true;
     };
   }, [editRouteSlug]);
+
+  const onLogoFieldValueChange = useCallback(
+    (v: string) => {
+      setForm((f) => ({ ...f, logoUrl: v }));
+      const t = v.trim();
+      if (!t) {
+        setLogoStagedFile(null);
+        setLogoStagedDelete(serverLogoCanonical !== null);
+        return;
+      }
+      if (isDataImageUrl(t)) {
+        return;
+      }
+      setLogoStagedFile(null);
+      setLogoStagedDelete(false);
+    },
+    [serverLogoCanonical]
+  );
+
+  const onLogoChooseLocalFile = useCallback((file: File) => {
+    setLogoStagedFile(file);
+    setLogoStagedDelete(false);
+  }, []);
+
+  const handleStageRemoveLogo = useCallback(() => {
+    if (!isEditMode || !editReady) return;
+    setLogoStagedDelete(true);
+    setLogoStagedFile(null);
+    setForm((f) => ({ ...f, logoUrl: '' }));
+  }, [isEditMode, editReady]);
 
   /**
    * “Edit setup” from `/preview`: merge latest preview draft. Create flow runs immediately; edit flow waits for
@@ -1193,6 +1316,9 @@ export default function CreateWebsitePage() {
       const routeSlug = editRouteSlug?.trim().toLowerCase();
       if (hint && routeSlug && hint !== routeSlug) return;
       setForm(draftPayloadToFormState(draft));
+      setServerLogoCanonical(null);
+      setLogoStagedFile(null);
+      setLogoStagedDelete(false);
       return;
     }
     setForm(draftPayloadToFormState(draft));
@@ -1658,6 +1784,9 @@ export default function CreateWebsitePage() {
           }
           setGalleryServerDeletesPending([]);
         }
+        if (logoStagedDelete && !logoStagedFile && serverLogoCanonical === 's3') {
+          await deleteBusinessLogo(baseline);
+        }
         const urlByLocalId =
           pendingSnapshot.length > 0 ?
             await uploadPendingGalleryInVisualOrder(
@@ -1667,33 +1796,30 @@ export default function CreateWebsitePage() {
               uploadBusinessImage
             )
           : new Map<string, string>();
+        if (logoStagedFile) {
+          await uploadBusinessLogo(baseline, logoStagedFile);
+        }
         const mergedGalleryImageOrder = mergedGalleryOrderFromKeys(visualKeysSnapshot, urlByLocalId);
+        const logoSnap: LogoStagingSnapshot = {
+          serverLogoCanonical,
+          logoStagedFile,
+          logoStagedDelete,
+        };
         const draft = mapFormToWebsiteDraft({
           ...form,
           slug,
           galleryImageOrder: mergedGalleryImageOrder,
         });
-        const logoTrim = form.logoUrl.trim();
-        const logoUrlForApi =
-          !logoTrim || isDataImageUrl(logoTrim) ?
-            ''
-          : (() => {
-              try {
-                const u = new URL(logoTrim);
-                return u.protocol === 'http:' || u.protocol === 'https:' ? logoTrim : '';
-              } catch {
-                return '';
-              }
-            })();
+        applyLogoPersistenceToDraftContent(draft.content, form, logoSnap);
         const mapNorm = mapRaw && isValidHttpLocationUrl(mapRaw) ? normalizeLocationMapUrl(mapRaw) : '';
-        await patchBusiness(baseline, {
+        const logoPatch = buildLogoPatchUrl(form, logoSnap);
+        const patchBody: Parameters<typeof patchBusiness>[1] = {
           name: form.gymName.trim(),
           slug,
           description: form.businessDescription.trim(),
           phone: phoneDigits,
           address: form.contactAddress.trim(),
           location_map_url: mapNorm,
-          logo_url: logoUrlForApi,
           website_theme: {
             accentHex: draft.theme.accentHex.trim() || '#ea580c',
             darkHex: draft.theme.darkHex.trim() || '#0c0a09',
@@ -1701,7 +1827,13 @@ export default function CreateWebsitePage() {
             lightHex: draft.theme.lightHex?.trim() || GYM_CLIENT_DEFAULT_LIGHT_HEX,
           },
           website_content: draft.content,
-        });
+        };
+        if (!logoPatch.omitLogoUrl) {
+          patchBody.logo_url = logoPatch.logo_url ?? '';
+        }
+        await patchBusiness(baseline, patchBody);
+        setLogoStagedFile(null);
+        setLogoStagedDelete(false);
         for (const row of pendingSnapshot) {
           URL.revokeObjectURL(row.previewUrl);
         }
@@ -1727,7 +1859,11 @@ export default function CreateWebsitePage() {
       return;
     }
 
-    const draft = mapFormToWebsiteDraft({ ...form, slug });
+    const logoFileSnapshot = logoStagedFile;
+    let draft = mapFormToWebsiteDraft({ ...form, slug });
+    if (logoFileSnapshot) {
+      draft.content.logo.src = '';
+    }
     const pendingDeletesSnapshot = [...galleryServerDeletesPending];
     setSaving(true);
     try {
@@ -1738,6 +1874,17 @@ export default function CreateWebsitePage() {
         setGalleryServerDeletesPending([]);
       }
       await submitWebsiteSetupDraft(draft);
+      if (logoFileSnapshot) {
+        try {
+          await uploadBusinessLogo(slug, logoFileSnapshot);
+          setLogoStagedFile(null);
+        } catch (logoErr) {
+          showToast(
+            logoErr instanceof Error ? logoErr.message : 'Website saved but logo upload failed.',
+            'warning'
+          );
+        }
+      }
       const pendingSnapshot = [...galleryPending];
       const visualKeysSnapshot = [...galleryVisualKeys];
       const urlByLocalId =
@@ -1751,6 +1898,9 @@ export default function CreateWebsitePage() {
           slug,
           galleryImageOrder: mergedGalleryImageOrder,
         });
+        if (logoFileSnapshot) {
+          draftWithGallery.content.logo.src = '';
+        }
         await patchBusiness(slug, { website_content: draftWithGallery.content });
       }
       for (const row of pendingSnapshot) {
@@ -2216,13 +2366,29 @@ export default function CreateWebsitePage() {
                         id="cw-logo"
                         label="Logo image (optional)"
                         hintId="cw-hint-logo"
-                        hint="If empty, the site uses the default Crystal client logo. Use a square or wide logo; URL or upload."
+                        hint="If empty, the site uses the default Crystal client logo. Use a square or wide logo; URL or upload. Logo upload and removal apply when you save changes (same as gallery)."
                         value={form.logoUrl}
-                        onChange={(v) => set('logoUrl', v)}
+                        onChange={onLogoFieldValueChange}
+                        onChooseLocalFile={onLogoChooseLocalFile}
                         previewVariant="square"
                         ratioHint="Recommended aspect ~1:1 (square) or wide logo."
                         showToast={showToast}
                       />
+                      {(logoStagedFile || logoStagedDelete) ?
+                        <p className="small text-warning mb-0 mt-2">Logo changes will be applied when you save.</p>
+                      : null}
+                      {isEditMode && editReady && editLogoSlug && !logoStagedDelete &&
+                      (serverLogoCanonical !== null || logoStagedFile || form.logoUrl.trim() !== '') ?
+                        <Button
+                          type="button"
+                          variant="outline-secondary"
+                          size="sm"
+                          className="mt-2"
+                          onClick={handleStageRemoveLogo}
+                        >
+                          Remove logo (on save)
+                        </Button>
+                      : null}
                     </Accordion.Body>
                   </Accordion.Item>
 

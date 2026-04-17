@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { CrystalWebsiteSetupPayload } from '../features/crystal/gymClientSiteContent';
+import type { BusinessLogoPayload } from './businessLogo';
 import { privateApi } from './interceptor';
 import { getAxiosErrorMessage } from './http/axiosErrorMessage';
 import { publicApi } from './http/publicApi';
@@ -58,6 +59,8 @@ export type BusinessDetail = {
   address?: string;
   /** Public / owner-visible logo URL when the API returns it (list + detail). */
   logo_url?: string;
+  /** Structured logo: S3 presigned URL vs external URL (`website_content.logo.src`). */
+  logo?: BusinessLogoPayload;
   /** Maps link (e.g. Google Maps) when the API stores it separately from address. */
   location_map_url?: string;
   /** Crystal theme from GET (same shape as PATCH `website_theme`; may use accent_hex / dark_hex / text_hex). */
@@ -692,6 +695,8 @@ export type PublicBusinessDetail = {
   location_map_url?: string;
   /** Public logo URL when the backend provides one; otherwise the client uses a bundled fallback. */
   logo_url?: string;
+  /** Structured logo (S3 vs external URL). Prefer {@link resolveBusinessLogoDisplayUrl}. */
+  logo?: BusinessLogoPayload;
   /** When the API returns it, Crystal theme for the public page (accent / dark / text / light hex). */
   website_theme?: CrystalWebsiteSetupPayload['theme'] | Record<string, unknown>;
   /** Saved Crystal page JSON (nav, gallery captions, etc.) when the public profile includes it. */
