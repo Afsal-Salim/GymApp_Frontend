@@ -1162,6 +1162,13 @@ export default function CreateWebsitePage() {
       darkColor: preset.darkColor,
       textColor: preset.textColor,
       lightColor: preset.lightColor,
+      aboutSectionBg: '',
+      aboutFeatureCardBg: '',
+      packagesSectionBg: '',
+      packageCardBg: '',
+      metaSectionBg: '',
+      metaPanelBg: '',
+      metaRowBg: '',
       ...(f.useDefaultPaletteArtwork ?
         {
           aboutBodyBgEnabled: true,
@@ -2514,14 +2521,15 @@ export default function CreateWebsitePage() {
                         uploaded or pasted image is cleared. Uncheck to use your own background image.
                       </p>
                       <p className="create-website__theme-presets-label small text-uppercase fw-semibold text-muted mb-2">
-                        Suggested palettes
+                        Color palettes
                       </p>
                       <p className="small text-muted mb-3">
+                        Pick one preset to set your site&apos;s brand colours.{' '}
                         {form.useDefaultPaletteArtwork ?
                           'Each card shows Crystal reference artwork for that palette.'
                         : 'Each card shows accent → dark ink → body text → light surfaces (left to right).'}
                       </p>
-                      <div className="create-website__theme-presets mb-3" role="group" aria-label="Suggested color palettes">
+                      <div className="create-website__theme-presets mb-3" role="group" aria-label="Color palettes">
                         {WEBSITE_THEME_PRESETS.map((preset) => {
                           const selected = formMatchesThemePreset(form, preset);
                           return (
@@ -2550,148 +2558,6 @@ export default function CreateWebsitePage() {
                             </button>
                           );
                         })}
-                      </div>
-                      <div className="create-website__theme-custom-section mb-3" id="cw-theme-manual-colors">
-                        <h4 className="create-website__theme-tokens-heading h6 mb-2">Site theme colours</h4>
-                        <p className="small text-muted mb-2">
-                          Every token below maps to a CSS variable on your live site. Presets fill all four at once; you can
-                          fine-tune each value here. Each control opens the colour modal (use “Full spectrum” for any hex).
-                        </p>
-                        <ul className="create-website__theme-token-map small text-muted mb-3">
-                          <li>
-                            <strong>Accent</strong> — primary buttons, links, badges, progress, and accent glows.
-                          </li>
-                          <li>
-                            <strong>Dark / ink</strong> — navbar, footer, enquiry strip, and other dark chrome (not the hero
-                            photo wash; that uses the slider under <em>Hero &amp; navigation CTAs</em>).
-                          </li>
-                          <li>
-                            <strong>Body text</strong> — main copy on light sections (about, packages, contact cards).
-                          </li>
-                          <li>
-                            <strong>Light surfaces</strong> — light section bases, cards, and subtle washes.
-                          </li>
-                        </ul>
-                        <div className="create-website__theme-colors-grid mb-1">
-                          <ThemeColorField
-                            id="cw-accent"
-                            label="Accent color"
-                            hintId="cw-hint-accent"
-                            hint="Primary brand colour — CTAs, links, badges, and gradient accents on the public page."
-                            value={form.accentColor}
-                            onChange={(hex) => set('accentColor', hex)}
-                            pickerTitle="Accent"
-                          />
-                          <ThemeColorField
-                            id="cw-dark"
-                            label="Dark / ink color"
-                            hintId="cw-hint-dark"
-                            hint="Dark UI chrome: top navigation, footer, and dark bands. Pair with a strong accent for a bold gym look."
-                            value={form.darkColor}
-                            onChange={(hex) => set('darkColor', hex)}
-                            pickerTitle="Dark / ink"
-                          />
-                          <ThemeColorField
-                            id="cw-text"
-                            label="Body text color"
-                            hintId="cw-hint-text"
-                            hint="Main text on light sections. Use a deep slate or black when your light surface is pale so copy stays readable."
-                            value={form.textColor}
-                            onChange={(hex) => set('textColor', hex)}
-                            pickerTitle="Body text"
-                          />
-                          <ThemeColorField
-                            id="cw-light"
-                            label="Light surface color"
-                            hintId="cw-hint-light"
-                            hint="Backgrounds for light sections, cards, and the marquee-style strip — usually off-white or a very pale tint."
-                            value={form.lightColor}
-                            onChange={(hex) => set('lightColor', hex)}
-                            pickerTitle="Light surfaces"
-                          />
-                        </div>
-                        <h4 className="create-website__theme-tokens-heading h6 mb-2 mt-4">Section surfaces (optional)</h4>
-                        <p className="small text-muted mb-2">
-                          Leave a field empty to use the built‑in default for that area. Use these when you want the About band,
-                          memberships strip, or Contact / Visit block to diverge from your global light surface colour (for
-                          example an all‑black memberships section with orange cards).
-                        </p>
-                        <div className="create-website__theme-colors-grid mb-1">
-                          <ThemeColorField
-                            id="cw-sec-about-bg"
-                            label="About section background"
-                            hintId="cw-hint-sec-about-bg"
-                            hint="Outer background behind the about headline and three feature cards (#about). Empty = same as “Light surfaces”."
-                            value={form.aboutSectionBg}
-                            onChange={(hex) => set('aboutSectionBg', hex)}
-                            pickerTitle="About section"
-                            allowClear
-                          />
-                          <ThemeColorField
-                            id="cw-sec-about-card"
-                            label="About feature cards"
-                            hintId="cw-hint-sec-about-card"
-                            hint="Background of each of the three highlight cards. Empty = automatic tint from your dark / ink and white mix."
-                            value={form.aboutFeatureCardBg}
-                            onChange={(hex) => set('aboutFeatureCardBg', hex)}
-                            pickerTitle="About cards"
-                            allowClear
-                          />
-                          <ThemeColorField
-                            id="cw-sec-pkg-bg"
-                            label="Memberships section background"
-                            hintId="cw-hint-sec-pkg-bg"
-                            hint="Full-width strip behind the pricing cards. Empty = default soft grey wash from your palette."
-                            value={form.packagesSectionBg}
-                            onChange={(hex) => set('packagesSectionBg', hex)}
-                            pickerTitle="Memberships section"
-                            allowClear
-                          />
-                          <ThemeColorField
-                            id="cw-sec-pkg-card"
-                            label="Membership card background"
-                            hintId="cw-hint-sec-pkg-card"
-                            hint="Each package tile. Empty = white (or your theme default card surface)."
-                            value={form.packageCardBg}
-                            onChange={(hex) => set('packageCardBg', hex)}
-                            pickerTitle="Membership card"
-                            allowClear
-                          />
-                          <ThemeColorField
-                            id="cw-sec-meta-bg"
-                            label="Contact / Visit section background"
-                            hintId="cw-hint-sec-meta-bg"
-                            hint="Replaces the soft gradient behind Contact Us when set (solid colour). Empty = default Crystal gradient."
-                            value={form.metaSectionBg}
-                            onChange={(hex) => set('metaSectionBg', hex)}
-                            pickerTitle="Contact section"
-                            allowClear
-                          />
-                          <ThemeColorField
-                            id="cw-sec-meta-panel"
-                            label="Visit / Contact panels"
-                            hintId="cw-hint-sec-meta-panel"
-                            hint="Large rounded panels for Visit and Contact. Empty = white."
-                            value={form.metaPanelBg}
-                            onChange={(hex) => set('metaPanelBg', hex)}
-                            pickerTitle="Visit / Contact panels"
-                            allowClear
-                          />
-                          <ThemeColorField
-                            id="cw-sec-meta-row"
-                            label="Contact info rows"
-                            hintId="cw-hint-sec-meta-row"
-                            hint="Inner chips (hours, parking, email, etc.). Empty = default light grey gradient."
-                            value={form.metaRowBg}
-                            onChange={(hex) => set('metaRowBg', hex)}
-                            pickerTitle="Contact rows"
-                            allowClear
-                          />
-                        </div>
-                        <p className="small text-muted mb-0">
-                          <strong>Hero text colour</strong> (headline, taglines, address bar on the hero) is under{' '}
-                          <em>Hero &amp; navigation CTAs</em> so it stays next to the hero image and overlay controls.
-                        </p>
                       </div>
                       <ImageUrlOrUploadField
                         id="cw-logo"
