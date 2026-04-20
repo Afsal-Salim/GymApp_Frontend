@@ -239,6 +239,43 @@
   border-left: 1px solid #e8eef4;
 }
 
+/* Desktop: use page scroll (not inner panel), keep sidebar fixed-height/sticky until footer zone. */
+@media (min-width: 992px) {
+  .user-page {
+    /* Sticky sidebar should sit below in-development banner + sticky navbar. */
+    --user-page-sticky-top-offset: calc(env(safe-area-inset-top) + 4.9rem);
+  }
+
+  .user-page__shell {
+    align-items: flex-start;
+    overflow: visible;
+  }
+
+  .user-page__sidebar-nav {
+    position: sticky;
+    top: var(--user-page-sticky-top-offset);
+    height: calc(100vh - var(--user-page-sticky-top-offset));
+    height: calc(100dvh - var(--user-page-sticky-top-offset));
+    max-height: calc(100vh - var(--user-page-sticky-top-offset));
+    max-height: calc(100dvh - var(--user-page-sticky-top-offset));
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    align-self: flex-start;
+  }
+
+  .user-page__sidebar-nav::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .user-page__main-panel {
+    overflow: visible;
+    min-height: calc(100vh - var(--user-page-sticky-top-offset));
+    min-height: calc(100dvh - var(--user-page-sticky-top-offset));
+  }
+}
+
 .user-page__main-hero-strip {
   height: 5px;
   flex-shrink: 0;
@@ -815,14 +852,123 @@
   border-bottom: none;
 }
 
-/* ----- Business grid ----- */
-.user-page__business-grid {
+/* ----- Workspace typography (user layout: Sora + Inter) ----- */
+.user-workspace-font-scope {
+  font-family: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.user-workspace-font-scope .user-page__business-card-title,
+.user-workspace-font-scope .user-page__modal-hero-title,
+.user-workspace-font-scope .user-page__detail-heading {
+  font-family: var(--font-user-heading), 'Sora', system-ui, sans-serif;
+}
+
+/* ----- Business list (Websites tab) ----- */
+.user-page__business-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   margin-top: 0;
   margin-bottom: 0.5rem;
 }
 
-.user-page__business-grid > [class*='col'] {
+.user-page__business-list-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.user-page__business-list-item:hover {
+  border-color: rgba(0, 132, 255, 0.35);
+  box-shadow: 0 8px 28px -8px rgba(0, 132, 255, 0.12);
+}
+
+.user-page__business-list-item--archived {
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.45);
+  background: linear-gradient(180deg, #fafbfc 0%, #fff 100%);
+}
+
+.user-page__business-list-item-body {
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.25rem;
+  padding: 1.1rem 1.15rem 1.1rem 1.2rem;
+  position: relative;
+}
+
+.user-page__business-list-item-main {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.user-page__business-list-item-main--clickable {
+  cursor: pointer;
+  border-radius: 10px;
+  margin: -0.35rem -0.45rem;
+  padding: 0.35rem 0.45rem;
+  outline: none;
+  transition: background 0.15s ease;
+}
+
+.user-page__business-list-item-main--clickable:hover {
+  background: rgba(0, 132, 255, 0.06);
+}
+
+.user-page__business-list-item-main--clickable:focus-visible {
+  outline: 2px solid var(--crystal-user-accent, #0084ff);
+  outline-offset: 2px;
+}
+
+.user-page__business-list-actions {
+  flex: 0 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-left: auto;
+  padding-top: 0.15rem;
+}
+
+.user-page__business-list-actions .user-page__business-action-btn {
+  width: auto;
+  min-width: 0;
+}
+
+.user-page__business-list-actions .user-page__btn-view {
+  min-width: 4.75rem;
+}
+
+.user-page__business-remove-btn:hover:not(:disabled) {
+  color: #b91c1c !important;
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+}
+
+@media (max-width: 575px) {
+  .user-page__business-list-item-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .user-page__business-list-actions {
+    margin-left: 0;
+    justify-content: flex-start;
+    width: 100%;
+    padding-top: 0.35rem;
+    border-top: 1px solid #e8eef4;
+  }
 }
 
 /* ----- Empty state ----- */
@@ -1086,13 +1232,99 @@
   flex: 1;
 }
 
+.user-page__business-metrics {
+  margin-top: 0.28rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.79rem;
+  color: #64748b;
+}
+
+.user-page__business-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  white-space: nowrap;
+}
+
+.user-page__business-metric strong {
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .user-page__status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.user-page__status-badge-text {
+  display: inline-block;
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  flex-shrink: 0;
-  padding: 0.35em 0.65em;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  padding: 0.4rem 0.75rem;
+  text-align: center;
+  background: linear-gradient(180deg, #ffffff 0%, #e8eef0 45%, #d4dce0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #ffffff;
+}
+
+.user-page__status-badge--active {
+  background: linear-gradient(145deg, #22c55e 0%, #16a34a 38%, #15803d 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.user-page__status-badge--active .user-page__status-badge-text {
+  background: linear-gradient(180deg, #ffffff 0%, #f0f4f2 40%, #d8e8df 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #ffffff;
+}
+
+.user-page__status-badge--inactive {
+  background: linear-gradient(145deg, #64748b 0%, #475569 45%, #334155 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.user-page__status-badge--inactive .user-page__status-badge-text {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 45%, #cbd5e1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #f1f5f9;
+}
+
+@supports not (background-clip: text) {
+  .user-page__status-badge-text {
+    background: none !important;
+    -webkit-text-fill-color: currentColor;
+    color: #ffffff;
+  }
+
+  .user-page__status-badge--inactive .user-page__status-badge-text {
+    color: #f1f5f9;
+  }
 }
 
 .user-page__business-meta-list {
@@ -1287,10 +1519,8 @@
   justify-content: center;
 }
 
-/* ----- Modal (business details): fits viewport; body scrolls; footer always visible ----- */
+/* ----- Modal (business details): vertically centered via `centered`; scroll backdrop if dialog is tall ----- */
 .user-page__modal.modal {
-  /* Avoid vertical centering that pushes tall dialogs off-screen */
-  align-items: flex-start;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
   overflow-y: auto;
@@ -1304,14 +1534,18 @@
   }
 }
 
+/* Column flex breaks BS `modal-dialog-centered` row alignment; use justify-content to vertically center content */
 .user-page__modal .modal-dialog {
   max-width: 520px;
   width: calc(100% - 1.5rem);
   margin: 0 auto;
+  min-height: calc(100vh - 1.5rem);
+  min-height: calc(100dvh - 1.5rem);
   max-height: calc(100vh - 1.5rem);
   max-height: calc(100dvh - 1.5rem);
   display: flex;
   flex-direction: column;
+  justify-content: center;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 25px 50px rgba(15, 23, 42, 0.15);
@@ -1387,11 +1621,14 @@
 
 .user-page__modal-header-status {
   flex-shrink: 0;
+  margin-right: 0.25rem;
+}
+
+.user-page__modal-header-status .user-page__status-badge-text {
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-right: 0.25rem;
+  padding: 0.45rem 0.85rem;
 }
 
 .user-page__modal-header .btn-close {
@@ -1405,10 +1642,14 @@
   opacity: 1;
 }
 
+/* Shrink-wrap body height so no scrollbar appears when content is short; cap height when list is long */
 .user-page__modal-body {
   padding: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
+  max-height: min(70vh, calc(100vh - 11rem));
+  max-height: min(70vh, calc(100dvh - 11rem));
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1430,38 +1671,64 @@
   box-shadow: 0 -1px 0 rgba(148, 163, 184, 0.12);
 }
 
-/* Icon-only edit in business details modal (paired with remove; clear tap target) */
-.user-page__modal-edit-icon-btn {
-  display: inline-flex;
+.user-page__modal-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.user-page__modal-action-btn {
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem 0.55rem;
+  gap: 0.4rem;
+  border-radius: 6px !important;
+  font-weight: 600;
+}
+
+.user-page__modal-action-btn svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.user-page__modal-action-btn--icon-only {
+  padding: 0.45rem 0.55rem !important;
   min-width: 2.5rem;
   line-height: 1;
-  border-radius: 10px;
-  font-weight: 600;
+}
+
+.user-page__modal-footer-icon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+@media (max-width: 520px) {
+  .user-page__modal-footer-icon-group {
+    margin-left: 0;
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* Icon-only edit / remove in business details modal */
+.user-page__modal-edit-icon-btn {
   border-width: 1.5px;
 }
 
 .user-page__modal-edit-icon-btn svg {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-}
-
-/* Icon-only remove in business details modal (matches card trash FAB pattern) */
-.user-page__modal-remove-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.4rem 0.55rem;
-  line-height: 1;
-  border-radius: 10px;
-  font-weight: 600;
+  width: 18px;
+  height: 18px;
 }
 
 .user-page__modal-remove-icon-btn svg {
   flex-shrink: 0;
+  width: 18px;
+  height: 18px;
 }
 
 /* Remove website confirmation — brand mark + centered copy */
@@ -1559,7 +1826,6 @@
 }
 
 .user-page__visit-btn {
-  margin-right: auto;
   border-color: #0ea5e9 !important;
   color: #0ea5e9 !important;
   font-weight: 600;
@@ -1713,7 +1979,7 @@
     font-size: 0.65rem;
   }
 
-  .user-page__business-card-body {
+  .user-page__business-list-item-body {
     padding: 1rem !important;
   }
 }

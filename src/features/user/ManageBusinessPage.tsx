@@ -68,7 +68,7 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
               </p>
             </div>
             <div className="manage-business-page__actions d-flex flex-wrap gap-2">
-              <Link href={`/user/business/${slugEnc}/edit`} className="btn btn-outline-secondary btn-sm">
+              <Link href={`/user/business/${slugEnc}/edit/select-template`} className="btn btn-outline-secondary btn-sm">
                 Edit website
               </Link>
               <Link href={`${PLANS_PAGE_PATH}/${slugEnc}`} className="btn btn-primary btn-sm">

@@ -70,6 +70,14 @@ export type BusinessDetail = {
   /** When the API exposes it, toggles listing / operational state (separate from subscription). */
   is_active?: boolean;
   subscriptions?: BusinessSubscription[];
+  /** Aggregate lead count for this website from owner list payload. */
+  total_leads?: number;
+  /** Aggregate WhatsApp click count for this website from owner list payload. */
+  whatsapp_clicks?: number;
+  /** Optional aggregate visit/view counters when API includes them. */
+  total_visits?: number;
+  visits?: number;
+  total_clicks?: number;
   created_at?: string;
   updated_at?: string;
   /**

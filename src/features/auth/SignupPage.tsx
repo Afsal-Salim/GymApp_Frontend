@@ -5,7 +5,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { sendOtp, verifyOtp, signup, loginWithGoogle, setTokens, syncProfileCacheAfterLogin, setUserInfo } from '../../api';
+import {
+  getAccessToken,
+  sendOtp,
+  verifyOtp,
+  signup,
+  loginWithGoogle,
+  setTokens,
+  syncProfileCacheAfterLogin,
+  setUserInfo,
+} from '../../api';
 import { googleOAuthClientId } from '../../config/env';
 import { useToast } from '../../contexts/ToastContext';
 import PrivacyPolicyArticle from '../legal/PrivacyPolicyArticle';
@@ -72,6 +81,12 @@ export default function SignupPage() {
   const [googleReady, setGoogleReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    if (getAccessToken()) {
+      router.replace('/user');
+    }
+  }, [router]);
 
   useEffect(() => {
     if (!googleOAuthClientId) return;

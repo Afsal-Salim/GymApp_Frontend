@@ -25,6 +25,10 @@ import { useEnquiryModal } from '../../contexts/EnquiryModalContext';
 import { buildMarketingContactRows, homepageTutorialVideoUrl } from '../../config/env';
 import { HOME_PAGE_FAQ } from './homeFaq';
 import { WhatsAppLogoIcon } from '../../components';
+import {
+  PRO_PLAN_FEATURE_FALLBACKS as PRO_FEATURE_LIST,
+  STARTER_PLAN_FEATURE_FALLBACKS as STARTER_FEATURE_LIST,
+} from '../plans/planFeatureFallbacks';
 import './HomePage.css';
 
 type DisplayPlan = {
@@ -46,19 +50,9 @@ type DisplayPlan = {
   priceStatusMessage?: string;
 };
 
-const STARTER_FEATURE_LIST = [
-  'Dynamic website for your gym — Showcase your services, timings, and facilities with a modern, responsive page.',
-  '5 ready-made themes (fully customizable) — Match your brand with colors and style that fit your gym’s vibe.',
-  'WhatsApp integration — Let potential members contact you instantly—no missed leads.',
-  'Basic client analytics — Understand who’s visiting your page and what they’re interested in.',
-  'Upload up to 10 images — Highlight your equipment, space, and transformations.',
-  'Email notifications for enquiries — Get notified instantly when someone shows interest.',
-  'User activity insights — Track how visitors interact with your page to improve conversions.',
-];
-
 const STARTER_PLAN: DisplayPlan = {
   id: 'starter',
-  name: 'Starter',
+  name: 'Base',
   listPriceFormatted: '₹499',
   firstActivationFormatted: '₹299',
   showIntroPrice: true,
@@ -74,18 +68,16 @@ const STARTER_PLAN: DisplayPlan = {
 const PRO_PLAN: DisplayPlan = {
   id: 'pro',
   name: 'Pro',
-  listPriceFormatted: '',
+  listPriceFormatted: '₹799',
   firstActivationFormatted: null,
   showIntroPrice: false,
-  period: '',
+  period: ' / 28 days',
   currency: 'INR',
-  features: [],
-  cta: 'Coming soon',
-  paymentSlug: null,
+  features: PRO_FEATURE_LIST,
+  cta: 'Get Pro',
+  paymentSlug: 'pro',
   popular: true,
-  comingSoon: true,
-  hidePrice: true,
-  priceStatusMessage: 'Coming soon',
+  comingSoon: false,
 };
 
 const HERO_BADGE = '#1 PLATFORM FOR GYMS';
@@ -297,7 +289,7 @@ function PlanFeatures({ planId, features }: { planId: string; features: string[]
   }, [features.length, updateScrollHint]);
 
   return (
-    <div className="crystal-package-features-wrapper">
+    <>
       <div className="crystal-package-features" ref={containerRef}>
         <ul className="crystal-package-features-list list-unstyled mb-0">
           {features.map((name, idx) => (
@@ -326,7 +318,7 @@ function PlanFeatures({ planId, features }: { planId: string; features: string[]
           </span>
         </button>
       )}
-    </div>
+    </>
   );
 }
 
@@ -604,7 +596,7 @@ export default function HomePage() {
                     </div>
                     <div className="crystal-hero-v2__ctas crystal-hero-seq crystal-hero-seq--5 d-flex flex-wrap gap-3 mb-4">
                       <Link
-                        href="/user/create-website"
+                        href="/user/create-website/select-template"
                         className="btn btn-lg crystal-hero-v2-cta-primary d-inline-flex align-items-center gap-2"
                       >
                         Create Your Gym Website
@@ -866,7 +858,7 @@ export default function HomePage() {
             <span className="crystal-trust-item fw-semibold">Cancel anytime</span>
           </div>
           <div className="text-center mb-4" data-crystal-reveal>
-            <Link href="/user/create-website" className="crystal-pricing-trial-cta">
+            <Link href="/user/create-website/select-template" className="crystal-pricing-trial-cta">
               Start 7 day free trial now
             </Link>
           </div>
@@ -920,12 +912,14 @@ export default function HomePage() {
                       </div>
                     )}
                     {pkg.features.length > 0 && (
-                      <PlanFeatures planId={pkg.id} features={pkg.features} />
+                      <div className="crystal-package-features-wrapper">
+                        <PlanFeatures planId={pkg.id} features={pkg.features} />
+                      </div>
                     )}
                     {pkg.id === 'custom' && (
                       <Link
                         href="/services/custom"
-                        className="btn btn-outline-primary btn-sm w-100 mt-3 crystal-package-custom-cta"
+                        className="btn btn-outline-primary btn-sm w-100 crystal-package-custom-cta"
                       >
                         {pkg.cta}
                       </Link>

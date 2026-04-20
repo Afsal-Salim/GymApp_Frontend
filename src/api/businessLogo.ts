@@ -46,16 +46,17 @@ function parseBusinessDetailResponse(data: unknown): BusinessDetail {
 }
 
 /**
- * POST `/businesses/<slug>/logo/` — multipart `file`; owner only. Max 1 MB; jpg/png/webp/gif.
- * Returns the updated business payload (same shape as GET detail) when the server includes it.
+ * Branding logo upload — POST `/businesses/<slug>/images/` with `asset_type=logo` (multipart `file`).
+ * Same as legacy `/logo/`: no gallery slot check; response **200** + business payload (`BusinessSerializer`).
  */
 export async function uploadBusinessLogo(slug: string, file: File): Promise<BusinessDetail> {
   const key = slug.trim();
   if (!key) throw new Error('Business slug is required.');
   const fd = new FormData();
   fd.append('file', file);
+  fd.append('asset_type', 'logo');
   try {
-    const { data } = await privateApi.post<unknown>(`${BASE}/${encodeURIComponent(key)}/logo/`, fd);
+    const { data } = await privateApi.post<unknown>(`${BASE}/${encodeURIComponent(key)}/images/`, fd);
     return parseBusinessDetailResponse(data);
   } catch (e) {
     if (axios.isAxiosError(e) && e.response?.status === 503) {
@@ -70,16 +71,23 @@ export async function uploadBusinessLogo(slug: string, file: File): Promise<Busi
 }
 
 /**
- * DELETE `/businesses/<slug>/logo/` — owner only. Removes S3 object and clears `logo_s3_key`.
+ * Branding logo removal — DELETE `/businesses/<slug>/images/?asset_type=logo` (Bearer).
+ * Do not send `id` with `asset_type` (API 400). Response **200** + `{ deleted: "business_logo", business: … }`.
  */
 export async function deleteBusinessLogo(slug: string): Promise<void> {
   const key = slug.trim();
   if (!key) throw new Error('Business slug is required.');
   try {
-    await privateApi.delete(`${BASE}/${encodeURIComponent(key)}/logo/`);
+    await privateApi.delete(`${BASE}/${encodeURIComponent(key)}/images/`, {
+      params: { asset_type: 'logo' },
+    });
   } catch (e) {
     if (axios.isAxiosError(e) && e.response?.status === 404) {
       throw new Error('Business not found or logo already removed.');
+    }
+    if (axios.isAxiosError(e) && e.response?.status === 400) {
+      const body = e.response?.data as { detail?: string } | undefined;
+      throw new Error(typeof body?.detail === 'string' ? body.detail : 'Invalid logo delete request.');
     }
     throw new Error(getAxiosErrorMessage(e, 'Could not remove logo'));
   }

@@ -16,6 +16,7 @@ import {
   type BusinessFirstRechargeStarter,
 } from '../../api';
 import { SESSION_PAYMENT_CHECKOUT_DRAFT } from '../../config/storageKeys';
+import { PRO_PLAN_FEATURE_FALLBACKS, STARTER_PLAN_FEATURE_FALLBACKS } from './planFeatureFallbacks';
 import './PlansPage.css';
 
 /** Path for the standalone plans page – used for redirects when subscription is inactive. */
@@ -98,6 +99,13 @@ function mapPlanToDisplay(
 
   const period = apiPlan.duration ? ` / ${apiPlan.duration} days` : '';
 
+  const featureNamesFromApi = apiPlan.features?.map((f) => f.name) ?? [];
+  const features =
+    featureNamesFromApi.length > 0 ? featureNamesFromApi
+    : slug === 'pro' ? PRO_PLAN_FEATURE_FALLBACKS
+    : slug === 'starter' ? STARTER_PLAN_FEATURE_FALLBACKS
+    : [];
+
   return {
     id: String(apiPlan.id),
     name: apiPlan.name,
@@ -107,7 +115,7 @@ function mapPlanToDisplay(
     primaryLineForCheckout,
     period,
     currency,
-    features: apiPlan.features?.map((f) => f.name) ?? [],
+    features,
     cta:
       comingSoon ? 'Coming soon'
       : paymentSlug ?
@@ -293,9 +301,7 @@ export default function PlansPage({
             <Row xs={1} md={2} lg={3} className="g-4 justify-content-center align-items-stretch plans-page__row">
               {plans.map((pkg) => (
                 <Col key={pkg.id} className="plans-page__col">
-                  <Card
-                    className={`plans-page__card h-100 w-100 ${pkg.popular ? 'plans-page__card--popular' : ''}`}
-                  >
+                  <Card className={`plans-page__card w-100 ${pkg.popular ? 'plans-page__card--popular' : ''}`}>
                     {pkg.popular && <div className="plans-page__badge">Popular</div>}
                     {pkg.comingSoon && <div className="plans-page__badge plans-page__badge--soon">Soon</div>}
                     <Card.Body className="plans-page__card-body d-flex flex-column">
@@ -335,26 +341,26 @@ export default function PlansPage({
                           ))}
                         </ul>
                       )}
-                      <div className="plans-page__card-cta mt-auto pt-2">
-                        {pkg.id === 'custom' ?
-                          <Link href={SERVICES_CUSTOM_PATH} className="btn btn-primary w-100">
-                            {pkg.cta}
-                          </Link>
-                        : pkg.paymentSlug ?
-                          <Button
-                            variant={pkg.popular ? 'primary' : 'outline-primary'}
-                            className="w-100"
-                            onClick={() => handleSelectPlan(pkg)}
-                          >
-                            {pkg.cta}
-                          </Button>
-                        : (
-                          <Button variant="outline-secondary" className="w-100" disabled>
-                            {pkg.cta}
-                          </Button>
-                        )}
-                      </div>
                     </Card.Body>
+                    <Card.Footer className="plans-page__card-cta">
+                      {pkg.id === 'custom' ?
+                        <Link href={SERVICES_CUSTOM_PATH} className="btn btn-primary w-100">
+                          {pkg.cta}
+                        </Link>
+                      : pkg.paymentSlug ?
+                        <Button
+                          variant={pkg.popular ? 'primary' : 'outline-primary'}
+                          className="w-100"
+                          onClick={() => handleSelectPlan(pkg)}
+                        >
+                          {pkg.cta}
+                        </Button>
+                      : (
+                        <Button variant="outline-secondary" className="w-100" disabled>
+                          {pkg.cta}
+                        </Button>
+                      )}
+                    </Card.Footer>
                   </Card>
                 </Col>
               ))}

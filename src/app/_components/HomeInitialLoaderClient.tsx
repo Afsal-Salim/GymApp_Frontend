@@ -9,7 +9,7 @@ import { usePathname } from 'next/navigation';
  */
 let homeInitialLoaderConsumedThisDocument = false;
 
-const MIN_VISIBLE_MS = 720;
+const MIN_VISIBLE_MS = 1150;
 const EXIT_FADE_MS = 320;
 
 export default function HomeInitialLoaderClient() {

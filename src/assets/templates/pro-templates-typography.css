@@ -1,0 +1,60 @@
+/**
+ * Shared editorial typography for Pro client templates (iframe previews + /templates/* routes).
+ * Depends on `templates/layout.tsx`: Playfair (--font-pro-display) + root Inter (--font-inter).
+ * Loaded after each template CSS so these rules win in the cascade.
+ */
+
+/* UI / body copy — clean geometric sans */
+.templates-pro-font-scope [data-pro-template] {
+  font-family: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Main headlines — high-contrast serif (editorial / portfolio style) */
+.templates-pro-font-scope [data-pro-template] h1,
+.templates-pro-font-scope [data-pro-template] h1.gjs-t-h1,
+.templates-pro-font-scope [data-pro-template] h2.gjs-t-h1,
+.templates-pro-font-scope [data-pro-template] h3.gjs-t-h1,
+.templates-pro-font-scope [data-pro-template] .hero-title,
+.templates-pro-font-scope [data-pro-template] .hero-second-title,
+.templates-pro-font-scope [data-pro-template] .section-title {
+  font-family: var(--font-pro-display), 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.templates-pro-font-scope [data-pro-template] .hero-title em {
+  font-family: inherit;
+}
+
+/* Numeric / price rows stay sans */
+.templates-pro-font-scope [data-pro-template] .pricing-amount {
+  font-family: var(--font-inter), system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+/* Section label / eyebrow — uppercase sans, tracked (e.g. SonicFlow h6 rails) */
+.templates-pro-font-scope [data-pro-template] .sub-heading-background > h6.sub-heading {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+/* Autopilot hero microcopy strip */
+.templates-pro-font-scope [data-pro-template] .hero-visual-text {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+/* Vital: allow sentence case on large display lines (template CSS used all-caps) */
+.templates-pro-font-scope .vital-pro-template h1,
+.templates-pro-font-scope .vital-pro-template h2 {
+  text-transform: none;
+}
+
+.templates-pro-font-scope .vital-pro-template h1.gjs-t-h1,
+.templates-pro-font-scope .vital-pro-template h2.gjs-t-h1 {
+  text-transform: none;
+}

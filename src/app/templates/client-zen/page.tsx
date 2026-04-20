@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Metadata } from 'next';
 import { TemplateMobileNav } from '@/app/templates/_components/TemplateMobileNav';
+import { loadProTemplateCss } from '../loadProTemplateCss';
 
 export const metadata: Metadata = {
   title: 'Zen gym template (Pro)',
@@ -16,9 +17,8 @@ function extractBodyInnerHtml(fullHtml: string): string {
 
 export default function ClientZenTemplatePage() {
   const filePath = path.join(process.cwd(), 'src/assets/templates/zen.html');
-  const cssPath = path.join(process.cwd(), 'src/assets/templates/zen.css');
   const raw = fs.readFileSync(filePath, 'utf8');
-  const css = fs.readFileSync(cssPath, 'utf8');
+  const css = loadProTemplateCss('zen.css');
   const innerHtml = extractBodyInnerHtml(raw);
 
   return (

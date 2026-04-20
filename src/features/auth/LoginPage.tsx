@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Row, Col, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { login, loginWithGoogle, setTokens, syncProfileCacheAfterLogin, setUserInfo } from '../../api';
+import { getAccessToken, login, loginWithGoogle, setTokens, syncProfileCacheAfterLogin, setUserInfo } from '../../api';
 import { googleOAuthClientId } from '../../config/env';
 import { useToast } from '../../contexts/ToastContext';
 import './AuthPage.css';
@@ -100,6 +100,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (getAccessToken()) {
+      router.replace('/user');
+    }
+  }, [router]);
 
   useEffect(() => {
     if (!googleOAuthClientId) return;

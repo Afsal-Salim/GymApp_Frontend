@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Metadata } from 'next';
 import { TemplateMobileNav } from '@/app/templates/_components/TemplateMobileNav';
+import { loadProTemplateCss } from '../loadProTemplateCss';
 
 export const metadata: Metadata = {
   title: 'FitCore gym template (Pro)',
@@ -21,9 +22,8 @@ function extractBodyInnerHtml(fullHtml: string): string {
  */
 export default function ClientFitcoreTemplatePage() {
   const filePath = path.join(process.cwd(), 'src/assets/templates/fitcore.html');
-  const cssPath = path.join(process.cwd(), 'src/assets/templates/fitcore.css');
   const raw = fs.readFileSync(filePath, 'utf8');
-  const css = fs.readFileSync(cssPath, 'utf8');
+  const css = loadProTemplateCss('fitcore.css');
   const innerHtml = extractBodyInnerHtml(raw);
 
   return (

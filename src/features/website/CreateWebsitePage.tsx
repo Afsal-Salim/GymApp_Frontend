@@ -46,6 +46,19 @@ import {
   SESSION_CRYSTAL_CREATE_SKIP_ON_BACK,
 } from '../../config/storageKeys';
 import {
+  consumePendingProTemplateKey,
+  grantTemplateGateFromPreview,
+  isCreateTemplateGateOk,
+  isEditTemplateGateOk,
+  stashInitialTemplateForSelectPage,
+} from './websiteTemplateGate';
+import {
+  buildProTemplateCards,
+  isProTemplateKey,
+  PRO_TEMPLATE_PREVIEW_PATHS,
+  type ProTemplateKey,
+} from './websiteProTemplateCards';
+import {
   CREATE_WEBSITE_MAX_COACHES,
   CREATE_WEBSITE_MAX_OFFERS,
   CREATE_WEBSITE_MAX_PACKAGES,
@@ -60,7 +73,6 @@ import {
   formatMemberRatingPreview,
   initCreateWebsiteForm,
   mapFormToWebsiteDraft,
-  PRO_WEBSITE_TEMPLATE_OPTIONS,
   parseCrystalWebsiteDraftJson,
   readCrystalWebsitePreviewFromStorage,
   withPreviewEditReturn,
@@ -98,23 +110,6 @@ const SLUG_REGEX = /^([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
 const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024; // 1 MB — logo, about body, coach photos, gallery
 const MAX_HERO_BG_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB — hero background only (large landscape)
-type ProTemplateKey = Exclude<CreateWebsiteFormState['proTemplateKey'], ''>;
-const PRO_TEMPLATE_PREVIEW_PATHS: Record<ProTemplateKey, string> = {
-  autopilot: '/templates/client-autopilot',
-  fitcore: '/templates/client-fitcore',
-  sonicflow: '/templates/client-sonicflow',
-  vital: '/templates/client-vital',
-  sole: '/templates/client-sole',
-  zen: '/templates/client-zen',
-};
-const PRO_TEMPLATE_CARD_DESCRIPTIONS: Record<ProTemplateKey, string> = {
-  autopilot: 'Bold multi-section gym layout with membership pricing and training zones.',
-  fitcore: 'Modern fitness layout with clean sections and strong CTA flow.',
-  sonicflow: 'Dark premium style with sections for programs and coaches.',
-  vital: 'Energetic high-contrast gym landing with plan highlights.',
-  sole: 'Grid-heavy commercial style adapted for gym program cards.',
-  zen: 'Minimal calm visual language adapted for performance gyms.',
-};
 
 function formatImageUploadMaxLabel(maxBytes: number): string {
   const mb = maxBytes / (1024 * 1024);
@@ -136,7 +131,7 @@ const GALLERY_DND_TYPE = 'application/x-gym-gallery-key';
 const GALLERY_KEY_PREFIX_SERVER = 's|';
 const GALLERY_KEY_PREFIX_PENDING = 'p|';
 
-/** Server gallery rows marked for removal in the UI; DELETE runs on Save only. */
+/** Server gallery rows marked for removal in the UI; DELETE `…/images/?id=` runs on Save only. */
 type GalleryPendingServerDelete = { id: number; url: string };
 
 function galleryServerKey(imageUrl: string): string {
@@ -376,6 +371,72 @@ function buildLogoPatchUrl(
         }
       })();
   return { omitLogoUrl: false, logo_url: logoUrlForApi };
+}
+
+/** Omit large data URLs from staged device uploads before first `website-setup` POST (create flow). */
+function formWithoutStagedDataUrlsForSetup(
+  f: CreateWebsiteFormState,
+  opts: {
+    heroStagedFile: File | null;
+    aboutBgStagedFile: File | null;
+    coachPhotoStagedFiles: Record<number, File>;
+  }
+): CreateWebsiteFormState {
+  let o = { ...f };
+  if (opts.heroStagedFile && isDataImageUrl(o.heroBackgroundImage)) {
+    o = { ...o, heroBackgroundImage: '' };
+  }
+  if (opts.aboutBgStagedFile && isDataImageUrl(o.aboutBodyBgImageUrl)) {
+    o = { ...o, aboutBodyBgImageUrl: '' };
+  }
+  if (Object.keys(opts.coachPhotoStagedFiles).length > 0) {
+    const coaches = o.coaches.map((c, i) =>
+      opts.coachPhotoStagedFiles[i] && isDataImageUrl(c.photoUrl) ? { ...c, photoUrl: '' } : c
+    );
+    o = { ...o, coaches };
+  }
+  return o;
+}
+
+function hasStagedSectionUploads(
+  heroStagedFile: File | null,
+  aboutBgStagedFile: File | null,
+  coachPhotoStagedFiles: Record<number, File>
+): boolean {
+  return Boolean(heroStagedFile || aboutBgStagedFile || Object.keys(coachPhotoStagedFiles).length > 0);
+}
+
+/** POST `…/images/` with `asset_type` hero | background | dp; merge returned `image_url` into form. */
+async function uploadStagedSectionImages(
+  slug: string,
+  form: CreateWebsiteFormState,
+  heroStagedFile: File | null,
+  aboutBgStagedFile: File | null,
+  coachPhotoStagedFiles: Record<number, File>
+): Promise<CreateWebsiteFormState> {
+  let next = form;
+  if (heroStagedFile) {
+    const { image_url } = await uploadBusinessImage(slug, heroStagedFile, 'hero');
+    next = { ...next, heroBackgroundImage: image_url };
+  }
+  if (aboutBgStagedFile && next.aboutBodyBgEnabled && !next.useDefaultPaletteArtwork) {
+    const { image_url } = await uploadBusinessImage(slug, aboutBgStagedFile, 'background');
+    next = { ...next, aboutBodyBgImageUrl: image_url };
+  }
+  const coachKeys = Object.keys(coachPhotoStagedFiles);
+  if (coachKeys.length > 0) {
+    const coaches = [...next.coaches];
+    for (const k of coachKeys) {
+      const idx = Number(k);
+      if (!Number.isFinite(idx) || idx < 0 || idx >= coaches.length) continue;
+      const file = coachPhotoStagedFiles[idx];
+      if (!file) continue;
+      const { image_url } = await uploadBusinessImage(slug, file, 'dp');
+      coaches[idx] = { ...coaches[idx], photoUrl: image_url };
+    }
+    next = { ...next, coaches };
+  }
+  return next;
 }
 
 function RemoveRowTrashButton({
@@ -995,6 +1056,8 @@ export default function CreateWebsitePage() {
     return undefined;
   })();
   const isEditMode = Boolean(editRouteSlug);
+  const fromPreviewFlow = searchParams.get('fromPreview') === '1';
+  const [templateGateReady, setTemplateGateReady] = useState(false);
   const { showToast } = useToast();
   /** Edit flow must not seed from preview localStorage — wrong slug debounces and triggers a false “taken” check. */
   const [form, setForm] = useState<CreateWebsiteFormState>(() =>
@@ -1009,6 +1072,63 @@ export default function CreateWebsitePage() {
   const set = useCallback(<K extends keyof CreateWebsiteFormState>(key: K, value: CreateWebsiteFormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
   }, []);
+
+  const onHeroBackgroundChange = useCallback(
+    (v: string) => {
+      set('heroBackgroundImage', v);
+      const t = v.trim();
+      if (!t || !isDataImageUrl(t)) {
+        setHeroStagedFile(null);
+      }
+    },
+    [set]
+  );
+
+  const onHeroBackgroundChooseFile = useCallback((file: File) => {
+    setHeroStagedFile(file);
+  }, []);
+
+  const onAboutBodyBgImageChange = useCallback(
+    (v: string) => {
+      set('aboutBodyBgImageUrl', v);
+      const t = v.trim();
+      if (!t || !isDataImageUrl(t)) {
+        setAboutBgStagedFile(null);
+      }
+    },
+    [set]
+  );
+
+  const onAboutBodyBgChooseFile = useCallback((file: File) => {
+    setAboutBgStagedFile(file);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (fromPreviewFlow) {
+      grantTemplateGateFromPreview(isEditMode, editRouteSlug);
+      setTemplateGateReady(true);
+      return;
+    }
+    if (!isEditMode) {
+      if (!isCreateTemplateGateOk()) {
+        router.replace('/user/create-website/select-template');
+        return;
+      }
+      setTemplateGateReady(true);
+      return;
+    }
+    const slug = editRouteSlug?.trim().toLowerCase();
+    if (!slug) {
+      setTemplateGateReady(true);
+      return;
+    }
+    if (!isEditTemplateGateOk(slug)) {
+      router.replace(`/user/business/${encodeURIComponent(slug)}/edit/select-template`);
+      return;
+    }
+    setTemplateGateReady(true);
+  }, [fromPreviewFlow, isEditMode, editRouteSlug, router]);
 
   /** After first-time save: modal prompts recharge (pricing) instead of a toast. */
   const [postSaveRechargeModalSlug, setPostSaveRechargeModalSlug] = useState<string | null>(null);
@@ -1068,6 +1188,7 @@ export default function CreateWebsitePage() {
   ]);
 
   const onToggleDefaultPaletteArtwork = useCallback((checked: boolean) => {
+    setAboutBgStagedFile(null);
     setForm((f) => {
       if (checked) {
         return {
@@ -1244,6 +1365,25 @@ export default function CreateWebsitePage() {
     });
   }, []);
 
+  const onCoachPhotoUrlChange = useCallback(
+    (index: number, v: string) => {
+      patchCoach(index, { photoUrl: v });
+      if (!v.trim() || !isDataImageUrl(v)) {
+        setCoachPhotoStagedFiles((prev) => {
+          if (!(index in prev)) return prev;
+          const next = { ...prev };
+          delete next[index];
+          return next;
+        });
+      }
+    },
+    [patchCoach]
+  );
+
+  const onCoachPhotoChooseFile = useCallback((index: number, file: File) => {
+    setCoachPhotoStagedFiles((prev) => ({ ...prev, [index]: file }));
+  }, []);
+
   const addCoach = useCallback(() => {
     setForm((f) =>
       f.coaches.length >= CREATE_WEBSITE_MAX_COACHES ? f : { ...f, coaches: [...f.coaches, emptyCoachRow()] }
@@ -1252,16 +1392,29 @@ export default function CreateWebsitePage() {
 
   const removeCoach = useCallback((index: number) => {
     setForm((f) => ({ ...f, coaches: f.coaches.filter((_, i) => i !== index) }));
+    setCoachPhotoStagedFiles((prev) => {
+      const next: Record<number, File> = {};
+      for (const [k, file] of Object.entries(prev)) {
+        const i = Number(k);
+        if (i < index) next[i] = file;
+        else if (i > index) next[i - 1] = file;
+      }
+      return next;
+    });
   }, []);
 
   const [editReady, setEditReady] = useState(!isEditMode);
   const [editBaselineSlug, setEditBaselineSlug] = useState<string | null>(null);
   /** From GET detail — whether the saved logo lives in S3 vs external URL (controls PATCH semantics). */
   const [serverLogoCanonical, setServerLogoCanonical] = useState<'s3' | 'url' | null>(null);
-  /** Staged logo file — POST `/logo/` on Save (same idea as gallery pending uploads). */
+  /** Staged logo file — POST `…/images/` with `asset_type=logo` on Save (same idea as gallery pending uploads). */
   const [logoStagedFile, setLogoStagedFile] = useState<File | null>(null);
-  /** Staged removal — DELETE `/logo/` on Save when {@link serverLogoCanonical} is `s3`. */
+  /** Staged removal — DELETE `…/images/?asset_type=logo` (branding logo) on Save when {@link serverLogoCanonical} is `s3`. */
   const [logoStagedDelete, setLogoStagedDelete] = useState(false);
+  /** Device file staged for POST `…/images/?asset_type=hero` on Save (avoid data URLs in `website_content`). */
+  const [heroStagedFile, setHeroStagedFile] = useState<File | null>(null);
+  const [aboutBgStagedFile, setAboutBgStagedFile] = useState<File | null>(null);
+  const [coachPhotoStagedFiles, setCoachPhotoStagedFiles] = useState<Record<number, File>>({});
 
   const editLogoSlug = useMemo(
     () => (editBaselineSlug ?? editRouteSlug?.trim().toLowerCase() ?? '').trim(),
@@ -1275,6 +1428,9 @@ export default function CreateWebsitePage() {
       setServerLogoCanonical(null);
       setLogoStagedFile(null);
       setLogoStagedDelete(false);
+      setHeroStagedFile(null);
+      setAboutBgStagedFile(null);
+      setCoachPhotoStagedFiles({});
       return;
     }
     let cancelled = false;
@@ -1287,6 +1443,9 @@ export default function CreateWebsitePage() {
         setServerLogoCanonical(d.logo?.type === 's3' ? 's3' : d.logo?.type === 'url' ? 'url' : null);
         setLogoStagedFile(null);
         setLogoStagedDelete(false);
+        setHeroStagedFile(null);
+        setAboutBgStagedFile(null);
+        setCoachPhotoStagedFiles({});
       })
       .catch(() => {
         if (!cancelled) showToast('Failed to load business.');
@@ -1347,10 +1506,31 @@ export default function CreateWebsitePage() {
       setServerLogoCanonical(null);
       setLogoStagedFile(null);
       setLogoStagedDelete(false);
+      setHeroStagedFile(null);
+      setAboutBgStagedFile(null);
+      setCoachPhotoStagedFiles({});
       return;
     }
     setForm(draftPayloadToFormState(draft));
+    setHeroStagedFile(null);
+    setAboutBgStagedFile(null);
+    setCoachPhotoStagedFiles({});
   }, [searchParams, isEditMode, editReady, editRouteSlug]);
+
+  /** Apply template choice from the standalone template step (overrides draft/server on return from picker). */
+  useEffect(() => {
+    if (!templateGateReady || isEditMode) return;
+    const p = consumePendingProTemplateKey();
+    if (p === null) return;
+    setForm((f) => ({ ...f, proTemplateKey: p }));
+  }, [templateGateReady, isEditMode]);
+
+  useEffect(() => {
+    if (!templateGateReady || !isEditMode || !editReady) return;
+    const p = consumePendingProTemplateKey();
+    if (p === null) return;
+    setForm((f) => ({ ...f, proTemplateKey: p }));
+  }, [templateGateReady, isEditMode, editReady]);
 
   /**
    * After “Preview in this tab” or “View my site” from the save modal, the history stack can return here on Back.
@@ -1771,23 +1951,21 @@ export default function CreateWebsitePage() {
       </span>
     );
 
-  const proTemplateCards = useMemo(
-    () =>
-      PRO_WEBSITE_TEMPLATE_OPTIONS.filter((o): o is { value: ProTemplateKey; label: string } => Boolean(o.value)).map(
-        (o) => ({
-          key: o.value,
-          label: o.label,
-          previewPath: PRO_TEMPLATE_PREVIEW_PATHS[o.value],
-          description: PRO_TEMPLATE_CARD_DESCRIPTIONS[o.value],
-        })
-      ),
-    []
-  );
-  const isProOnBuilder = planTierIsPro(builderSubscription);
+  const proTemplateCards = useMemo(() => buildProTemplateCards(), []);
   const selectedTemplateLabel =
     form.proTemplateKey ?
       proTemplateCards.find((c) => c.key === form.proTemplateKey)?.label ?? 'Selected Pro template'
     : 'Crystal default theme';
+
+  const wantsProTemplate = useMemo(() => isProTemplateKey(form.proTemplateKey), [form.proTemplateKey]);
+  /** When we can load subscription for this site (`galleryUploadSlug`), block save unless Pro is active. */
+  const proTemplateBlocksSave = useMemo(
+    () =>
+      wantsProTemplate &&
+      Boolean(galleryUploadSlug) &&
+      (!builderSubscription || !planTierIsPro(builderSubscription)),
+    [wantsProTemplate, galleryUploadSlug, builderSubscription]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1813,33 +1991,28 @@ export default function CreateWebsitePage() {
         return;
       }
     }
+    if (wantsProTemplate && galleryUploadSlug) {
+      if (!builderSubscription) {
+        showToast('Subscription status is still loading. Try again in a moment.', 'warning');
+        return;
+      }
+      if (!planTierIsPro(builderSubscription)) {
+        setProTemplateBlockedModalOpen(true);
+        return;
+      }
+    }
     if (isEditMode) {
       const baseline = editBaselineSlug ?? editRouteSlug?.trim().toLowerCase();
       if (!editRouteSlug?.trim() || !baseline) {
         showToast('Missing business to edit.');
         return;
       }
-      const tpl = form.proTemplateKey.trim().toLowerCase();
-      const wantsProTemplate =
-        tpl === 'autopilot' ||
-        tpl === 'fitcore' ||
-        tpl === 'sonicflow' ||
-        tpl === 'vital' ||
-        tpl === 'sole' ||
-        tpl === 'zen';
-      if (wantsProTemplate) {
-        if (!builderSubscription) {
-          showToast('Subscription status is still loading. Try again in a moment.', 'warning');
-          return;
-        }
-        if (!planTierIsPro(builderSubscription)) {
-          setProTemplateBlockedModalOpen(true);
-          return;
-        }
-      }
       const pendingSnapshot = [...galleryPending];
       const visualKeysSnapshot = [...galleryVisualKeys];
       const pendingDeletesSnapshot = [...galleryServerDeletesPending];
+      const heroSnap = heroStagedFile;
+      const aboutSnap = aboutBgStagedFile;
+      const coachSnap = { ...coachPhotoStagedFiles };
       setSaving(true);
       try {
         if (pendingDeletesSnapshot.length > 0) {
@@ -1863,6 +2036,20 @@ export default function CreateWebsitePage() {
         if (logoStagedFile) {
           await uploadBusinessLogo(baseline, logoStagedFile);
         }
+        let formForPatch = form;
+        if (hasStagedSectionUploads(heroSnap, aboutSnap, coachSnap)) {
+          formForPatch = await uploadStagedSectionImages(
+            baseline,
+            form,
+            heroSnap,
+            aboutSnap,
+            coachSnap
+          );
+          setHeroStagedFile(null);
+          setAboutBgStagedFile(null);
+          setCoachPhotoStagedFiles({});
+          setForm(formForPatch);
+        }
         const mergedGalleryImageOrder = mergedGalleryOrderFromKeys(visualKeysSnapshot, urlByLocalId);
         const logoSnap: LogoStagingSnapshot = {
           serverLogoCanonical,
@@ -1870,19 +2057,19 @@ export default function CreateWebsitePage() {
           logoStagedDelete,
         };
         const draft = mapFormToWebsiteDraft({
-          ...form,
+          ...formForPatch,
           slug,
           galleryImageOrder: mergedGalleryImageOrder,
         });
-        applyLogoPersistenceToDraftContent(draft.content, form, logoSnap);
+        applyLogoPersistenceToDraftContent(draft.content, formForPatch, logoSnap);
         const mapNorm = mapRaw && isValidHttpLocationUrl(mapRaw) ? normalizeLocationMapUrl(mapRaw) : '';
-        const logoPatch = buildLogoPatchUrl(form, logoSnap);
+        const logoPatch = buildLogoPatchUrl(formForPatch, logoSnap);
         const patchBody: Parameters<typeof patchBusiness>[1] = {
-          name: form.gymName.trim(),
+          name: formForPatch.gymName.trim(),
           slug,
-          description: form.businessDescription.trim(),
+          description: formForPatch.businessDescription.trim(),
           phone: phoneDigits,
-          address: form.contactAddress.trim(),
+          address: formForPatch.contactAddress.trim(),
           location_map_url: mapNorm,
           website_theme: {
             accentHex: draft.theme.accentHex.trim() || '#ea580c',
@@ -1924,7 +2111,19 @@ export default function CreateWebsitePage() {
     }
 
     const logoFileSnapshot = logoStagedFile;
-    let draft = mapFormToWebsiteDraft({ ...form, slug });
+    const heroSnap = heroStagedFile;
+    const aboutSnap = aboutBgStagedFile;
+    const coachSnap = { ...coachPhotoStagedFiles };
+    const sectionStaged = hasStagedSectionUploads(heroSnap, aboutSnap, coachSnap);
+    const formForSetup =
+      sectionStaged ?
+        formWithoutStagedDataUrlsForSetup(form, {
+          heroStagedFile: heroSnap,
+          aboutBgStagedFile: aboutSnap,
+          coachPhotoStagedFiles: coachSnap,
+        })
+      : form;
+    let draft = mapFormToWebsiteDraft({ ...formForSetup, slug });
     if (logoFileSnapshot) {
       draft.content.logo.src = '';
     }
@@ -1938,6 +2137,14 @@ export default function CreateWebsitePage() {
         setGalleryServerDeletesPending([]);
       }
       await submitWebsiteSetupDraft(draft);
+      let formMerged = form;
+      if (sectionStaged) {
+        formMerged = await uploadStagedSectionImages(slug, form, heroSnap, aboutSnap, coachSnap);
+        setHeroStagedFile(null);
+        setAboutBgStagedFile(null);
+        setCoachPhotoStagedFiles({});
+        setForm(formMerged);
+      }
       if (logoFileSnapshot) {
         try {
           await uploadBusinessLogo(slug, logoFileSnapshot);
@@ -1956,9 +2163,9 @@ export default function CreateWebsitePage() {
           await uploadPendingGalleryInVisualOrder(slug, visualKeysSnapshot, pendingSnapshot, uploadBusinessImage)
         : new Map<string, string>();
       const mergedGalleryImageOrder = mergedGalleryOrderFromKeys(visualKeysSnapshot, urlByLocalId);
-      if (pendingSnapshot.length > 0 || pendingDeletesSnapshot.length > 0) {
+      if (pendingSnapshot.length > 0 || pendingDeletesSnapshot.length > 0 || sectionStaged) {
         const draftWithGallery = mapFormToWebsiteDraft({
-          ...form,
+          ...formMerged,
           slug,
           galleryImageOrder: mergedGalleryImageOrder,
         });
@@ -1982,8 +2189,8 @@ export default function CreateWebsitePage() {
         /* list refresh is best-effort */
       }
       const draftForStorage =
-        pendingSnapshot.length > 0 || pendingDeletesSnapshot.length > 0 ?
-          mapFormToWebsiteDraft({ ...form, slug, galleryImageOrder: mergedGalleryImageOrder })
+        sectionStaged || pendingSnapshot.length > 0 || pendingDeletesSnapshot.length > 0 ?
+          mapFormToWebsiteDraft({ ...formMerged, slug, galleryImageOrder: mergedGalleryImageOrder })
         : draft;
       try {
         sessionStorage.setItem(CRYSTAL_WEBSITE_SETUP_DRAFT_STORAGE_KEY, JSON.stringify(draftForStorage));
@@ -2053,7 +2260,7 @@ export default function CreateWebsitePage() {
                 type="button"
                 variant="primary"
                 className="create-website__preview-dock-btn"
-                disabled={isEditMode && !editReady}
+                disabled={!templateGateReady || (isEditMode && !editReady)}
                 onClick={() => setPreviewTargetModalOpen(true)}
                 aria-label="Open site preview"
               >
@@ -2095,6 +2302,17 @@ export default function CreateWebsitePage() {
               </p>
             </div>
             <div className="create-website__head-actions">
+              <Link
+                href={
+                  isEditMode && editRouteSlug ?
+                    `/user/business/${encodeURIComponent(editRouteSlug)}/edit/select-template`
+                  : '/user/create-website/select-template'
+                }
+                className="btn btn-outline-primary btn-sm"
+                onClick={() => stashInitialTemplateForSelectPage(form.proTemplateKey)}
+              >
+                Select template
+              </Link>
               <Link href="/user" className="btn btn-outline-secondary btn-sm">
                 ← Back to profile
               </Link>
@@ -2103,16 +2321,21 @@ export default function CreateWebsitePage() {
 
           <Card className="create-website__card mt-3">
             <Card.Body>
-              {isEditMode && !editReady ?
+              {!templateGateReady ?
+                <div className="text-center py-5">
+                  <Spinner animation="border" role="status" className="mb-2" />
+                  <p className="text-muted small mb-0">Loading…</p>
+                </div>
+              : isEditMode && !editReady ?
                 <div className="text-center py-5">
                   <Spinner animation="border" role="status" className="mb-2" />
                   <p className="text-muted small mb-0">Loading business…</p>
                 </div>
               : null}
               <Form
-                className={isEditMode && !editReady ? 'd-none' : undefined}
+                className={!templateGateReady || (isEditMode && !editReady) ? 'd-none' : undefined}
                 onSubmit={handleSubmit}
-                aria-hidden={isEditMode && !editReady ? true : undefined}
+                aria-hidden={!templateGateReady || (isEditMode && !editReady) ? true : undefined}
               >
                 <Accordion defaultActiveKey={['slug', 'brand']} alwaysOpen>
                   <Accordion.Item eventKey="slug" className="create-website__accordion-item">
@@ -2211,8 +2434,35 @@ export default function CreateWebsitePage() {
                           {form.proTemplateKey ? ' is selected for your public client page.' : ' is active for your public client page.'}
                         </p>
                         <p className="small text-muted mb-0">
-                          Pro templates can be saved only when your subscription tier is Pro.
+                          Use <strong>Select template</strong> at the top of this page to change the layout. Pro templates
+                          require an active Pro subscription at save time.
                         </p>
+                        {form.proTemplateKey ?
+                          <div className="d-flex flex-wrap gap-2 mt-2">
+                            <Button
+                              type="button"
+                              variant="outline-secondary"
+                              size="sm"
+                              onClick={() => setTemplatePreviewKey(form.proTemplateKey as ProTemplateKey)}
+                            >
+                              Preview current template
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="light"
+                              size="sm"
+                              onClick={() =>
+                                window.open(
+                                  PRO_TEMPLATE_PREVIEW_PATHS[form.proTemplateKey as ProTemplateKey],
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                )
+                              }
+                            >
+                              Open in new tab
+                            </Button>
+                          </div>
+                        : null}
                       </div>
                       <Row className="g-3">
                         <Col md={6}>
@@ -2473,88 +2723,6 @@ export default function CreateWebsitePage() {
                     </Accordion.Body>
                   </Accordion.Item>
 
-                  {isEditMode ?
-                    <Accordion.Item eventKey="template" className="create-website__accordion-item">
-                      <Accordion.Header>Page template (Pro)</Accordion.Header>
-                      <Accordion.Body>
-                        <p className="small text-muted mb-3">
-                          Pick the default Crystal layout or a Pro template. Selection applies to your public client page.
-                          Pro templates require an active <strong>Pro</strong> subscription at save time.
-                        </p>
-                        {!isProOnBuilder ? (
-                          <div className="alert alert-warning py-2 px-3 small mb-3" role="status">
-                            Pro templates are visible for browsing, but saving one requires a Pro subscription.
-                          </div>
-                        ) : null}
-                        <div className="create-website__template-grid" role="radiogroup" aria-label="Client page templates">
-                          <button
-                            type="button"
-                            className={`create-website__template-card${form.proTemplateKey === '' ? ' create-website__template-card--selected' : ''}`}
-                            onClick={() => set('proTemplateKey', '')}
-                            aria-pressed={form.proTemplateKey === ''}
-                          >
-                            <span className="create-website__template-card-visual create-website__template-card-visual--default">
-                              Crystal default
-                            </span>
-                            <span className="create-website__template-card-title-row">
-                              <span className="create-website__template-card-title">Crystal default theme</span>
-                              <span className="badge text-bg-success">Default</span>
-                            </span>
-                            <span className="create-website__template-card-desc">
-                              Keep the current Crystal client page layout and your custom brand/content configuration.
-                            </span>
-                          </button>
-                          {proTemplateCards.map((template) => {
-                            const selected = form.proTemplateKey === template.key;
-                            return (
-                              <div key={template.key} className="create-website__template-card-shell">
-                                <button
-                                  type="button"
-                                  className={`create-website__template-card${selected ? ' create-website__template-card--selected' : ''}`}
-                                  onClick={() => set('proTemplateKey', template.key)}
-                                  aria-pressed={selected}
-                                >
-                                  <span className="create-website__template-card-visual create-website__template-card-visual--live">
-                                    <iframe
-                                      src={template.previewPath}
-                                      title={`${template.label} card preview`}
-                                      loading="lazy"
-                                      tabIndex={-1}
-                                      className="create-website__template-card-frame"
-                                    />
-                                  </span>
-                                  <span className="create-website__template-card-title-row">
-                                    <span className="create-website__template-card-title">{template.label}</span>
-                                    <span className="badge text-bg-warning">Pro</span>
-                                  </span>
-                                  <span className="create-website__template-card-desc">{template.description}</span>
-                                </button>
-                                <Button
-                                  type="button"
-                                  variant="outline-secondary"
-                                  size="sm"
-                                  className="create-website__template-preview-btn"
-                                  onClick={() => setTemplatePreviewKey(template.key)}
-                                >
-                                  Preview
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="light"
-                                  size="sm"
-                                  className="create-website__template-preview-btn"
-                                  onClick={() => window.open(template.previewPath, '_blank', 'noopener,noreferrer')}
-                                >
-                                  Preview in new tab
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </Accordion.Body>
-                    </Accordion.Item>
-                  : null}
-
                   <Accordion.Item eventKey="hero" className="create-website__accordion-item">
                     <Accordion.Header>Hero &amp; navigation CTAs</Accordion.Header>
                     <Accordion.Body>
@@ -2563,9 +2731,10 @@ export default function CreateWebsitePage() {
                           id="cw-hero-bg"
                           label="Hero background image"
                           hintId="cw-hint-hero-bg"
-                          hint="Full-width cover image behind the hero. Use a high-resolution landscape photo; URL or upload."
+                          hint="Full-width cover image behind the hero. Use a high-resolution landscape photo; URL or upload. Device uploads are sent on save (asset_type=hero)."
                           value={form.heroBackgroundImage}
-                          onChange={(v) => set('heroBackgroundImage', v)}
+                          onChange={onHeroBackgroundChange}
+                          onChooseLocalFile={onHeroBackgroundChooseFile}
                           previewVariant="landscape"
                           ratioHint="Recommended aspect ~16:9 (landscape)."
                           showToast={showToast}
@@ -2738,9 +2907,12 @@ export default function CreateWebsitePage() {
                             id="cw-about-body-bg-image"
                             label="Body background image"
                             hintId="cw-hint-about-body-bg-image"
-                            hint="Used behind the short description paragraph (Business profile) with blend overlay."
+                            hint="Used behind the short description paragraph (Business profile) with blend overlay. Device uploads are sent on save (asset_type=background)."
                             value={form.aboutBodyBgImageUrl}
-                            onChange={(v) => set('aboutBodyBgImageUrl', v)}
+                            onChange={onAboutBodyBgImageChange}
+                            onChooseLocalFile={
+                              form.useDefaultPaletteArtwork ? undefined : onAboutBodyBgChooseFile
+                            }
                             previewVariant="landscape"
                             ratioHint="Recommended ~16:9 or wide texture."
                             showToast={showToast}
@@ -3261,9 +3433,10 @@ export default function CreateWebsitePage() {
                                 id={`cw-coach-photo-${index}`}
                                 label="Photo"
                                 hintId={`cw-hint-coach-photo-${index}`}
-                                hint="Coach headshot on the public page. Upload from your device only — same 1 MB limit as other images."
+                                hint="Coach headshot on the public page. Upload from your device only — same 1 MB limit as other images. Sent on save (asset_type=dp)."
                                 value={row.photoUrl}
-                                onChange={(v) => patchCoach(index, { photoUrl: v })}
+                                onChange={(v) => onCoachPhotoUrlChange(index, v)}
+                                onChooseLocalFile={(file) => onCoachPhotoChooseFile(index, file)}
                                 previewVariant="square"
                                 ratioHint="Square ~1:1 works best."
                                 showToast={showToast}
@@ -3375,8 +3548,19 @@ export default function CreateWebsitePage() {
                 </Accordion>
 
                 <div className="create-website__actions mt-4 d-flex flex-wrap gap-2 justify-content-end align-items-center">
-                  <div className="d-flex flex-wrap gap-2">
-                    <Button type="submit" variant="primary" disabled={slugStatus !== 'available' || saving}>
+                  <div className="d-flex flex-column align-items-end gap-2">
+                    {proTemplateBlocksSave ?
+                      <p className="form-text text-muted small mb-0 text-end" role="status">
+                        Pro templates require an active Pro subscription. Upgrade your plan, or choose Crystal default theme
+                        via <strong>Select template</strong> — then you can save.
+                      </p>
+                    : null}
+                    <div className="d-flex flex-wrap gap-2">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={slugStatus !== 'available' || saving || proTemplateBlocksSave}
+                    >
                       {saving ? (
                         <>
                           <Spinner animation="border" size="sm" className="me-2" />
@@ -3388,6 +3572,7 @@ export default function CreateWebsitePage() {
                         <>Save website</>
                       )}
                     </Button>
+                    </div>
                   </div>
                 </div>
               </Form>
@@ -3522,8 +3707,9 @@ export default function CreateWebsitePage() {
         </Modal.Header>
         <Modal.Body>
           <p className="mb-0">
-            Full-page templates can be used only with an active <strong>Pro</strong> subscription. Upgrade your plan,
-            then save again—or choose &quot;Crystal default theme&quot; and save without a template.
+            Full-page Pro templates need an active <strong>Pro</strong> subscription — your save stays disabled until you
+            upgrade, or switch to <strong>Crystal default theme</strong> under <strong>Select template</strong> and save
+            again.
           </p>
         </Modal.Body>
         <Modal.Footer className="border-0 pt-0">

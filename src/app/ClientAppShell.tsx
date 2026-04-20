@@ -26,6 +26,11 @@ function isStaticMarketingShellPath(pathname: string): boolean {
   return false;
 }
 
+function isAuthPath(pathname: string): boolean {
+  const pathOnly = pathname.split('?')[0];
+  return pathOnly === '/login' || pathOnly === '/signup';
+}
+
 function InDevelopmentBanner({ pathname }: { pathname: string }) {
   if (!SHOW_IN_DEVELOPMENT_BANNER) return null;
   const pathOnly = pathname.split('?')[0];
@@ -84,6 +89,11 @@ function shouldHideMainLayoutChrome(pathname: string): boolean {
   );
 }
 
+function shouldHideFooter(pathname: string): boolean {
+  const pathOnly = pathname.split('?')[0];
+  return pathOnly === '/user' || pathOnly.startsWith('/user/');
+}
+
 /**
  * Marketing host `/:slug` public gym — `CrystalBusinessPage` already shows intro/skeleton; skip the
  * global Crystal overlay so it does not stack. Gym **subdomain** navigations still use the global loader.
@@ -107,6 +117,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
   }
   const showPageRouteEnterMotion = pathname !== bootPathRef.current;
   const hideMarketingChrome = shouldHideMainLayoutChrome(pathname);
+  const hideFooter = shouldHideFooter(pathname);
   const notFoundLayout = isDedicatedNotFoundPath(pathname);
 
   useEffect(() => {
@@ -124,6 +135,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     prevPathnameRef.current = pathname;
 
     if (isDedicatedNotFoundPath(pathname)) {
+      setShowRouteLoader(false);
+      return;
+    }
+
+    if (isAuthPath(pathname)) {
       setShowRouteLoader(false);
       return;
     }
@@ -150,7 +166,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
   return (
     <div className={`main-layout${notFoundLayout ? ' main-layout--not-found' : ''}`}>
-      <InDevelopmentBanner pathname={pathname} />
+      {/* <InDevelopmentBanner pathname={pathname} /> */}
       <ScrollToTop pathname={pathname} />
       {!hideMarketingChrome && <PageTransitionBar pathname={pathname} />}
       <RouteTransitionLoader active={showRouteLoader} />
@@ -164,7 +180,7 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
           {children}
         </div>
       </div>
-      {!hideMarketingChrome && <Footer />}
+      {!hideMarketingChrome && !hideFooter && <Footer />}
     </div>
   );
 }

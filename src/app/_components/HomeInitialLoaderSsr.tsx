@@ -1,13 +1,14 @@
-import { CrystalClientLogoLoader } from '@/features/crystal/CrystalClientLogoLoader';
+import BrandReveal from '@/app/_components/BrandReveal';
 
 /**
- * Same loader as profile / global route transitions (`CrystalClientLogoLoader` + animated gradient).
- * Renders in the first HTML for `/`; styles are pulled into `globals.css` so the gradient flow runs before JS.
+ * Home first-paint loader. Renders in first HTML for `/`; exits via `HomeInitialLoaderClient`.
  */
 export default function HomeInitialLoaderSsr() {
   return (
     <div id="home-initial-loader-ssr" className="route-transition-loader home-initial-loader-ssr">
-      <CrystalClientLogoLoader />
+      <div className="home-initial-loader-ssr__stage">
+        <BrandReveal />
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ const PREFETCH_PATHS = [
   '/forgot-password',
   '/user',
   '/user/create-website',
+  '/user/create-website/select-template',
   '/plans',
   '/services/custom',
   '/support',

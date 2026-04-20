@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Metadata } from 'next';
 import { TemplateMobileNav } from '@/app/templates/_components/TemplateMobileNav';
+import { loadProTemplateCss } from '../loadProTemplateCss';
 
 export const metadata: Metadata = {
   title: 'Sole gym template (Pro)',
@@ -16,9 +17,8 @@ function extractBodyInnerHtml(fullHtml: string): string {
 
 export default function ClientSoleTemplatePage() {
   const filePath = path.join(process.cwd(), 'src/assets/templates/sole.html');
-  const cssPath = path.join(process.cwd(), 'src/assets/templates/sole.css');
   const raw = fs.readFileSync(filePath, 'utf8');
-  const css = fs.readFileSync(cssPath, 'utf8');
+  const css = loadProTemplateCss('sole.css');
   const innerHtml = extractBodyInnerHtml(raw);
 
   return (

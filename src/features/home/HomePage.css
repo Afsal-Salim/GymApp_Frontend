@@ -7,6 +7,7 @@ html {
 /* Home marketing: Bootstrap primary + links match hero v2 blue; section backgrounds unchanged */
 .crystal-home {
   overflow-x: hidden;
+  font-family: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
   --crystal-brand-primary: #0084ff;
   --crystal-brand-primary-rgb: 0, 132, 255;
   --crystal-brand-soft: #4dc3ff;
@@ -14,6 +15,21 @@ html {
   --bs-primary-rgb: 0, 132, 255;
   --bs-link-color: #0084ff;
   --bs-link-hover-color: #006edc;
+}
+
+.crystal-home h1,
+.crystal-home h2,
+.crystal-home h3,
+.crystal-home h4,
+.crystal-home h5,
+.crystal-home h6,
+.crystal-home .h1,
+.crystal-home .h2,
+.crystal-home .h3,
+.crystal-home .h4,
+.crystal-home .h5,
+.crystal-home .h6 {
+  font-family: var(--font-home-heading), 'Sora', system-ui, sans-serif;
 }
 
 /* —— Scroll-triggered section reveals —— */
@@ -194,23 +210,12 @@ html {
   background: #050a12 !important;
   background-image: none !important;
   background-attachment: scroll !important;
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
   overflow: hidden;
-}
-
-@supports (height: 100dvh) {
-  .crystal-hero-v2 {
-    /* min-height: min(100dvh, 1024px); */
-  }
 }
 
 /* Single common background for the whole hero (mobile + desktop) */
@@ -1686,46 +1691,35 @@ html {
 
 .crystal-package-custom-cta {
   flex-shrink: 0;
+  margin-top: auto;
+  font-size: 0.98rem !important;
+  font-weight: 600;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
 }
 
 .crystal-package-features-wrapper {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  margin-bottom: 0.35rem;
-  flex: 1;
+  margin-bottom: 0.4rem;
+  flex: 1 1 auto;
   min-height: 0;
   text-align: left;
 }
 
-.crystal-package-card[data-plan-id='starter'] .crystal-package-features {
-  max-height: 16rem;
-}
-
 .crystal-package-features {
   flex: 1 1 auto;
-  max-height: 11.5rem;
+  max-height: none;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   padding: 0.15rem 0.15rem 0.35rem;
   margin: 0 -0.15rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 132, 255, 0.45) transparent;
-}
-
-.crystal-package-features::-webkit-scrollbar {
-  width: 5px;
-}
-
-.crystal-package-features::-webkit-scrollbar-thumb {
-  background: rgba(0, 132, 255, 0.4);
-  border-radius: 999px;
 }
 
 .crystal-package-features-list {
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: 0.92rem;
+  line-height: 1.5;
   color: #334155;
 }
 

@@ -1,9 +1,17 @@
 import type { Metadata } from 'next';
+import { Sora } from 'next/font/google';
 import HomeInitialLoaderClient from '@/app/_components/HomeInitialLoaderClient';
 import HomeInitialLoaderSsr from '@/app/_components/HomeInitialLoaderSsr';
 import HomeLandingJsonLd from '@/app/_components/HomeLandingJsonLd';
 import HomePage from '@/features/home/HomePage';
 import { getMarketingSiteOrigin } from '@/lib/siteUrl';
+
+const sora = Sora({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-home-heading',
+  weight: ['400', '500', '600', '700', '800'],
+});
 
 const origin = getMarketingSiteOrigin().origin;
 const canonical = `${origin}/`;
@@ -38,11 +46,11 @@ export const revalidate = 3600;
 
 export default function Home() {
   return (
-    <>
+    <div className={sora.variable}>
       <HomeLandingJsonLd />
       <HomeInitialLoaderSsr />
       <HomeInitialLoaderClient />
       <HomePage />
-    </>
+    </div>
   );
 }

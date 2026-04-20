@@ -44,7 +44,8 @@ export function resolveBusinessImageDisplayUrl(
   return raw;
 }
 
-export type BusinessUploadedImageAsset = 'logo' | 'hero' | 'background' | 'gallery';
+/** Asset types that create an `Asset` row (POST …/images/ → **201** + asset payload). Logo uses `uploadBusinessLogo` instead. */
+export type BusinessUploadedImageAsset = 'dp' | 'hero' | 'background' | 'gallery';
 
 export type BusinessUploadedImage = {
   /** Numeric asset row id from GET list — required for POST delete. */
@@ -149,7 +150,8 @@ function parseUploadResponse(data: unknown): UploadBusinessImageResult {
 }
 
 /**
- * POST `/businesses/<slug>/images/` — multipart; owner only. `asset_type` defaults to `gallery`.
+ * POST `/businesses/<slug>/images/` — multipart; owner only. `asset_type`: `dp` | `hero` | `background` | `gallery`.
+ * Branding logo: use {@link uploadBusinessLogo} (`asset_type=logo`, **200** + business body).
  * Returns **`image_url`** from **201** (and optional slot counts).
  */
 export async function uploadBusinessImage(
@@ -178,8 +180,9 @@ export async function uploadBusinessImage(
 }
 
 /**
- * POST `/businesses/<slug>/images/<pk>/` — delete one image by asset id; owner only.
- * `pk` comes from each item’s `id` on GET `/businesses/<slug>/images/`. Empty JSON body.
+ * Remove one Asset row (gallery / dp / hero / background) — DELETE `/businesses/<slug>/images/?id=<pk>`.
+ * `pk` is each item’s `id` from GET `/businesses/<slug>/images/`. Replaces legacy POST `…/images/<pk>/`.
+ * Response **200** + `{ deleted: "asset", id: <pk> }`.
  */
 export async function deleteBusinessGalleryImage(slug: string, imagePk: number): Promise<void> {
   const key = slug.trim();
@@ -188,12 +191,17 @@ export async function deleteBusinessGalleryImage(slug: string, imagePk: number):
     throw new Error('Business slug and image id are required.');
   }
   try {
-    await privateApi.post<unknown>(`${BASE}/${encodeURIComponent(key)}/images/${pk}/`, {});
+    await privateApi.delete(`${BASE}/${encodeURIComponent(key)}/images/`, {
+      params: { id: pk },
+    });
   } catch (e) {
     if (axios.isAxiosError(e)) {
       const st = e.response?.status;
       const body = e.response?.data as { detail?: string } | undefined;
       const detail = typeof body?.detail === 'string' ? body.detail : '';
+      if (st === 400) {
+        throw new Error(detail || 'Invalid delete request (do not combine id with asset_type).');
+      }
       if (st === 502) {
         throw new Error(detail || 'Storage could not remove the image.');
       }

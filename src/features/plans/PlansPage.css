@@ -33,14 +33,17 @@
 
 .plans-page__col {
   display: flex;
+  height: 100%;
+  align-self: stretch;
 }
 
 .plans-page__card {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   flex: 1 1 auto;
   width: 100%;
+  height: 100%;
   min-height: 0;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
@@ -85,7 +88,6 @@
 
 .plans-page__card-body {
   padding: 1.25rem 1.35rem 1.35rem !important;
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -131,12 +133,20 @@
 .plans-page__features {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+  -ms-overflow-style: none; /* IE/Edge legacy */
+  scrollbar-width: none; /* Firefox */
   font-size: 0.875rem;
   color: #334155;
   line-height: 1.45;
   margin: 0;
   padding: 0.65rem 0 0;
   border-top: 1px solid #e8eef4;
+}
+
+.plans-page__features::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .plans-page__feature-item {
@@ -171,9 +181,12 @@
 }
 
 .plans-page__card-cta {
+  background: transparent !important;
+  border: 0 !important;
   border-top: 1px solid #f1f5f9;
-  margin-top: auto;
-  padding-top: 1rem !important;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 1rem 1.35rem 1.25rem !important;
 }
 
 .plans-page__first-price-hint {
@@ -181,4 +194,11 @@
   margin-left: auto;
   margin-right: auto;
   line-height: 1.45;
+}
+
+/* Keep all three plan cards exactly the same height on desktop. */
+@media (min-width: 992px) {
+  .plans-page__card {
+    height: 39rem;
+  }
 }

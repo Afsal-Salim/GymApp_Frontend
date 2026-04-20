@@ -284,9 +284,20 @@
 .create-website__head-actions {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 0.5rem;
   flex-shrink: 0;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Same width as the wider control (“Back to profile”); centered labels */
+.create-website__head-actions > .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
 }
 
 .create-website__title {
@@ -496,6 +507,7 @@
 
 .create-website__theme-color-field {
   height: 100%;
+  min-width: 0; /* grid column: allow shrink so inner flex row doesn’t wrap the swatch */
   padding: 1.05rem 1.15rem;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--bs-body-color) 9%, transparent);
@@ -538,7 +550,9 @@
 
 .create-website__theme-color-control {
   display: flex;
+  flex-wrap: nowrap;
   align-items: stretch;
+  min-width: 0;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--bs-body-color) 11%, transparent);
   background: var(--bs-body-bg);
@@ -794,6 +808,9 @@
 }
 
 .create-website__theme-color-hex {
+  /* Bootstrap .form-control uses width:100%; inside a flex row that forces the swatch to wrap — override. */
+  width: auto !important;
+  max-width: 100%;
   border: none !important;
   border-left: 1px solid color-mix(in srgb, var(--bs-body-color) 9%, transparent) !important;
   border-radius: 0 !important;
@@ -804,7 +821,7 @@
   letter-spacing: 0.04em;
   padding-left: 1rem !important;
   padding-right: 0.85rem !important;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   background: transparent !important;
 }
@@ -1063,21 +1080,29 @@
 }
 
 .create-website__template-grid {
+  --cw-template-card-visual-h: 118px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 0.8rem;
+  align-items: stretch;
 }
 
 .create-website__template-card-shell {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  min-width: 0;
+  height: 100%;
+  min-height: 22rem;
 }
 
 .create-website__template-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  align-self: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
   text-align: left;
   gap: 0.5rem;
   border: 1px solid color-mix(in srgb, var(--bs-body-color) 12%, transparent);
@@ -1109,11 +1134,28 @@
     0 6px 14px rgba(15, 23, 42, 0.08);
 }
 
+/* Custom build — navigates to /services/custom (not a template selection). */
+.create-website__template-card--customized {
+  color: inherit;
+}
+
+.create-website__template-card--customized:hover {
+  color: inherit;
+}
+
+.create-website__template-card-visual--customized {
+  background:
+    linear-gradient(160deg, rgba(17, 24, 39, 0.22), rgba(17, 24, 39, 0.55)),
+    linear-gradient(135deg, #4f46e5, #db2777);
+}
+
 .create-website__template-card-visual {
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
-  min-height: 84px;
+  flex-shrink: 0;
+  height: var(--cw-template-card-visual-h);
+  min-height: var(--cw-template-card-visual-h);
   border-radius: 10px;
   padding: 0.45rem 0.55rem;
   color: #fff;
@@ -1128,7 +1170,6 @@
 
 .create-website__template-card-visual--live {
   position: relative;
-  min-height: 112px;
   padding: 0;
   overflow: hidden;
   background: #0f172a;
@@ -1145,31 +1186,75 @@
   height: 100%;
   border: 0;
   display: block;
+  /* Allow parent <button> to receive clicks for “select template” when not interacting with preview */
   pointer-events: none;
   background: #fff;
 }
 
+/* Re-enable wheel / scrollbar / drag on the live preview while hovered (or focused), so embedded page scrolls */
+.create-website__template-card-visual--live:hover .create-website__template-card-frame,
+.create-website__template-card-visual--live:focus-within .create-website__template-card-frame {
+  pointer-events: auto;
+}
+
+/* Touch devices: no hover — keep iframe interactive so users can pan/scroll the preview */
+@media (hover: none) {
+  .create-website__template-card-visual--live .create-website__template-card-frame {
+    pointer-events: auto;
+  }
+}
+
 .create-website__template-card-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.create-website__template-card-title-row .badge {
+  flex-shrink: 0;
 }
 
 .create-website__template-card-title {
   font-size: 0.86rem;
   font-weight: 700;
   color: var(--bs-body-color);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .create-website__template-card-desc {
+  flex: 1 1 auto;
+  min-height: 0;
   font-size: 0.775rem;
   line-height: 1.42;
   color: color-mix(in srgb, var(--bs-body-color) 60%, transparent);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.create-website__template-card-shell-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  min-height: 4.6rem;
+}
+
+.create-website__template-card-shell-actions:empty {
+  pointer-events: none;
 }
 
 .create-website__template-preview-btn {
-  align-self: flex-start;
+  align-self: stretch;
+  width: 100%;
 }
 
 .create-website__template-preview-frame {
@@ -1177,4 +1262,10 @@
   width: 100%;
   height: min(82vh, 920px);
   border: 0;
+}
+
+/* Select template → editor CTA */
+.create-website__select-template-continue svg {
+  flex-shrink: 0;
+  opacity: 0.95;
 }

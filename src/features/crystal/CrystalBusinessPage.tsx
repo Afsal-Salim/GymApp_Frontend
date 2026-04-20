@@ -1593,13 +1593,13 @@ function CrystalPreviewEmpty() {
           </p>
           {onGymSubdomain ? (
             <a
-              href={crystalMarketingAbsoluteUrl('/user/create-website')}
+              href={crystalMarketingAbsoluteUrl('/user/create-website/select-template')}
               className="btn btn-primary mt-4 crystal-business-page__back"
             >
               Create website
             </a>
           ) : (
-            <Link href="/user/create-website" className="btn btn-primary mt-4 crystal-business-page__back">
+            <Link href="/user/create-website/select-template" className="btn btn-primary mt-4 crystal-business-page__back">
               Create website
             </Link>
           )}
@@ -2304,7 +2304,7 @@ export default function CrystalBusinessPage() {
                     Sample site — colors, text, and layout are fully customizable.
                   </span>
                   {getAccessToken() ?
-                    <Link href="/user/create-website" className="btn btn-sm btn-light fw-semibold">
+                    <Link href="/user/create-website/select-template" className="btn btn-sm btn-light fw-semibold">
                       Create now
                     </Link>
                   : <Link

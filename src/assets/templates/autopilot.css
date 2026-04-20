@@ -15,7 +15,7 @@
   --ap-accent-2: #a78bfa;
   --ap-radius: 14px;
   --ap-max: 1180px;
-  --ap-font: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
+  --ap-font: var(--font-inter), system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
 
   box-sizing: border-box;
   font-family: var(--ap-font);
