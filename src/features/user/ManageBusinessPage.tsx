@@ -59,6 +59,8 @@ function ManageBusinessPageLoaded({ slug }: { slug: string }) {
               <nav className="manage-business-page__crumb small text-muted mb-1">
                 <Link href="/user">Profile</Link>
                 <span aria-hidden> / </span>
+                <Link href={`/user/business/${slugEnc}/settings`}>Settings</Link>
+                <span aria-hidden> / </span>
                 <span>Manage</span>
               </nav>
               <h1 className="manage-business-page__title h3 mb-1">Manage website</h1>
