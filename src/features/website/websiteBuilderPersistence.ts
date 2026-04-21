@@ -16,8 +16,20 @@ import {
   type ProWebsiteTemplateKey,
   withLegacyHeroBackgroundMigrated,
 } from '../crystal/gymClientSiteContent';
-import { GYM_CLIENT_DEFAULT_LIGHT_HEX, GYM_CLIENT_DEFAULT_TEXT_HEX, readCrystalWebsitePreviewFromStorage, writeCrystalWebsitePreviewToStorage, type CrystalWebsiteDraftPayload } from './setup/createWebsiteFormState';
-import { PRO_TEMPLATE_LABELS, WEBSITE_BUILDER_ANIMATION_CSS, WEBSITE_BUILDER_CUSTOM_SCRATCH } from './websiteBuilderConstants';
+import {
+  GYM_CLIENT_DEFAULT_LIGHT_HEX,
+  GYM_CLIENT_DEFAULT_TEXT_HEX,
+  readCrystalWebsitePreviewFromStorage,
+  withPreviewEditReturn,
+  writeCrystalWebsitePreviewToStorage,
+  type CrystalWebsiteDraftPayload,
+} from './setup/createWebsiteFormState';
+import {
+  PRO_TEMPLATE_LABELS,
+  WEBSITE_BUILDER_ANIMATION_CSS,
+  WEBSITE_BUILDER_CUSTOM_SCRATCH,
+  WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
+} from './websiteBuilderConstants';
 
 function defaultTheme(): CrystalWebsiteSetupPayload['theme'] {
   return parseGymClientWebsiteThemeFromApi(
@@ -43,7 +55,7 @@ function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPay
 }
 
 function canvasCssWithBuilderHelpers(css: string): string {
-  return `${WEBSITE_BUILDER_ANIMATION_CSS}\n${css}`;
+  return `${WEBSITE_BUILDER_ANIMATION_CSS}\n${css}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}`;
 }
 
 function isNonEmptyProject(raw: unknown): raw is Record<string, unknown> {
@@ -213,8 +225,8 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
 export function buildVisualBuilderStateFromEditor(editor: Editor, templateSeedKey: string): GymClientVisualBuilderState {
   return {
     grapesProject: editor.getProjectData() as Record<string, unknown>,
-    htmlSnapshot: editor.getHtml(),
-    cssSnapshot: editor.getCss(),
+    htmlSnapshot: editor.getHtml() ?? '',
+    cssSnapshot: editor.getCss() ?? '',
     templateSeedKey,
     savedAt: new Date().toISOString(),
   };
@@ -254,4 +266,33 @@ export function persistVisualBuilderToCreate(editor: Editor, templateSeedKey: st
       visualBuilder: vb,
     },
   });
+}
+
+/**
+ * Writes the current canvas into the same `/preview` localStorage draft used by the Crystal preview page.
+ * Create flow merges into the wizard draft; edit flow merges API content so the preview tab has a valid model.
+ */
+export async function syncVisualBuilderDraftForPreviewTab(
+  editor: Editor,
+  templateSeedKey: string,
+  mode: 'create' | 'edit',
+  routeSlug: string,
+): Promise<boolean> {
+  if (mode === 'create') {
+    return persistVisualBuilderToCreate(editor, templateSeedKey);
+  }
+  const key = routeSlug.trim().toLowerCase();
+  if (!key) return false;
+  const detail = await getBusinessDetail(key);
+  const theme = themeFromBusinessDetail(detail);
+  const base = mergeSiteContentFromDetail(detail);
+  const vb = buildVisualBuilderStateFromEditor(editor, templateSeedKey);
+  const pro = proTemplateKeyFromSeed(templateSeedKey);
+  const content: GymClientSiteContent = {
+    ...base,
+    ...(pro ? { proTemplateKey: pro } : {}),
+    visualBuilder: vb,
+  };
+  const slugForDraft = typeof detail.slug === 'string' && detail.slug.trim() ? detail.slug.trim().toLowerCase() : key;
+  return writeCrystalWebsitePreviewToStorage(withPreviewEditReturn({ slug: slugForDraft, theme, content }, key));
 }

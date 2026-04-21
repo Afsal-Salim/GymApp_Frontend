@@ -63,6 +63,7 @@ export { getProfileCached, peekProfileCache, syncProfileCacheAfterLogin } from '
 export {
   getBusinessListPaginatedCached,
   peekBusinessListPage,
+  peekBusinessListItemBySlug,
   invalidateUserBusinessListCache,
 } from './userBusinessListCache';
 export {

@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Button, Card, Container, Modal, Spinner } from 'react-bootstrap';
+import { Button, Container, Modal, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import { getActiveSubscription, getBusinessDetail, type ActiveSubscriptionResponse } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
@@ -117,11 +120,10 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
     router.push(continueHref);
   }, [continueHref, mode, router, selectedKey, slugNorm]);
 
-  const title = mode === 'create' ? 'Create your gym website' : 'Edit gym website';
   const lead =
     mode === 'create' ?
-      'Choose a client page template first. You can change it later from the site editor.'
-    : 'Choose which template your public client page uses. You can return here anytime from the editor.';
+      'Choose a template to style your gym website. You can preview and customize any template in the builder.'
+    : 'Choose a template for your public gym page. You can preview and customize any template in the builder.';
 
   if (mode === 'edit' && !slugNorm) {
     return (
@@ -139,155 +141,156 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
   }
 
   return (
-    <PageContainer>
-      <main className="create-website">
-        <Container className="create-website__container py-4">
-          <div className="create-website__head">
+    <PageContainer className="create-website__page-container--templates">
+      <main className="create-website create-website--templates">
+        <Container fluid className="create-website__container create-website__container--templates py-4">
+          <div className="create-website__head create-website__head--templates">
             <div>
-              <h1 className="create-website__title h3 mb-1">Select a template</h1>
-              <p className="small text-muted mb-0">{title}</p>
-              <p className="create-website__content-policy-hint small text-muted mb-0 mt-2">{lead}</p>
+              <h1 className="create-website__title h3 mb-1">Website templates</h1>
+              <p className="create-website__content-policy-hint small text-muted mb-0">{lead}</p>
             </div>
-            <div className="create-website__head-actions">
-              <Link href="/user" className="btn btn-outline-secondary btn-sm">
-                ← Back to profile
-              </Link>
+            <div className="create-website__head-side">
+              {!isProOnBuilder ?
+                <div className="create-website__templates-tip" role="status" aria-live="polite">
+                  <InfoOutlinedIcon className="create-website__templates-tip-icon" fontSize="small" aria-hidden />
+                  <span>Templates are visible for browsing, but saving one requires a Pro subscription.</span>
+                </div>
+              : null}
+              <div className="create-website__head-actions">
+                <Link href="/user" className="btn btn-outline-secondary btn-sm">
+                  ← Back to profile
+                </Link>
+              </div>
             </div>
           </div>
 
-          <Card className="create-website__card mt-3">
-            <Card.Body>
-              {mode === 'edit' && editLoading ?
-                <div className="text-center py-5">
-                  <Spinner animation="border" role="status" className="mb-2" />
-                  <p className="text-muted small mb-0">Loading current template…</p>
+          {mode === 'edit' && editLoading ?
+            <div className="text-center py-5">
+              <Spinner animation="border" role="status" className="mb-2" />
+              <p className="text-muted small mb-0">Loading current template…</p>
+            </div>
+          : <>
+              <div className="create-website__template-grid" role="group" aria-label="Templates and custom build">
+                <div className="create-website__template-card-shell">
+                  <button
+                    type="button"
+                    className={`create-website__template-card${selectedKey === '' ? ' create-website__template-card--selected' : ''}`}
+                    onClick={() => setSelectedKey('')}
+                    aria-pressed={selectedKey === ''}
+                  >
+                    <span className="create-website__template-card-visual create-website__template-card-visual--default">
+                      Crystal default
+                    </span>
+                    <span className="create-website__template-card-title-row">
+                      <span className="create-website__template-card-title">Crystal default theme</span>
+                      <span className="badge text-bg-success">Default</span>
+                    </span>
+                    <span className="create-website__template-card-desc">
+                      Keep the standard Crystal client page layout and your custom brand/content configuration.
+                    </span>
+                  </button>
+                  {/** Spacer matches Pro template preview buttons so columns align */}
+                  <div className="create-website__template-card-shell-actions" aria-hidden="true" />
                 </div>
-              : <>
-                  {!isProOnBuilder ?
-                    <div className="alert alert-warning py-2 px-3 small mb-3" role="status">
-                      Pro templates are visible for browsing, but saving one requires a Pro subscription.
-                    </div>
-                  : null}
-                  <div className="create-website__template-grid" role="group" aria-label="Templates and custom build">
-                    <div className="create-website__template-card-shell">
+                {proTemplateCards.map((template) => {
+                  const selected = selectedKey === template.key;
+                  return (
+                    <div key={template.key} className="create-website__template-card-shell">
                       <button
                         type="button"
-                        className={`create-website__template-card${selectedKey === '' ? ' create-website__template-card--selected' : ''}`}
-                        onClick={() => setSelectedKey('')}
-                        aria-pressed={selectedKey === ''}
+                        className={`create-website__template-card${selected ? ' create-website__template-card--selected' : ''}`}
+                        onClick={() => setSelectedKey(template.key)}
+                        aria-pressed={selected}
                       >
-                        <span className="create-website__template-card-visual create-website__template-card-visual--default">
-                          Crystal default
+                        <span className="create-website__template-card-visual create-website__template-card-visual--live">
+                          <iframe
+                            src={template.previewPath}
+                            title={`${template.label} card preview`}
+                            loading="lazy"
+                            tabIndex={-1}
+                            className="create-website__template-card-frame"
+                          />
                         </span>
                         <span className="create-website__template-card-title-row">
-                          <span className="create-website__template-card-title">Crystal default theme</span>
-                          <span className="badge text-bg-success">Default</span>
+                          <span className="create-website__template-card-title">{template.label}</span>
+                          <span className="badge text-bg-warning">Pro</span>
                         </span>
-                        <span className="create-website__template-card-desc">
-                          Keep the standard Crystal client page layout and your custom brand/content configuration.
-                        </span>
+                        <span className="create-website__template-card-desc">{template.description}</span>
                       </button>
-                      {/** Spacer matches Pro template preview buttons so columns align */}
-                      <div className="create-website__template-card-shell-actions" aria-hidden="true" />
-                    </div>
-                    {proTemplateCards.map((template) => {
-                      const selected = selectedKey === template.key;
-                      return (
-                        <div key={template.key} className="create-website__template-card-shell">
-                          <button
-                            type="button"
-                            className={`create-website__template-card${selected ? ' create-website__template-card--selected' : ''}`}
-                            onClick={() => setSelectedKey(template.key)}
-                            aria-pressed={selected}
-                          >
-                            <span className="create-website__template-card-visual create-website__template-card-visual--live">
-                              <iframe
-                                src={template.previewPath}
-                                title={`${template.label} card preview`}
-                                loading="lazy"
-                                tabIndex={-1}
-                                className="create-website__template-card-frame"
-                              />
-                            </span>
-                            <span className="create-website__template-card-title-row">
-                              <span className="create-website__template-card-title">{template.label}</span>
-                              <span className="badge text-bg-warning">Pro</span>
-                            </span>
-                            <span className="create-website__template-card-desc">{template.description}</span>
-                          </button>
-                          <div className="create-website__template-card-shell-actions">
-                            <Button
-                              type="button"
-                              variant="outline-secondary"
-                              size="sm"
-                              className="create-website__template-preview-btn"
-                              onClick={() => setTemplatePreviewKey(template.key)}
-                            >
-                              Preview
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="light"
-                              size="sm"
-                              className="create-website__template-preview-btn"
-                              onClick={() => window.open(template.previewPath, '_blank', 'noopener,noreferrer')}
-                            >
-                              Preview in new tab
-                            </Button>
-                            <Link
-                              href={`${builderBaseHref}?template=${encodeURIComponent(template.key)}`}
-                              className="btn btn-primary btn-sm create-website__template-preview-btn"
-                            >
-                              Edit in builder
-                            </Link>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div className="create-website__template-card-shell">
-                      <Link
-                        href={`${builderBaseHref}?template=custom`}
-                        className="create-website__template-card create-website__template-card--customized text-decoration-none"
-                      >
-                        <span className="create-website__template-card-visual create-website__template-card-visual--customized">
-                          Customized
-                        </span>
-                        <span className="create-website__template-card-title-row">
-                          <span className="create-website__template-card-title">Custom build</span>
-                          <span className="badge text-bg-info">Custom</span>
-                        </span>
-                        <span className="create-website__template-card-desc">
-                          Start from scratch with the visual builder and compose your own sections and pages.
-                        </span>
-                      </Link>
                       <div className="create-website__template-card-shell-actions">
-                        <Link
-                          href={`${builderBaseHref}?template=custom`}
-                          className="btn btn-outline-primary btn-sm create-website__template-preview-btn"
+                        <Button
+                          type="button"
+                          variant="outline-secondary"
+                          size="sm"
+                          className="create-website__template-preview-btn"
+                          onClick={() => setTemplatePreviewKey(template.key)}
                         >
-                          Start from scratch
+                          <VisibilityOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
+                          Preview
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="light"
+                          size="sm"
+                          className="create-website__template-preview-btn"
+                          onClick={() => window.open(template.previewPath, '_blank', 'noopener,noreferrer')}
+                        >
+                          <OpenInNewOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
+                          Preview in new tab
+                        </Button>
+                        <Link
+                          href={`${builderBaseHref}?template=${encodeURIComponent(template.key)}`}
+                          className="btn btn-primary btn-sm create-website__template-preview-btn create-website__template-preview-btn--builder"
+                        >
+                          <span>Edit in builder</span>
+                          <ArrowForwardOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
                         </Link>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="d-flex flex-wrap gap-2 justify-content-end mt-4 pt-3 border-top">
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="lg"
-                      className="create-website__select-template-continue d-inline-flex align-items-center gap-2"
-                      onClick={handleContinue}
-                      aria-label="Continue to site editor"
+                  );
+                })}
+                <div className="create-website__template-card-shell">
+                  <Link
+                    href={`${builderBaseHref}?template=custom`}
+                    className="create-website__template-card create-website__template-card--customized text-decoration-none"
+                  >
+                    <span className="create-website__template-card-visual create-website__template-card-visual--customized">
+                      Customized
+                    </span>
+                    <span className="create-website__template-card-title-row">
+                      <span className="create-website__template-card-title">Custom build</span>
+                      <span className="badge text-bg-info">Custom</span>
+                    </span>
+                    <span className="create-website__template-card-desc">
+                      Start from scratch with the visual builder and compose your own sections and pages.
+                    </span>
+                  </Link>
+                  <div className="create-website__template-card-shell-actions">
+                    <Link
+                      href={`${builderBaseHref}?template=custom`}
+                      className="btn btn-outline-primary btn-sm create-website__template-preview-btn create-website__template-preview-btn--custom"
                     >
-                      <span>Continue</span>
-                      <ArrowForwardOutlinedIcon sx={{ fontSize: '1.35rem' }} aria-hidden />
-                    </Button>
+                      Start from scratch
+                    </Link>
                   </div>
-                </>
-              }
-            </Card.Body>
-          </Card>
+                </div>
+              </div>
+
+              <div className="d-flex flex-wrap gap-2 justify-content-end mt-4 pt-3 border-top">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  className="create-website__select-template-continue d-inline-flex align-items-center gap-2"
+                  onClick={handleContinue}
+                  aria-label="Continue to site editor"
+                >
+                  <span>Continue</span>
+                  <ArrowForwardOutlinedIcon sx={{ fontSize: '1.35rem' }} aria-hidden />
+                </Button>
+              </div>
+            </>
+          }
         </Container>
       </main>
 

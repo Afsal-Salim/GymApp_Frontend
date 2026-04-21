@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -11,9 +10,19 @@ import {
   Card,
   Container,
   Form,
+  InputGroup,
   Modal,
   Spinner,
 } from 'react-bootstrap';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import LanguageIcon from '@mui/icons-material/Language';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { PageContainer } from '../../components';
 import {
   BusinessDeactivateBlockedError,
@@ -23,6 +32,7 @@ import {
   invalidatePublicGymBundleCache,
   invalidateUserAnalyticsCache,
   invalidateUserBusinessListCache,
+  peekBusinessListItemBySlug,
   patchBusiness,
   postBusinessRecordStatus,
   resolveBusinessLogoDisplayUrl,
@@ -32,9 +42,9 @@ import { useToast } from '../../contexts/ToastContext';
 import { publicGymSiteHostLabel, publicGymSiteUrl, visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { GYM_CLIENT_BRAND_LOGO_SRC, isLegacyCrystalGemLogoUrl } from '../crystal/gymClientBrandLogo';
-import logo from '../../assets/logo.svg';
 import './ManageBusinessPage.css';
 import './UserPage.css';
+import './WebsiteSettingsPage.css';
 
 const SLUG_REGEX = /^([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
@@ -77,6 +87,35 @@ function isSubscriptionActive(endDate: string | undefined): boolean {
 
 function isBusinessArchived(detail: BusinessDetail): boolean {
   return detail.record_status === 'inactive';
+}
+
+function minimalBusinessRow(routeSlug: string): BusinessDetail {
+  const s = routeSlug.trim();
+  return { slug: s, name: s };
+}
+
+function businessFromListPrefetch(routeSlug: string): BusinessDetail {
+  if (typeof window === 'undefined') return minimalBusinessRow(routeSlug);
+  return peekBusinessListItemBySlug(routeSlug) ?? minimalBusinessRow(routeSlug);
+}
+
+/** Merges subscription API row into list-prefetched detail (keeps gym name from list until GET `/businesses/<slug>/`). */
+function mergePrefetchWithSubscription(
+  routeSlug: string,
+  sub: ActiveSubscriptionResponse | null,
+  prev: BusinessDetail | null
+): BusinessDetail {
+  const fromSub = businessDetailFromActiveSubscription(routeSlug, sub);
+  if (!prev) return fromSub;
+  const keepName = (prev.name ?? '').trim() && prev.name !== prev.slug ? prev.name : undefined;
+  return {
+    ...prev,
+    ...fromSub,
+    ...(keepName ? { name: keepName } : {}),
+    subscriptions:
+      fromSub.subscriptions?.length ? fromSub.subscriptions
+      : prev.subscriptions,
+  };
 }
 
 /** Until GET `/businesses/<slug>/` returns, derive a minimal row from active-subscription (fast path, no blocking loader). */
@@ -135,17 +174,62 @@ function SiteQrLogoOverlay({ business }: { business: BusinessDetail }) {
   );
 }
 
+/** Remove-website modal: gym logo from business detail (not Crystal mark); letter if no custom asset. */
+function RemoveWebsiteModalLogo({ business }: { business: BusinessDetail }) {
+  const url = useMemo(() => resolveSettingsLogoUrl(business), [business]);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  const label = (business.name || business.slug || 'Website').trim() || 'Website';
+  const initial = label.charAt(0).toUpperCase();
+
+  if (url && !failed) {
+    return (
+      <div className="user-page__remove-website-modal-logo-wrap user-page__remove-website-modal-logo-wrap--photo">
+        <img
+          src={url}
+          alt=""
+          className="user-page__remove-website-modal-logo--img"
+          width={48}
+          height={48}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="user-page__remove-website-modal-logo-wrap" aria-hidden>
+      <span className="user-page__remove-website-modal-logo-fallback">{initial}</span>
+    </div>
+  );
+}
+
 function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
   const router = useRouter();
   const { showToast } = useToast();
   const slugEnc = encodeURIComponent(routeSlug);
 
-  const [business, setBusiness] = useState<BusinessDetail | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [business, setBusiness] = useState<BusinessDetail>(() => businessFromListPrefetch(routeSlug));
 
   const [subscription, setSubscription] = useState<ActiveSubscriptionResponse | null>(null);
-  const [slugDraft, setSlugDraft] = useState('');
+  const [subscriptionFetchError, setSubscriptionFetchError] = useState<string | null>(null);
+  /** Active-subscription GET finished (success or failure). */
+  const [subscriptionReady, setSubscriptionReady] = useState(false);
+  /** Business detail GET finished (success or failure) — unlocks QR generation with full logo/theme. */
+  const [businessDetailReady, setBusinessDetailReady] = useState(false);
+
+  const [slugDraft, setSlugDraft] = useState(() => {
+    const fromList = typeof window !== 'undefined' ? peekBusinessListItemBySlug(routeSlug) : null;
+    return fromList?.slug ?? routeSlug;
+  });
   const [slugSaving, setSlugSaving] = useState(false);
+  const [slugSaveConfirmOpen, setSlugSaveConfirmOpen] = useState(false);
 
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removeBusy, setRemoveBusy] = useState(false);
@@ -166,24 +250,34 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
   const baselineSlug = (business?.slug ?? routeSlug).trim().toLowerCase();
 
   const reload = useCallback(async () => {
-    setLoadError(null);
+    setSubscriptionFetchError(null);
+    setSubscriptionReady(false);
+    setBusinessDetailReady(false);
+    const pref = typeof window !== 'undefined' ? peekBusinessListItemBySlug(routeSlug) : null;
+    setBusiness(pref ?? businessFromListPrefetch(routeSlug));
+    setSlugDraft((prev) => prev || pref?.slug || routeSlug);
+
+    void getBusinessDetail(routeSlug)
+      .then((d) => {
+        setBusiness(d);
+        setSlugDraft(d.slug ?? routeSlug);
+      })
+      .catch(() => {
+        /* keep list / subscription overlay */
+      })
+      .finally(() => {
+        setBusinessDetailReady(true);
+      });
+
     try {
       const sub = await getActiveSubscription(routeSlug);
       setSubscription(sub);
-      setBusiness(businessDetailFromActiveSubscription(routeSlug, sub));
-      setSlugDraft((prev) => prev || sub.slug || routeSlug);
-      void getBusinessDetail(routeSlug)
-        .then((d) => {
-          setBusiness(d);
-          setSlugDraft(d.slug ?? routeSlug);
-        })
-        .catch(() => {
-          /* keep minimal row from subscription API */
-        });
+      setBusiness((prev) => mergePrefetchWithSubscription(routeSlug, sub, prev));
     } catch (e) {
       setSubscription(null);
-      setBusiness(null);
-      setLoadError(e instanceof Error ? e.message : 'Could not load subscription.');
+      setSubscriptionFetchError(e instanceof Error ? e.message : 'Could not load subscription.');
+    } finally {
+      setSubscriptionReady(true);
     }
   }, [routeSlug]);
 
@@ -192,7 +286,7 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
   }, [reload]);
 
   useEffect(() => {
-    if (!business?.slug?.trim()) {
+    if (!businessDetailReady || !business?.slug?.trim()) {
       setQrDataUrl(null);
       setQrLoading(false);
       return;
@@ -225,7 +319,7 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [business?.slug, showToast]);
+  }, [businessDetailReady, business?.slug, showToast]);
 
   useEffect(() => {
     if (!debouncedSlug) {
@@ -264,15 +358,33 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
     const prev = business.slug.trim();
     setSlugSaving(true);
     try {
+      const recheck = await checkBusinessSlugAvailability(next, { reservedSlug: baselineSlug });
+      if (!recheck.available) {
+        setSlugStatus('unavailable');
+        setSlugDetail(recheck.message ?? 'This address is not available.');
+        showToast(recheck.message ?? 'This address is not available.', 'warning');
+        return;
+      }
       const updated = await patchBusiness(prev, { slug: next });
+      setSlugSaveConfirmOpen(false);
       invalidateUserBusinessListCache();
       invalidateUserAnalyticsCache();
       invalidatePublicGymBundleCache(prev);
       invalidatePublicGymBundleCache(next);
-      showToast('Site address updated.');
+      showToast('Site address updated.', 'success');
       router.replace(`/user/business/${encodeURIComponent(updated.slug ?? next)}/settings`);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Could not update address.');
+      const msg = e instanceof Error ? e.message : 'Could not update address.';
+      showToast(msg, 'danger');
+      const lower = msg.toLowerCase();
+      if (
+        lower.includes('already exists') ||
+        lower.includes('already taken') ||
+        (lower.includes('slug') && (lower.includes('exists') || lower.includes('unique')))
+      ) {
+        setSlugStatus('unavailable');
+        setSlugDetail(msg);
+      }
     } finally {
       setSlugSaving(false);
     }
@@ -299,7 +411,7 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
     setRecordActionBusy(true);
     try {
       await postBusinessRecordStatus(business.slug, { record_status: 'active' });
-      showToast('Website is live again.');
+      showToast('Website is live again.', 'success');
       invalidateUserBusinessListCache();
       invalidateUserAnalyticsCache();
       await reload();
@@ -316,7 +428,7 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
     try {
       await postBusinessRecordStatus(business.slug, { record_status: 'inactive' });
       setRemoveOpen(false);
-      showToast('Website hidden. Restore it from your profile when you are ready.');
+      showToast('Website hidden. Restore it from your profile when you are ready.', 'warning');
       invalidateUserBusinessListCache();
       invalidateUserAnalyticsCache();
       await reload();
@@ -331,60 +443,55 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
     }
   };
 
-  const archived = business ? isBusinessArchived(business) : false;
-  const displayName = (business?.name ?? subscription?.plan_name ?? routeSlug).trim() || routeSlug;
-
-  if (loadError || !business) {
-    return (
-      <PageContainer>
-        <main className="manage-business-page">
-          <Container className="manage-business-page__container py-3 py-md-4 px-3">
-            <Alert variant="danger">{loadError ?? 'Website not found.'}</Alert>
-            <Link href="/user" className="btn btn-outline-secondary btn-sm">
-              Back to profile
-            </Link>
-          </Container>
-        </main>
-      </PageContainer>
-    );
-  }
+  const archived = isBusinessArchived(business);
+  const publicLiveUrl = publicGymSiteUrl((business.slug ?? routeSlug).trim());
+  const siteHostLabel = publicSiteDisplayLabel(business.slug ?? routeSlug);
+  const subscriptionLive =
+    Boolean(subscription?.has_active_subscription && subscription.is_active !== false);
 
   return (
     <PageContainer>
       <main className="manage-business-page website-settings-page">
         <Container className="manage-business-page__container py-3 py-md-4 px-3">
-          <div className="manage-business-page__head d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
-            <div>
+          <div className="website-settings-page__header">
+            <div className="website-settings-page__hero">
               <nav className="manage-business-page__crumb small text-muted mb-1">
                 <Link href="/user">Profile</Link>
                 <span aria-hidden> / </span>
                 <span>Settings</span>
               </nav>
-              <h1 className="manage-business-page__title h3 mb-1">Website settings</h1>
-              <p className="manage-business-page__subtitle text-muted small mb-0">
-                {displayName}
-                {business.slug ?
-                  <>
-                    {' '}
-                    · <span className="text-body">{publicSiteDisplayLabel(business.slug)}</span>
-                  </>
-                : null}
+              <h1 className="website-settings-page__title">Website settings</h1>
+              <p className="website-settings-page__subtitle">
+                Manage your public website and online presence
               </p>
             </div>
-            {subscription != null && (
-              <Badge
-                pill
-                className={`user-page__status-badge align-self-start ${
-                  subscription.has_active_subscription && subscription.is_active !== false ?
-                    'user-page__status-badge--active'
-                  : 'user-page__status-badge--inactive'
-                }`}
-              >
-                <span className="user-page__status-badge-text">
-                  {subscription.has_active_subscription && subscription.is_active !== false ? 'Active' : 'Inactive'}
-                </span>
-              </Badge>
-            )}
+            <div className="website-settings-page__header-meta">
+              {subscriptionReady && subscription != null && (
+                <div
+                  className={`website-settings-page__active-pill ${
+                    subscriptionLive ? 'website-settings-page__active-pill--on' : 'website-settings-page__active-pill--off'
+                  }`}
+                >
+                  {subscriptionLive ?
+                    <span className="website-settings-page__active-pill-icon" aria-hidden>
+                      <CheckRoundedIcon sx={{ fontSize: 20 }} />
+                    </span>
+                  : null}
+                  <span>{subscriptionLive ? 'Active' : 'Inactive'}</span>
+                </div>
+              )}
+              {business.slug?.trim() ?
+                <a
+                  href={publicLiveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="website-settings-page__header-url"
+                >
+                  <span>{siteHostLabel}</span>
+                  <OpenInNewIcon className="website-settings-page__header-url-icon" aria-hidden />
+                </a>
+              : null}
+            </div>
           </div>
 
           {archived ?
@@ -406,79 +513,175 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
             </Alert>
           : null}
 
-          <Card className="border mb-4 shadow-sm">
+          <Card className="website-settings-page__card">
             <Card.Body className="p-3 p-md-4">
-              <h2 className="h6 mb-3">Actions</h2>
-              <div className="d-flex flex-wrap gap-2">
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
+              <h2 className="website-settings-page__card-title">Website actions</h2>
+              <p className="website-settings-page__card-lead">
+                Manage your website, view it live, or update your plans and billing.
+              </p>
+              <div className="website-settings-page__action-rows">
+                <button
+                  type="button"
+                  className="website-settings-page__action-row"
                   disabled={visitLoading || archived}
                   onClick={() => handleVisit()}
                 >
-                  {visitLoading ? 'Checking…' : 'Visit live site'}
-                </Button>
-                <Link href={`/user/business/${slugEnc}/manage`} className="btn btn-outline-primary btn-sm">
-                  Manage
+                  <span className="website-settings-page__action-icon">
+                    <VisibilityOutlinedIcon fontSize="small" />
+                  </span>
+                  <span className="website-settings-page__action-text">
+                    <span className="website-settings-page__action-title">
+                      {visitLoading ? 'Checking…' : 'Visit live site'}
+                    </span>
+                    <span className="website-settings-page__action-desc">Open your website</span>
+                  </span>
+                  <ChevronRightIcon className="website-settings-page__action-chevron" aria-hidden />
+                </button>
+                <Link
+                  href={`/user/business/${slugEnc}/edit/select-template`}
+                  className="website-settings-page__action-row"
+                >
+                  <span className="website-settings-page__action-icon">
+                    <EditOutlinedIcon fontSize="small" />
+                  </span>
+                  <span className="website-settings-page__action-text">
+                    <span className="website-settings-page__action-title">Edit website</span>
+                    <span className="website-settings-page__action-desc">Edit content &amp; design</span>
+                  </span>
+                  <ChevronRightIcon className="website-settings-page__action-chevron" aria-hidden />
                 </Link>
-                <Link href={`/user/business/${slugEnc}/edit/select-template`} className="btn btn-outline-secondary btn-sm">
-                  Edit website
-                </Link>
-                <Link href={`${PLANS_PAGE_PATH}/${slugEnc}`} className="btn btn-primary btn-sm">
-                  Plans &amp; billing
+                <Link href={`${PLANS_PAGE_PATH}/${slugEnc}`} className="website-settings-page__action-row">
+                  <span className="website-settings-page__action-icon">
+                    <CreditCardOutlinedIcon fontSize="small" />
+                  </span>
+                  <span className="website-settings-page__action-text">
+                    <span className="website-settings-page__action-title">Plans &amp; billing</span>
+                    <span className="website-settings-page__action-desc">View plans &amp; invoices</span>
+                  </span>
+                  <ChevronRightIcon className="website-settings-page__action-chevron" aria-hidden />
                 </Link>
               </div>
-              <p className="text-muted small mt-3 mb-0">
-                <strong>Manage</strong> opens analytics, leads, and enquiries. <strong>Edit website</strong> opens the builder.
-              </p>
             </Card.Body>
           </Card>
 
-          <Card className="border mb-4 shadow-sm">
+          <Card className="website-settings-page__card">
             <Card.Body className="p-3 p-md-4">
-              <h2 className="h6 mb-3">QR code</h2>
-              <p className="small text-muted mb-3">
-                Scan to open your public landing page. Download the image for posters and signage.
-              </p>
-              <code className="user-page__site-qr-url d-block small mb-3">{publicGymSiteUrl(business.slug ?? routeSlug)}</code>
-              {qrLoading ?
-                <div className="py-4 text-center">
-                  <Spinner animation="border" role="status" />
+              <div className="website-settings-page__qr-head">
+                <div>
+                  <h2 className="website-settings-page__card-title mb-1">QR code</h2>
+                  <p className="website-settings-page__card-lead mb-0">
+                    Scan to open your public landing page. Download the image for posters and signage.
+                  </p>
                 </div>
-              : qrDataUrl ?
-                <div className="user-page__site-qr-frame mb-3">
-                  <img src={qrDataUrl} alt="" className="user-page__site-qr-img" width={256} height={256} />
-                  <SiteQrLogoOverlay business={business} />
+                <div className="website-settings-page__qr-tip">
+                  <InfoOutlinedIcon className="website-settings-page__qr-tip-icon" aria-hidden />
+                  <span>Keep it visible to attract more leads.</span>
+                </div>
+              </div>
+
+              {!businessDetailReady ?
+                <div className="website-settings-page__section-loader py-4" role="status" aria-busy>
+                  <Spinner animation="border" size="sm" className="mb-2" />
+                  <p className="text-muted small mb-0">Loading site details…</p>
                 </div>
               : (
-                <p className="text-danger small">Could not create QR code.</p>
+                <div className="website-settings-page__qr-body">
+                  <div className="website-settings-page__qr-frame-wrap">
+                    {qrLoading ?
+                      <div className="py-5 px-3 text-center website-settings-page__section-loader">
+                        <Spinner animation="border" size="sm" className="mb-2" />
+                        <p className="text-muted small mb-0">Generating QR…</p>
+                      </div>
+                    : qrDataUrl ?
+                      <div className="user-page__site-qr-frame">
+                        <img src={qrDataUrl} alt="" className="user-page__site-qr-img" width={256} height={256} />
+                        <SiteQrLogoOverlay business={business} />
+                      </div>
+                    : (
+                      <p className="text-danger small mb-0">Could not create QR code.</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="website-settings-page__url-field-label">Website URL</div>
+                    <InputGroup className="website-settings-page__url-input">
+                      <Form.Control readOnly value={publicLiveUrl} aria-label="Public website URL" />
+                      <Button
+                        variant="outline-secondary"
+                        type="button"
+                        title="Copy URL"
+                        aria-label="Copy website URL"
+                        onClick={() => {
+                          void (async () => {
+                            try {
+                              await navigator.clipboard.writeText(publicLiveUrl);
+                              showToast('Copied', 'success');
+                            } catch {
+                              showToast('Could not copy');
+                            }
+                          })();
+                        }}
+                      >
+                        <ContentCopyIcon fontSize="small" />
+                      </Button>
+                    </InputGroup>
+                    <div className="website-settings-page__qr-actions">
+                      {qrDataUrl ?
+                        <Button as="a" variant="primary" size="sm" href={qrDataUrl} download={`${baselineSlug}-website-qr.png`}>
+                          Download PNG
+                        </Button>
+                      : null}
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        type="button"
+                        onClick={() => {
+                          void (async () => {
+                            try {
+                              await navigator.clipboard.writeText(publicLiveUrl);
+                              showToast('Link copied', 'success');
+                            } catch {
+                              showToast('Could not copy link');
+                            }
+                          })();
+                        }}
+                      >
+                        Copy link
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
-              <div className="d-flex flex-wrap gap-2">
-                {qrDataUrl ?
-                  <Button as="a" variant="primary" size="sm" href={qrDataUrl} download={`${baselineSlug}-website-qr.png`}>
-                    Download PNG
-                  </Button>
-                : null}
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  type="button"
-                  onClick={() => {
-                    void (async () => {
-                      try {
-                        await navigator.clipboard.writeText(publicGymSiteUrl(business.slug ?? routeSlug));
-                        showToast('Link copied', 'success');
-                      } catch {
-                        showToast('Could not copy link');
-                      }
-                    })();
-                  }}
-                >
-                  Copy link
-                </Button>
-              </div>
             </Card.Body>
           </Card>
+
+          {!archived && subscriptionLive && (
+            <div className="website-settings-page__live-banner">
+              <div className="website-settings-page__live-banner-icon" aria-hidden>
+                <LanguageIcon />
+              </div>
+              <div className="website-settings-page__live-banner-text">
+                <p className="website-settings-page__live-banner-title">Your website is live and ready</p>
+                <p className="website-settings-page__live-banner-desc">
+                  Share your website link or QR code to grow your gym community.
+                </p>
+              </div>
+              <div className="website-settings-page__live-banner-art" aria-hidden>
+                <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="8" width="56" height="28" rx="4" fill="#fff" stroke="#0ea5e9" strokeWidth="2" />
+                  <rect x="4" y="8" width="56" height="7" rx="2" fill="#e0f2fe" />
+                  <circle cx="10" cy="11.5" r="1.5" fill="#94a3b8" />
+                  <circle cx="15" cy="11.5" r="1.5" fill="#94a3b8" />
+                  <path
+                    d="M32 28l3 3 7-8"
+                    stroke="#16a34a"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+          )}
 
           <Card className="border mb-4 shadow-sm">
             <Card.Body className="p-3 p-md-4">
@@ -510,21 +713,25 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
                 variant="primary"
                 size="sm"
                 disabled={!canSaveSlug || slugSaving || archived}
-                onClick={() => void handleSaveSlug()}
+                onClick={() => setSlugSaveConfirmOpen(true)}
               >
-                {slugSaving ?
-                  <>
-                    <Spinner animation="border" size="sm" className="me-1" />
-                    Saving…
-                  </>
-                : 'Save address'}
+                Save address
               </Button>
             </Card.Body>
           </Card>
 
           <section className="mb-4">
             <h2 className="h6 mb-3">Subscriptions</h2>
-            {!business.subscriptions?.length ?
+            {!subscriptionReady ?
+              <div className="py-4 text-center website-settings-page__section-loader border rounded" role="status" aria-busy>
+                <Spinner animation="border" size="sm" className="mb-2" />
+                <p className="text-muted small mb-0">Loading subscription…</p>
+              </div>
+            : subscriptionFetchError ?
+              <Alert variant="warning" className="mb-0">
+                {subscriptionFetchError}
+              </Alert>
+            : !business.subscriptions?.length ?
               <p className="text-muted small mb-0">No subscriptions</p>
             : (
               <div className="user-page__subscriptions">
@@ -573,6 +780,48 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
         </Container>
       </main>
 
+      <Modal
+        show={slugSaveConfirmOpen}
+        onHide={() => !slugSaving && setSlugSaveConfirmOpen(false)}
+        centered
+        backdrop={slugSaving ? 'static' : true}
+        keyboard={!slugSaving}
+        aria-labelledby="ws-slug-change-title"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title id="ws-slug-change-title">Change site address?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-3">
+            You are changing your public address from{' '}
+            <strong className="text-break">{publicSiteDisplayLabel(baselineSlug)}</strong> to{' '}
+            <strong className="text-break">{publicSiteDisplayLabel(slugNormalized)}</strong>.
+          </p>
+          <ul className="mb-0 ps-3 small">
+            <li className="mb-2">
+              This updates your live site URL and affects how your current active website is reached.
+            </li>
+            <li className="mb-2">
+              Your QR code will update to the new address — download it again if you use posters or signage.
+            </li>
+            <li>The previous URL will no longer work for visitors.</li>
+          </ul>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button type="button" variant="outline-secondary" onClick={() => setSlugSaveConfirmOpen(false)} disabled={slugSaving}>
+            Cancel
+          </Button>
+          <Button type="button" variant="primary" onClick={() => void handleSaveSlug()} disabled={slugSaving || !canSaveSlug}>
+            {slugSaving ?
+              <>
+                <Spinner animation="border" size="sm" className="me-1" />
+                Saving…
+              </>
+            : 'Save new address'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <Modal show={rechargeOpen} onHide={() => setRechargeOpen(false)} centered backdrop="static" aria-labelledby="ws-recharge-title">
         <Modal.Header closeButton>
           <Modal.Title id="ws-recharge-title">Recharge to view your live site</Modal.Title>
@@ -611,7 +860,7 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
       >
         <Modal.Header closeButton className="user-page__remove-website-modal-header border-0">
           <div className="user-page__remove-website-modal-header-main">
-            <Image src={logo} alt="" className="user-page__remove-website-modal-logo" width={48} height={48} />
+            <RemoveWebsiteModalLogo business={business} />
             <Modal.Title as="h2" className="user-page__remove-website-modal-title">
               Remove website?
             </Modal.Title>

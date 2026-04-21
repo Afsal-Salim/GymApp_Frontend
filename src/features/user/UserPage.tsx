@@ -30,6 +30,8 @@ import { publicGymSiteHostLabel } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { GYM_CLIENT_BRAND_LOGO_SRC, isLegacyCrystalGemLogoUrl } from '../crystal/gymClientBrandLogo';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import './UserPage.css';
 
 const OverallLeadsByWebsiteChart = dynamic(
@@ -233,7 +235,11 @@ function BusinessCard({
               openDetail();
             }
           }}
-          aria-label={b.slug ? `View subscription details for ${logoLabel}` : undefined}
+          aria-label={
+            b.slug ?
+              `View subscription details for ${logoLabel}. ${active ? 'Active' : 'Inactive'}.`
+            : undefined
+          }
         >
           <div className="user-page__business-card-header">
             <BusinessCardSiteLogo business={b} label={logoLabel} />
@@ -242,12 +248,6 @@ function BusinessCard({
                 <Card.Title as="h3" className="user-page__business-card-title mb-0">
                   {b.name || b.slug || '—'}
                 </Card.Title>
-                <Badge
-                  pill
-                  className={`user-page__status-badge ${active ? 'user-page__status-badge--active' : 'user-page__status-badge--inactive'}`}
-                >
-                  <span className="user-page__status-badge-text">{active ? 'Active' : 'Inactive'}</span>
-                </Badge>
               </div>
               {b.slug ?
                 <p className="user-page__business-slug mb-0">
@@ -270,6 +270,29 @@ function BusinessCard({
               : null}
             </div>
           </div>
+        </div>
+
+        <div
+          className="user-page__business-list-item-status"
+          aria-hidden="true"
+          onClick={(e) => {
+            e.stopPropagation();
+            openDetail();
+          }}
+        >
+          <Badge
+            pill
+            className={`user-page__status-badge user-page__status-badge--list ${
+              active ? 'user-page__status-badge--active' : 'user-page__status-badge--inactive'
+            }`}
+          >
+            <span className="user-page__status-badge__lead" aria-hidden>
+              {active ?
+                <CheckRoundedIcon className="user-page__status-badge__icon" fontSize="small" />
+              : <CloseRoundedIcon className="user-page__status-badge__icon" fontSize="small" />}
+            </span>
+            <span className="user-page__status-badge-text">{active ? 'Active' : 'Inactive'}</span>
+          </Badge>
         </div>
 
         {archived && b.slug ?

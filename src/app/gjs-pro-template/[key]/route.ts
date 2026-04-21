@@ -12,6 +12,12 @@ function extractBodyInnerHtml(fullHtml: string): string {
   return match ? match[1]!.trim() : fullHtml.trim();
 }
 
+/** Builder canvas expects a stable root class so scoped template CSS applies. */
+function wrapTemplateBodyForBuilder(key: string, bodyInner: string): string {
+  const scopedRootClass = `${key}-pro-template`;
+  return `<div class="wb-template-root ${scopedRootClass}">${bodyInner}</div>`;
+}
+
 function loadProTemplateCssBundle(filename: string): string {
   const main = fs.readFileSync(path.join(TEMPLATES_DIR, filename), 'utf8');
   const typography = fs.readFileSync(path.join(TEMPLATES_DIR, 'pro-templates-typography.css'), 'utf8');
@@ -36,11 +42,12 @@ export async function GET(_request: Request, context: { params: Promise<{ key: s
 
   const fullHtml = fs.readFileSync(htmlPath, 'utf8');
   const bodyInner = extractBodyInnerHtml(fullHtml);
+  const wrappedHtml = wrapTemplateBodyForBuilder(key, bodyInner);
   const css = loadProTemplateCssBundle(`${key}.css`);
 
   return NextResponse.json({
     key,
-    html: bodyInner,
+    html: wrappedHtml,
     css,
   });
 }

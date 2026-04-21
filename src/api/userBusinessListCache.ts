@@ -1,5 +1,5 @@
 import { STORAGE_USER_BUSINESS_LIST_CACHE } from '../config/storageKeys';
-import type { BusinessListPaginatedResponse } from './businesses';
+import type { BusinessDetail, BusinessListPaginatedResponse } from './businesses';
 import { getBusinessListPaginated } from './businesses';
 import { getAccessToken } from './tokens';
 
@@ -64,6 +64,23 @@ export function peekBusinessListPage(page: number, pageSize: number): BusinessLi
   const ent = entries[key];
   if (!ent || Date.now() - ent.at > MAX_AGE_MS) return null;
   return ent.data;
+}
+
+/**
+ * Finds a row across all in-TTL cached list pages (same store as {@link peekBusinessListPage}).
+ * Used to prefill Website settings from the profile list without waiting for detail APIs.
+ */
+export function peekBusinessListItemBySlug(slug: string): BusinessDetail | null {
+  const key = slug.trim().toLowerCase();
+  if (!key || !getAccessToken()) return null;
+  const now = Date.now();
+  const { entries } = readStore();
+  for (const ent of Object.values(entries)) {
+    if (now - ent.at > MAX_AGE_MS) continue;
+    const row = ent.data.results.find((b) => (b.slug ?? '').trim().toLowerCase() === key);
+    if (row) return row;
+  }
+  return null;
 }
 
 /**

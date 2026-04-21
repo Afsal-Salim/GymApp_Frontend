@@ -8,22 +8,38 @@
   max-width: 1080px;
 }
 
-/* Wide analytics / charts: horizontal pan on small viewports */
-.manage-business-page__analytics-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+/* Two action rows → 2-column grid on desktop (settings page uses 3) */
+@media (min-width: 768px) {
+  .manage-business-page__manage-action-rows.website-settings-page__action-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-/* Tables: always allow sideways scroll when content is wider than the card */
+/* Analytics stack: clip horizontal overflow (charts/tables) — no visible horizontal scrollbar */
+.manage-business-page__analytics-scroll {
+  overflow-x: hidden;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Wide tables: scroll if needed without showing a horizontal scrollbar track */
 .manage-business-page .table-responsive,
 .manage-business-page__table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: #fff;
+}
+
+.manage-business-page .table-responsive::-webkit-scrollbar,
+.manage-business-page__table-scroll::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 .manage-business-page__table-scroll .manage-business-page__table {
@@ -105,7 +121,27 @@
 
 .manage-business-page__table--leads .manage-business-page__th-type,
 .manage-business-page__table--leads .manage-business-page__td-type {
-  width: 9.25rem;
+  width: 11rem;
+  min-width: 11rem;
+  max-width: 11rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Uniform pill width: fill the type column so JOIN NOW / BOOK FREE TRIAL / etc. align */
+.manage-business-page__table--leads .manage-business-page__td-type .manage-business-page__lead-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 1.85rem;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  line-height: 1.15;
+  white-space: normal;
+  text-align: center;
 }
 
 .manage-business-page__table--leads .manage-business-page__th-details,

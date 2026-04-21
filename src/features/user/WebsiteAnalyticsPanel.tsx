@@ -60,11 +60,15 @@ function normalizeLeadStats(raw: unknown): { events: number; units: number } {
 }
 
 const WHATSAPP_TOTAL_KEYS: { keys: string[]; label: string }[] = [
-  { keys: ['today', 'today_total', 'today_count'], label: 'Today' },
-  { keys: ['last_7_days', 'last_7d', 'd7', 'seven_days'], label: 'Last 7 days' },
-  { keys: ['last_30_days', 'last_30d', 'd30', 'thirty_days'], label: 'Last 30 days' },
-  { keys: ['last_90_days', 'last_90d', 'd90', 'ninety_days'], label: 'Last 90 days' },
+  { keys: ['today', 'today_total', 'today_count', 'd1', 'day_1', 'todayTotal'], label: 'Today' },
+  { keys: ['last_7_days', 'last_7d', 'd7', 'seven_days', 'last7Days', '7d', 'week', 'last_week'], label: 'Last 7 days' },
+  { keys: ['last_30_days', 'last_30d', 'd30', 'thirty_days', 'last30Days', '30d', 'month'], label: 'Last 30 days' },
+  { keys: ['last_90_days', 'last_90d', 'd90', 'ninety_days', 'last90Days', '90d', 'quarter'], label: 'Last 90 days' },
 ];
+
+function isPlainObject(x: unknown): x is Record<string, unknown> {
+  return x != null && typeof x === 'object' && !Array.isArray(x);
+}
 
 function pickNumeric(obj: Record<string, unknown>, keys: string[]): number | undefined {
   for (const k of keys) {
@@ -75,8 +79,52 @@ function pickNumeric(obj: Record<string, unknown>, keys: string[]): number | und
   return undefined;
 }
 
-function isPlainObject(x: unknown): x is Record<string, unknown> {
-  return x != null && typeof x === 'object' && !Array.isArray(x);
+/** Unwrap `{ count: 3 }`-style values from WhatsApp period fields. */
+function pickNumericWhatsApp(obj: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v))) return Number(v);
+    if (isPlainObject(v)) {
+      const nested = pickNumeric(v, ['count', 'clicks', 'total', 'value', 'events', 'n', 'num']);
+      if (nested !== undefined) return nested;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Flattens nested `totals` / `period_totals` / camelCase aliases so period pickers match more API shapes.
+ */
+function normalizeWhatsappBlock(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...raw };
+  const mergeIn = (o: unknown) => {
+    if (!isPlainObject(o)) return;
+    for (const [k, v] of Object.entries(o)) {
+      if (out[k] === undefined) out[k] = v;
+    }
+  };
+  mergeIn(raw.period_totals);
+  mergeIn(raw.totals);
+  mergeIn(raw.counts);
+  mergeIn(raw.whatsapp_totals);
+  mergeIn(raw.by_period);
+  mergeIn(raw.period);
+  const analytics = raw.analytics;
+  if (isPlainObject(analytics)) {
+    mergeIn(analytics.totals);
+    mergeIn(analytics.whatsapp);
+  }
+  const camelPairs: [string, string][] = [
+    ['last7Days', 'last_7_days'],
+    ['last30Days', 'last_30_days'],
+    ['last90Days', 'last_90_days'],
+    ['todayTotal', 'today'],
+  ];
+  for (const [camel, snake] of camelPairs) {
+    if (out[snake] === undefined && out[camel] !== undefined) out[snake] = out[camel];
+  }
+  return out;
 }
 
 function extractSeriesTables(whatsapp: Record<string, unknown>): { label: string; rows: Record<string, unknown>[] }[] {
@@ -91,12 +139,21 @@ function extractSeriesTables(whatsapp: Record<string, unknown>): { label: string
   tryPush('By day', whatsapp.day_series ?? whatsapp.by_day ?? whatsapp.daily);
   tryPush('By week', whatsapp.week_series ?? whatsapp.by_week ?? whatsapp.weekly);
   tryPush('By month', whatsapp.month_series ?? whatsapp.by_month ?? whatsapp.monthly);
+  tryPush('By day', whatsapp.clicks_by_day ?? whatsapp.by_day_clicks ?? whatsapp.whatsapp_day_series);
+  tryPush('By day', whatsapp.time_series);
 
   const series = whatsapp.series;
   if (isPlainObject(series)) {
     tryPush('By day', series.day ?? series.days ?? series.daily);
     tryPush('By week', series.week ?? series.weeks ?? series.weekly);
     tryPush('By month', series.month ?? series.months ?? series.monthly);
+  }
+
+  const analytics = whatsapp.analytics;
+  if (isPlainObject(analytics)) {
+    tryPush('By day', analytics.day_series ?? analytics.by_day ?? analytics.daily);
+    tryPush('By week', analytics.week_series ?? analytics.by_week);
+    tryPush('By month', analytics.month_series ?? analytics.by_month);
   }
 
   return out;
@@ -134,7 +191,7 @@ function SeriesTable({ label, rows }: { label: string; rows: Record<string, unkn
     <div className="website-analytics-panel__series">
       <h6 className="website-analytics-panel__series-title">{label} (detail)</h6>
       <div className="website-analytics-panel__series-scroll">
-        <Table size="sm" striped bordered responsive className="website-analytics-panel__table mb-0">
+        <Table size="sm" striped bordered className="website-analytics-panel__table website-analytics-panel__table--series mb-0">
           <thead>
             <tr>
               {cols.map((c) => (
@@ -497,7 +554,11 @@ export function WebsiteAnalyticsPanel({
     );
   }
 
-  const w = data.whatsapp && typeof data.whatsapp === 'object' && !Array.isArray(data.whatsapp) ? (data.whatsapp as Record<string, unknown>) : {};
+  const wRaw =
+    data.whatsapp && typeof data.whatsapp === 'object' && !Array.isArray(data.whatsapp) ?
+      (data.whatsapp as Record<string, unknown>)
+    : {};
+  const w = normalizeWhatsappBlock(wRaw);
   const seriesTables = extractSeriesTables(w);
 
   const rawLeads = data.leads_by_type ?? {};
@@ -547,7 +608,7 @@ export function WebsiteAnalyticsPanel({
 
   const waPeriodData: { label: string; value: number }[] = [];
   for (const { keys, label } of WHATSAPP_TOTAL_KEYS) {
-    const n = pickNumeric(w, keys);
+    const n = pickNumericWhatsApp(w, keys);
     if (n !== undefined) waPeriodData.push({ label, value: n });
   }
 
@@ -752,7 +813,7 @@ export function WebsiteAnalyticsPanel({
           : null}
           <dl className="website-analytics-panel__dl website-analytics-panel__whatsapp-totals row mb-3">
             {WHATSAPP_TOTAL_KEYS.map(({ keys, label }) => {
-              const n = pickNumeric(w, keys);
+              const n = pickNumericWhatsApp(w, keys);
               if (n === undefined) return null;
               return (
                 <div key={label} className="col-6 col-md-3 mb-2">
@@ -762,13 +823,21 @@ export function WebsiteAnalyticsPanel({
               );
             })}
           </dl>
-          {WHATSAPP_TOTAL_KEYS.every(({ keys }) => pickNumeric(w, keys) === undefined) && Object.keys(w).length === 0 && (
+          {WHATSAPP_TOTAL_KEYS.every(({ keys }) => pickNumericWhatsApp(w, keys) === undefined) && Object.keys(w).length === 0 && (
             <p className="text-muted small mb-0">No WhatsApp metrics in this response.</p>
           )}
-          {WHATSAPP_TOTAL_KEYS.every(({ keys }) => pickNumeric(w, keys) === undefined) &&
+          {WHATSAPP_TOTAL_KEYS.every(({ keys }) => pickNumericWhatsApp(w, keys) === undefined) &&
             Object.keys(w).length > 0 &&
             seriesTables.length === 0 && (
-              <p className="text-muted small mb-2">Showing raw WhatsApp keys (unrecognized shape).</p>
+              <div className="text-muted small mb-2 website-analytics-panel__whatsapp-fallback">
+                <p className="mb-1">
+                  <strong className="text-body">WhatsApp analytics couldn’t be displayed.</strong> This block is meant for{' '}
+                  <strong>period totals and trends</strong> of WhatsApp opens from your public gym page (FAB and inline contact). The API
+                  returned data, but not in the shape this screen expects (known keys like <code>today</code>,{' '}
+                  <code>last_7_days</code>, or series arrays), so charts and period numbers stay empty. All-time &quot;WhatsApp
+                  click&quot; counts may still appear in the <strong>Leads</strong> breakdown above.
+                </p>
+              </div>
             )}
           {seriesTables.map(({ label, rows }, idx) => {
             const points = seriesRowsToChartData(rows);

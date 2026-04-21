@@ -80,6 +80,9 @@ const PRO_TEMPLATE_PUBLIC_PATHS: Record<ProWebsiteTemplateKey, string> = {
   vital: '/templates/client-vital',
   sole: '/templates/client-sole',
   zen: '/templates/client-zen',
+  'grapes-welcome': '/templates/client-grapes-welcome',
+  'grapes-hello': '/templates/client-grapes-hello',
+  'grapes-cli': '/templates/client-grapes-cli',
 };
 
 function appendMailtoSubjectBody(mailtoHref: string, subject: string, body: string): string {

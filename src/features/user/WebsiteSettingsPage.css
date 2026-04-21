@@ -1,0 +1,389 @@
+/* Website settings — dashboard-style layout (hero, action rows, QR split, live banner) */
+
+.website-settings-page {
+  --crystal-user-accent: #0084ff;
+  --ws-success-bg: #ecfdf3;
+  --ws-success-border: #bbf7d0;
+  --ws-success-text: #166534;
+  --ws-success-icon: #16a34a;
+  --ws-muted-border: #e2e8f0;
+  --ws-tip-bg: #eff6ff;
+  --ws-tip-border: #bfdbfe;
+  --ws-tip-text: #1e40af;
+  --ws-banner-bg: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 50%, #e8f4fc 100%);
+}
+
+.website-settings-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.website-settings-page__hero {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.website-settings-page__title {
+  color: #0f172a;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-size: clamp(1.35rem, 2.5vw, 1.6rem);
+  margin: 0 0 0.35rem;
+  line-height: 1.2;
+}
+
+.website-settings-page__subtitle {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0;
+  line-height: 1.45;
+  max-width: 36rem;
+}
+
+.website-settings-page__header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+/* Active / inactive pill — solid fill + check (match reference) */
+.website-settings-page__active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+.website-settings-page__active-pill--on {
+  background: var(--ws-success-bg);
+  border-color: var(--ws-success-border);
+  color: var(--ws-success-text);
+}
+
+.website-settings-page__active-pill--on .website-settings-page__active-pill-icon {
+  color: var(--ws-success-icon);
+  display: flex;
+  font-size: 1.1rem;
+}
+
+.website-settings-page__active-pill--off {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.website-settings-page__header-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+  text-decoration: none;
+  max-width: min(100%, 20rem);
+  word-break: break-all;
+}
+
+.website-settings-page__header-url:hover {
+  color: var(--crystal-user-accent, #0084ff);
+}
+
+.website-settings-page__header-url-icon {
+  flex-shrink: 0;
+  opacity: 0.55;
+  font-size: 1rem !important;
+}
+
+.website-settings-page__card {
+  border: 1px solid var(--ws-muted-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.website-settings-page__card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
+}
+
+.website-settings-page__card-lead {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 1.1rem;
+  line-height: 1.45;
+}
+
+.website-settings-page__action-rows {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.website-settings-page__action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 100%;
+  min-width: 0;
+  text-align: left;
+  padding: 0.85rem 0.75rem;
+  border: 1px solid var(--ws-muted-border);
+  border-radius: 12px;
+  background: #fafbfc;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  cursor: pointer;
+  font: inherit;
+}
+
+.website-settings-page__action-row:hover {
+  background: #fff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);
+}
+
+.website-settings-page__action-row:focus-visible {
+  outline: 2px solid var(--crystal-user-accent, #0084ff);
+  outline-offset: 2px;
+}
+
+.website-settings-page__action-row:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.website-settings-page__action-icon {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: #e8f4ff;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.website-settings-page__action-row:nth-child(2) .website-settings-page__action-icon {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.website-settings-page__action-row:nth-child(3) .website-settings-page__action-icon {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.website-settings-page__action-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.website-settings-page__action-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: #0f172a;
+}
+
+.website-settings-page__action-desc {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.website-settings-page__action-chevron {
+  flex-shrink: 0;
+  color: #94a3b8 !important;
+  font-size: 1.35rem !important;
+}
+
+@media (min-width: 768px) {
+  .website-settings-page__action-rows {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .website-settings-page__action-row {
+    padding: 0.9rem 0.85rem;
+    gap: 0.75rem;
+  }
+
+  .website-settings-page__action-title {
+    font-size: 0.875rem;
+  }
+
+  .website-settings-page__action-desc {
+    font-size: 0.75rem;
+  }
+}
+
+/* QR section */
+.website-settings-page__qr-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.website-settings-page__qr-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  max-width: 16rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: var(--ws-tip-bg);
+  border: 1px solid var(--ws-tip-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ws-tip-text);
+  line-height: 1.35;
+}
+
+.website-settings-page__qr-tip-icon {
+  flex-shrink: 0;
+  font-size: 1rem !important;
+  margin-top: 0.05rem;
+}
+
+.website-settings-page__qr-body {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 767.98px) {
+  .website-settings-page__qr-body {
+    grid-template-columns: 1fr;
+  }
+
+  .website-settings-page__header-meta {
+    align-items: flex-start;
+  }
+}
+
+.website-settings-page__qr-frame-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.website-settings-page__url-field-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 0.4rem;
+}
+
+.website-settings-page__url-input .form-control {
+  font-size: 0.875rem;
+  border-radius: 10px 0 0 10px;
+  border-color: var(--ws-muted-border);
+  background: #f8fafc;
+}
+
+.website-settings-page__url-input .btn {
+  border-radius: 0 10px 10px 0;
+  border-color: var(--ws-muted-border);
+}
+
+.website-settings-page__qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.website-settings-page__section-loader {
+  min-height: 7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Live banner */
+.website-settings-page__live-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 14px;
+  background: var(--ws-banner-bg);
+  border: 1px solid #bae6fd;
+  margin-bottom: 1.5rem;
+}
+
+.website-settings-page__live-banner-icon {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0284c7;
+}
+
+.website-settings-page__live-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.website-settings-page__live-banner-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0c4a6e;
+  margin: 0 0 0.2rem;
+  letter-spacing: -0.02em;
+}
+
+.website-settings-page__live-banner-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #0369a1;
+  line-height: 1.4;
+}
+
+.website-settings-page__live-banner-art {
+  flex-shrink: 0;
+  width: 4.5rem;
+  height: 3rem;
+  opacity: 0.9;
+}
+
+.website-settings-page__live-banner-art svg {
+  width: 100%;
+  height: 100%;
+}

@@ -978,11 +978,54 @@ export type CheckBusinessSlugAvailabilityOptions = {
   reservedSlug?: string;
 };
 
+/** Normalize public check-slug JSON — some responses expose `exists` only. */
+function readPublicSlugAvailability(data: PublicCheckSlugResponse): boolean {
+  if (typeof data.available === 'boolean') return data.available;
+  if (typeof data.exists === 'boolean') return !data.exists;
+  return false;
+}
+
+/**
+ * If GET `/businesses/<slug>/` (Bearer) returns a business whose slug matches `normalized`, that slug
+ * is already used in the account. Public check-slug can still report “available” (e.g. inactive site or
+ * API mismatch). PATCH will reject — we surface “taken” here.
+ */
+async function augmentAvailabilityWithOwnerSlugLookup(
+  normalized: string,
+  reservedSlug: string | undefined
+): Promise<{ available: false; message: string } | null> {
+  const reserved = reservedSlug?.trim().toLowerCase() ?? '';
+  if (reserved === normalized) {
+    return null;
+  }
+  try {
+    const { data } = await privateApi.get<BusinessDetail>(`${BASE}/${encodeURIComponent(normalized)}/`);
+    const owned = (data.slug ?? '').trim().toLowerCase();
+    if (owned !== normalized) {
+      return null;
+    }
+    return {
+      available: false,
+      message: 'This address is already taken.',
+    };
+  } catch (e) {
+    if (axios.isAxiosError(e)) {
+      const status = e.response?.status;
+      if (status === 404 || status === 403 || status === 401) {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 /**
  * Whether `slug` is free for a new gym public URL (`/:slug/`).
  *
  * 1) GET /businesses/check-slug/?slug= (public).
- * 2) On failure, falls back to GET /businesses/public/:slug/ (404 ⇒ available).
+ * 2) If public says available and the user is logged in, GET `/businesses/<slug>/` (owner) to catch
+ *    account-level slug collisions the public endpoint may miss.
+ * 3) On check-slug failure, falls back to GET /businesses/public/:slug/ (404 ⇒ available).
  */
 export async function checkBusinessSlugAvailability(
   slug: string,
@@ -1012,10 +1055,18 @@ export async function checkBusinessSlugAvailability(
 
   try {
     const data = await getPublicCheckSlug(normalized);
-    return {
-      available: Boolean(data.available),
-      message: data.available ? undefined : 'This address is already taken.',
-    };
+    const publicOk = readPublicSlugAvailability(data);
+    if (!publicOk) {
+      return {
+        available: false,
+        message: 'This address is already taken.',
+      };
+    }
+    const ownerTaken = await augmentAvailabilityWithOwnerSlugLookup(normalized, options?.reservedSlug);
+    if (ownerTaken) {
+      return ownerTaken;
+    }
+    return { available: true };
   } catch (e) {
     const apiMsg = e instanceof Error ? e.message : '';
     if (apiMsg.includes('slug query parameter')) {

@@ -106,7 +106,54 @@ export type GymClientAboutFeature = {
 };
 
 /** Pro subscription: optional full-page HTML template for the public site (builder stores key in `website_content`). */
-export type ProWebsiteTemplateKey = 'autopilot' | 'fitcore' | 'sonicflow' | 'vital' | 'sole' | 'zen';
+export type ProWebsiteTemplateKey =
+  | 'autopilot'
+  | 'fitcore'
+  | 'sonicflow'
+  | 'vital'
+  | 'sole'
+  | 'zen'
+  | 'grapes-welcome'
+  | 'grapes-hello'
+  | 'grapes-cli';
+export const PRO_WEBSITE_TEMPLATE_KEYS = [
+  'autopilot',
+  'fitcore',
+  'sonicflow',
+  'vital',
+  'sole',
+  'zen',
+  'grapes-welcome',
+  'grapes-hello',
+  'grapes-cli',
+] as const satisfies readonly ProWebsiteTemplateKey[];
+
+/** Parse unknown template input into a supported Pro template key. */
+export function parseProWebsiteTemplateKey(raw: string | null | undefined): ProWebsiteTemplateKey | undefined {
+  const key = (raw ?? '').trim().toLowerCase();
+  return (
+    key === 'autopilot' ||
+    key === 'fitcore' ||
+    key === 'sonicflow' ||
+    key === 'vital' ||
+    key === 'sole' ||
+    key === 'zen' ||
+    key === 'grapes-welcome' ||
+    key === 'grapes-hello' ||
+    key === 'grapes-cli'
+  ) ?
+      key
+    : undefined;
+}
+
+/** GrapesJS website builder snapshot (Pro / visual editor). */
+export type GymClientVisualBuilderState = {
+  grapesProject: Record<string, unknown>;
+  htmlSnapshot: string;
+  cssSnapshot: string;
+  templateSeedKey: string;
+  savedAt: string;
+};
 
 /**
  * Public gym site at `/:slug` — swap `GYM_CLIENT_SITE_DEFAULTS` or merge API JSON later.
@@ -218,6 +265,8 @@ export type GymClientSiteContent = {
    * Omit or unset = standard Crystal gym layout from this content object.
    */
   proTemplateKey?: ProWebsiteTemplateKey;
+  /** GrapesJS project + HTML/CSS snapshots when the site is edited in the visual builder. */
+  visualBuilder?: GymClientVisualBuilderState;
 };
 
 /**
@@ -698,19 +747,8 @@ export function applyPublicWebsiteContentOverlay(
 ): GymClientSiteContent {
   if (!raw || typeof raw !== 'object') return base;
   const ptRaw = raw.proTemplateKey;
-  const pt =
-    typeof ptRaw === 'string' ?
-      ptRaw.trim().toLowerCase()
-    : '';
-  const proTemplateKey: ProWebsiteTemplateKey | undefined =
-    pt === 'autopilot' ||
-    pt === 'fitcore' ||
-    pt === 'sonicflow' ||
-    pt === 'vital' ||
-    pt === 'sole' ||
-    pt === 'zen' ?
-      pt
-    : undefined;
+  const pt = typeof ptRaw === 'string' ? ptRaw.trim().toLowerCase() : '';
+  const proTemplateKey = parseProWebsiteTemplateKey(pt);
 
   const g = raw.gallery;
   if (!g || typeof g !== 'object') {

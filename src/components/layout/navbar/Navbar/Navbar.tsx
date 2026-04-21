@@ -4,6 +4,11 @@ import { useState, useLayoutEffect, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import HeadsetMicOutlinedIcon from '@mui/icons-material/HeadsetMicOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import { Container, Nav, Navbar as BSNavbar, Button, Modal } from 'react-bootstrap';
 import { getAccessToken, clearTokens, getUserInfo, CRYSTAL_AUTH_CHANGED_EVENT } from '../../../../api';
 import { STORAGE_ACCESS_TOKEN, STORAGE_USER_AVATAR_URL } from '../../../../config/storageKeys';
@@ -81,6 +86,21 @@ export default function Navbar() {
   const goToProfile = () => {
     closeProfileModal();
     router.push('/user');
+  };
+
+  const goToAccountSettings = () => {
+    closeProfileModal();
+    router.push('/user');
+  };
+
+  const goToSupport = () => {
+    closeProfileModal();
+    router.push('/support');
+  };
+
+  const goToUpgrade = () => {
+    closeProfileModal();
+    router.push('/plans');
   };
 
   return (
@@ -180,43 +200,65 @@ export default function Navbar() {
         contentClassName="crystal-account-modal-shell"
         aria-labelledby="crystal-account-modal-title"
       >
-        <Modal.Header closeButton className="crystal-account-modal__header">
-          <Modal.Title id="crystal-account-modal-title" as="h2" className="crystal-account-modal__title">
-            Account
+        <Modal.Header closeButton className="crystal-account-modal__header crystal-account-modal__header--menu">
+          <Modal.Title id="crystal-account-modal-title" className="visually-hidden">
+            Account menu
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="crystal-account-modal__body">
-          <div className="crystal-account-modal__avatar-wrap">
-            <div className="crystal-nav-profile-modal__avatar">
-              {avatarUrl ? (
-                <Image
-                  src={avatarUrl}
-                  alt=""
-                  width={80}
-                  height={80}
-                  className="crystal-nav-profile-modal__img"
-                  unoptimized
-                />
-              ) : (
-                <span className="crystal-nav-profile-modal__letter" aria-hidden>{initial}</span>
-              )}
+        <Modal.Body className="crystal-account-modal__body crystal-account-modal__body--menu">
+          <div className="crystal-account-modal__user-block">
+            <div className="crystal-account-modal__avatar-wrap crystal-account-modal__avatar-wrap--inline">
+              <div className="crystal-nav-profile-modal__avatar crystal-nav-profile-modal__avatar--menu">
+                {avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt=""
+                    width={56}
+                    height={56}
+                    className="crystal-nav-profile-modal__img"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="crystal-nav-profile-modal__letter" aria-hidden>{initial}</span>
+                )}
+                <span className="crystal-account-modal__status-dot" title="Online" aria-hidden />
+              </div>
+            </div>
+            <div className="crystal-account-modal__user-text">
+              <p className="crystal-account-modal__name">{userInfo.username || userInfo.email || '—'}</p>
+              {userInfo.email ? <p className="crystal-account-modal__email">{userInfo.email}</p> : null}
             </div>
           </div>
-          <p className="crystal-account-modal__name">{userInfo.username || userInfo.email || '—'}</p>
-          {userInfo.email ? <p className="crystal-account-modal__email">{userInfo.email}</p> : null}
+
+          <div className="crystal-account-modal__divider" role="separator" />
+
+          <div className="crystal-account-modal__section">
+            <button type="button" className="crystal-account-modal__menu-item" onClick={goToProfile}>
+              <PersonOutlineIcon className="crystal-account-modal__menu-icon" fontSize="small" aria-hidden />
+              <span>View profile</span>
+            </button>
+          </div>
+          <div className="crystal-account-modal__divider" role="separator" />
+          <div className="crystal-account-modal__section">
+            <button type="button" className="crystal-account-modal__menu-item" onClick={goToSupport}>
+              <HeadsetMicOutlinedIcon className="crystal-account-modal__menu-icon" fontSize="small" aria-hidden />
+              <span>Support</span>
+            </button>
+          </div>
+
+          <div className="crystal-account-modal__divider" role="separator" />
+
+          <div className="crystal-account-modal__section crystal-account-modal__section--footer">
+            <button
+              type="button"
+              className="crystal-account-modal__menu-item crystal-account-modal__menu-item--logout"
+              onClick={handleLogout}
+            >
+              <LogoutOutlinedIcon className="crystal-account-modal__menu-icon" fontSize="small" aria-hidden />
+              <span>Log out</span>
+            </button>
+          </div>
         </Modal.Body>
-        <Modal.Footer className="crystal-account-modal__footer">
-          <Button className="crystal-account-modal__btn crystal-account-modal__btn--profile w-100" onClick={goToProfile}>
-            Profile
-          </Button>
-          <Button
-            variant="link"
-            className="crystal-account-modal__btn crystal-account-modal__btn--logout w-100"
-            onClick={handleLogout}
-          >
-            Log out
-          </Button>
-        </Modal.Footer>
       </Modal>
     </>
   );

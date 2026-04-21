@@ -2258,9 +2258,9 @@ export default function CreateWebsitePage() {
   );
 
   return (
-    <PageContainer>
+    <PageContainer className="create-website__page-container--builder">
       <main className="create-website">
-        <Container className="create-website__container py-4">
+        <Container className="create-website__container create-website__container--builder py-4">
           <div className="create-website__preview-sticky">
             <div className="create-website__preview-dock">
               <Button

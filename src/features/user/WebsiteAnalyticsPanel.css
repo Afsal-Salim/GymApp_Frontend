@@ -1,3 +1,10 @@
+.website-analytics-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .website-analytics-panel__business-name {
   color: #0f172a;
   letter-spacing: -0.02em;
@@ -24,6 +31,11 @@
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   border-bottom: 1px solid #e2e8f0;
   padding: 0.65rem 1rem;
+}
+
+/* Bootstrap `.row` uses negative horizontal margins; without clipping, the card can show a horizontal scrollbar. */
+.website-analytics-panel__card .card-body {
+  overflow-x: hidden;
 }
 
 .website-analytics-panel__dl dt {
@@ -60,9 +72,22 @@
 
 .website-analytics-panel__series-scroll {
   max-height: 240px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
+  min-width: 0;
+}
+
+.website-analytics-panel__table--series {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.website-analytics-panel__table--series th,
+.website-analytics-panel__table--series td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .website-analytics-panel__whatsapp-totals dd {
@@ -161,6 +186,14 @@
   border-radius: 12px;
   padding: 0.5rem 0.35rem 0.25rem;
   min-height: 200px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Recharts can extend slightly past the card and trigger a horizontal scrollbar on the page */
+.website-analytics-panel__chart-wrap .recharts-responsive-container {
+  max-width: 100% !important;
 }
 
 .website-analytics-panel__chart-caption {

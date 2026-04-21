@@ -191,7 +191,7 @@ a.crystal-nav-link--services:hover {
 
 /* Account modal — compact, content-sized dialog */
 .crystal-account-modal-dialog {
-  max-width: min(20rem, calc(100vw - 1.5rem));
+  max-width: min(22rem, calc(100vw - 1.5rem));
   margin: 0.5rem auto;
 }
 
@@ -208,6 +208,12 @@ a.crystal-nav-link--services:hover {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
   border-bottom: none;
   padding: 0.65rem 0.9rem 0.65rem 1rem;
+}
+
+.crystal-account-modal__header--menu {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.5rem 0.65rem 0.5rem 1rem;
 }
 
 .crystal-account-modal__title {
@@ -228,6 +234,15 @@ a.crystal-nav-link--services:hover {
   opacity: 1;
 }
 
+.crystal-account-modal__header--menu .btn-close {
+  filter: none;
+  opacity: 0.55;
+}
+
+.crystal-account-modal__header--menu .btn-close:hover {
+  opacity: 0.9;
+}
+
 .crystal-account-modal__body {
   background: #fff;
   display: flex;
@@ -237,8 +252,32 @@ a.crystal-nav-link--services:hover {
   text-align: center;
 }
 
+.crystal-account-modal__body--menu {
+  align-items: stretch;
+  text-align: left;
+  padding: 0;
+}
+
+.crystal-account-modal__user-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem 1.15rem 0.9rem;
+}
+
+.crystal-account-modal__user-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.1rem;
+}
+
 .crystal-account-modal__avatar-wrap {
   margin-bottom: 0.65rem;
+}
+
+.crystal-account-modal__avatar-wrap--inline {
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .crystal-nav-profile-modal__avatar {
@@ -257,6 +296,25 @@ a.crystal-nav-link--services:hover {
   border: 2px solid #f1f5f9;
 }
 
+.crystal-nav-profile-modal__avatar--menu {
+  width: 3.25rem;
+  height: 3.25rem;
+  font-size: 1.2rem;
+  position: relative;
+}
+
+.crystal-account-modal__status-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid #fff;
+  box-sizing: content-box;
+}
+
 .crystal-nav-profile-modal__img {
   width: 100%;
   height: 100%;
@@ -266,6 +324,15 @@ a.crystal-nav-link--services:hover {
 .crystal-nav-profile-modal__letter {
   line-height: 1;
   user-select: none;
+}
+
+.crystal-account-modal__body--menu .crystal-account-modal__name {
+  margin-bottom: 0.2rem;
+  text-align: left;
+}
+
+.crystal-account-modal__body--menu .crystal-account-modal__email {
+  text-align: left;
 }
 
 .crystal-account-modal__name {
@@ -287,62 +354,76 @@ a.crystal-nav-link--services:hover {
   max-width: 100%;
 }
 
-.crystal-account-modal__footer {
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
-  padding: 0.65rem 1rem 0.85rem;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.35rem;
+.crystal-account-modal__divider {
+  height: 1px;
+  margin: 0;
+  background: #e2e8f0;
+  border: 0;
 }
 
-.crystal-account-modal__btn {
-  font-weight: 600;
+.crystal-account-modal__section {
+  display: flex;
+  flex-direction: column;
+  padding: 0.2rem 0;
+}
+
+.crystal-account-modal__section--footer {
+  padding-bottom: 0.35rem;
+}
+
+.crystal-account-modal__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 1.15rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 500;
   font-size: 0.875rem;
-  border-radius: 10px;
-  padding: 0.5rem 0.85rem;
-  min-height: 2.5rem;
-  transition: transform 0.2s, box-shadow 0.2s;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.crystal-account-modal__menu-item:hover {
+  background: #f1f5f9;
+}
+
+.crystal-account-modal__menu-item:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+}
+
+.crystal-account-modal__menu-icon {
+  color: #64748b !important;
   flex-shrink: 0;
 }
 
-.crystal-account-modal__btn--profile {
-  background: linear-gradient(135deg, #0ea5e9, #06b6d4) !important;
-  border: none !important;
-  color: #fff !important;
-  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
-}
-
-.crystal-account-modal__btn--profile:hover {
-  background: linear-gradient(135deg, #0284c7, #0891b2) !important;
-  color: #fff !important;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45);
-}
-
-.crystal-account-modal__btn--logout {
+.crystal-account-modal__menu-item--logout {
   color: #64748b !important;
-  text-decoration: none !important;
-  background: transparent !important;
-  border: none !important;
-  min-height: 2.25rem !important;
-  font-size: 0.8125rem !important;
   font-weight: 500 !important;
 }
 
-.crystal-account-modal__btn--logout:hover {
+.crystal-account-modal__menu-item--logout .crystal-account-modal__menu-icon {
+  color: #64748b !important;
+}
+
+.crystal-account-modal__menu-item--logout:hover {
   color: #dc2626 !important;
   background: rgba(220, 38, 38, 0.06) !important;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .crystal-account-modal__btn {
-    transition: none;
-  }
+.crystal-account-modal__menu-item--logout:hover .crystal-account-modal__menu-icon {
+  color: #dc2626 !important;
+}
 
-  .crystal-account-modal__btn--profile:hover {
-    transform: none;
+@media (prefers-reduced-motion: reduce) {
+  .crystal-account-modal__menu-item {
+    transition: none;
   }
 }
 

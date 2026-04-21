@@ -46,6 +46,42 @@ export const WEBSITE_BUILDER_ANIMATION_CSS = `
 }
 `;
 
+/** Responsive guardrails for imported Pro HTML/CSS inside Grapes canvas. */
+export const WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS = `
+.wb-template-root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.wb-template-root *,
+.wb-template-root *::before,
+.wb-template-root *::after {
+  box-sizing: border-box;
+}
+
+.wb-template-root img,
+.wb-template-root svg,
+.wb-template-root video,
+.wb-template-root canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 1200px) {
+  .wb-template-root .gjs-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: clamp(0.75rem, 2vw, 1.2rem) !important;
+    padding-right: clamp(0.75rem, 2vw, 1.2rem) !important;
+  }
+
+  .wb-template-root .gjs-plg-flex-row {
+    gap: clamp(0.55rem, 1.6vw, 1rem) !important;
+  }
+}
+`;
+
 export const WEBSITE_BUILDER_CUSTOM_SCRATCH = {
   name: 'Custom (start from scratch)',
   html: `
