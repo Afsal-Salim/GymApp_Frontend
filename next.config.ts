@@ -12,6 +12,9 @@ function resolvedApiBase(): string {
  * - `curl http://localhost:3000/api/auth/login` hits Django, not the `[slug]` catch-all.
  * - Optional same-origin API base (`NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api`) avoids CORS.
  * Skip when the configured base already points at this dev server (would loop).
+ *
+ * **Note:** Next-only Route Handlers must live outside `/api/` (e.g. `/gjs-pro-template/[key]`) or they get
+ * proxied to Django and return 404. The visual builder uses `app/gjs-pro-template/[key]/route.ts`.
  */
 function shouldEnableApiProxy(): boolean {
   const base = resolvedApiBase();

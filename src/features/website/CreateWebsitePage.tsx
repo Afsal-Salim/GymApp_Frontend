@@ -277,13 +277,13 @@ function applyPreviewGallerySlotsToDraft(
 
 function planTierIsTrial(sub: ActiveSubscriptionResponse | null): boolean {
   if (!sub) return false;
-  const t = (sub.plan_tier ?? sub.subscription?.plan_tier ?? '').toString().trim().toLowerCase();
+  const t = (sub.plan_tier ?? '').toString().trim().toLowerCase();
   return t === 'trial';
 }
 
 function planTierIsPro(sub: ActiveSubscriptionResponse | null): boolean {
   if (!sub?.has_active_subscription) return false;
-  const t = (sub.plan_tier ?? sub.subscription?.plan_tier ?? '').toString().trim().toLowerCase();
+  const t = (sub.plan_tier ?? '').toString().trim().toLowerCase();
   return t === 'pro';
 }
 

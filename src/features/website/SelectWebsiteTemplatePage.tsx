@@ -20,12 +20,11 @@ import {
   grantEditTemplateGate,
   setPendingProTemplateKey,
 } from './websiteTemplateGate';
-import { SERVICES_CUSTOM_PATH } from '../plans/PlansPage';
 import './CreateWebsitePage.css';
 
 function planTierIsPro(sub: ActiveSubscriptionResponse | null): boolean {
   if (!sub?.has_active_subscription) return false;
-  const t = (sub.plan_tier ?? sub.subscription?.plan_tier ?? '').toString().trim().toLowerCase();
+  const t = (sub.plan_tier ?? '').toString().trim().toLowerCase();
   return t === 'pro';
 }
 
@@ -109,6 +108,7 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
   }, [mode, slugNorm, showToast]);
 
   const continueHref = mode === 'create' ? '/user/create-website' : `/user/business/${encodeURIComponent(slugNorm)}/edit`;
+  const builderBaseHref = mode === 'create' ? '/user/create-website/builder' : `/user/business/${encodeURIComponent(slugNorm)}/builder`;
 
   const handleContinue = useCallback(() => {
     setPendingProTemplateKey(selectedKey);
@@ -234,13 +234,19 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                             >
                               Preview in new tab
                             </Button>
+                            <Link
+                              href={`${builderBaseHref}?template=${encodeURIComponent(template.key)}`}
+                              className="btn btn-primary btn-sm create-website__template-preview-btn"
+                            >
+                              Edit in builder
+                            </Link>
                           </div>
                         </div>
                       );
                     })}
                     <div className="create-website__template-card-shell">
                       <Link
-                        href={SERVICES_CUSTOM_PATH}
+                        href={`${builderBaseHref}?template=custom`}
                         className="create-website__template-card create-website__template-card--customized text-decoration-none"
                       >
                         <span className="create-website__template-card-visual create-website__template-card-visual--customized">
@@ -251,16 +257,15 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                           <span className="badge text-bg-info">Custom</span>
                         </span>
                         <span className="create-website__template-card-desc">
-                          Need a tailored site beyond these templates? Share your goals and we&apos;ll scope a build with
-                          you.
+                          Start from scratch with the visual builder and compose your own sections and pages.
                         </span>
                       </Link>
                       <div className="create-website__template-card-shell-actions">
                         <Link
-                          href={SERVICES_CUSTOM_PATH}
+                          href={`${builderBaseHref}?template=custom`}
                           className="btn btn-outline-primary btn-sm create-website__template-preview-btn"
                         >
-                          Tell us what you need
+                          Start from scratch
                         </Link>
                       </div>
                     </div>

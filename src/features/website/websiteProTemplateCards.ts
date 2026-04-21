@@ -10,6 +10,9 @@ export const PRO_TEMPLATE_PREVIEW_PATHS: Record<ProTemplateKey, string> = {
   vital: '/templates/client-vital',
   sole: '/templates/client-sole',
   zen: '/templates/client-zen',
+  'grapes-welcome': '/templates/client-grapes-welcome',
+  'grapes-hello': '/templates/client-grapes-hello',
+  'grapes-cli': '/templates/client-grapes-cli',
 };
 
 /** True when the form holds a non-default Pro layout key (requires Pro subscription at save when enforced). */
@@ -25,6 +28,9 @@ export const PRO_TEMPLATE_CARD_DESCRIPTIONS: Record<ProTemplateKey, string> = {
   vital: 'Energetic high-contrast gym landing with plan highlights.',
   sole: 'Grid-heavy commercial style adapted for gym program cards.',
   zen: 'Minimal calm visual language adapted for performance gyms.',
+  'grapes-welcome': 'Official GrapesJS core dev seed: welcome card with logo (from packages/core).',
+  'grapes-hello': 'Minimal “Hello World” canvas from the GrapesJS documentation demo.',
+  'grapes-cli': 'Plain starter block similar to the GrapesJS CLI default page.',
 };
 
 export function buildProTemplateCards() {

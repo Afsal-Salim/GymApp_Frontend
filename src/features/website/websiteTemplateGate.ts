@@ -1,11 +1,11 @@
-import type { ProWebsiteTemplateKey } from '../crystal/gymClientSiteContent';
+import { PRO_WEBSITE_TEMPLATE_KEYS, type ProWebsiteTemplateKey } from '../crystal/gymClientSiteContent';
 
 export const SESSION_CRYSTAL_TEMPLATE_STEP_CREATE_OK = 'crystal_template_step_create_ok_v1';
 export const SESSION_CRYSTAL_TEMPLATE_STEP_EDIT_SLUG = 'crystal_template_step_edit_slug_v1';
 export const SESSION_CRYSTAL_PENDING_PRO_TEMPLATE_KEY = 'crystal_pending_pro_template_key_v1';
 export const SESSION_CRYSTAL_TEMPLATE_SELECT_INITIAL = 'crystal_template_select_initial_v1';
 
-const PRO_KEYS = new Set<string>(['autopilot', 'fitcore', 'sonicflow', 'vital', 'sole', 'zen']);
+const PRO_KEYS = new Set<string>(PRO_WEBSITE_TEMPLATE_KEYS);
 
 export type PendingProTemplateKey = '' | ProWebsiteTemplateKey;
 

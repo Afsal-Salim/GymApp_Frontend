@@ -36,6 +36,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  /** Next Route Handler for Grapes template seeds — must not be rewritten as a gym-by-host path. */
+  if (pathname === '/gjs-pro-template' || pathname.startsWith('/gjs-pro-template/')) {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith('/_next') || pathname.startsWith('/gym-by-host/')) {
     return NextResponse.next();
   }

@@ -1,0 +1,29 @@
+/* Inspired by grapesjs-dev DemoCanvasOnly (docs canvas boundary cue). */
+.grapes-hello-root {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.grapes-hello-inner {
+  max-width: 720px;
+  width: 100%;
+  border: 3px solid #444;
+  border-radius: 8px;
+  padding: 2rem 1.5rem;
+  background: #fafafa;
+}
+
+.grapes-hello-inner h1 {
+  margin-top: 0;
+  font-size: 2rem;
+}
+
+.grapes-hello-inner code {
+  font-size: 0.88em;
+  background: #eee;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

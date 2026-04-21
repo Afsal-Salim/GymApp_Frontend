@@ -31,6 +31,12 @@ function isAuthPath(pathname: string): boolean {
   return pathOnly === '/login' || pathOnly === '/signup';
 }
 
+/** Member dashboard (`/user`, settings, manage, etc.) — no global Crystal route overlay; pages handle their own UI. */
+function isUserAppPath(pathname: string): boolean {
+  const pathOnly = pathname.split('?')[0];
+  return pathOnly === '/user' || pathOnly.startsWith('/user/');
+}
+
 function InDevelopmentBanner({ pathname }: { pathname: string }) {
   if (!SHOW_IN_DEVELOPMENT_BANNER) return null;
   const pathOnly = pathname.split('?')[0];
@@ -140,6 +146,11 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
     }
 
     if (isAuthPath(pathname)) {
+      setShowRouteLoader(false);
+      return;
+    }
+
+    if (isUserAppPath(pathname)) {
       setShowRouteLoader(false);
       return;
     }

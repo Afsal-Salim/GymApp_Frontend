@@ -122,8 +122,6 @@ export {
   type BusinessSubscription,
   type ActiveSubscriptionResponse,
   type ActiveSubscriptionPlanTier,
-  type ActiveSubscriptionNested,
-  type ActiveSubscriptionPlanDetail,
   type BusinessListPaginatedResponse,
   type BusinessListMeta,
   type PublicBusinessDetail,

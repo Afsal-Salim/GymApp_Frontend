@@ -27,7 +27,7 @@ import {
   postBusinessRecordStatus,
   resolveBusinessLogoDisplayUrl,
 } from '../../api';
-import type { ActiveSubscriptionResponse, BusinessDetail } from '../../api';
+import type { ActiveSubscriptionResponse, BusinessDetail, BusinessSubscription } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
 import { publicGymSiteHostLabel, publicGymSiteUrl, visitPublicGymSite } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
@@ -79,6 +79,31 @@ function isBusinessArchived(detail: BusinessDetail): boolean {
   return detail.record_status === 'inactive';
 }
 
+/** Until GET `/businesses/<slug>/` returns, derive a minimal row from active-subscription (fast path, no blocking loader). */
+function businessDetailFromActiveSubscription(routeSlug: string, sub: ActiveSubscriptionResponse | null): BusinessDetail {
+  const slug = routeSlug.trim();
+  const siteActive = sub ? sub.is_active !== false : true;
+  const subs: BusinessSubscription[] =
+    sub?.has_active_subscription && sub.subscription_end_date ?
+      [
+        {
+          id: 0,
+          plan: 0,
+          plan_name: sub.plan_name?.trim() || sub.plan_tier || 'Plan',
+          payment_id: '—',
+          subscription_start_date: sub.subscription_start_date ?? '',
+          subscription_end_date: sub.subscription_end_date,
+        },
+      ]
+    : [];
+  return {
+    slug,
+    name: sub?.plan_name?.trim() || slug,
+    record_status: siteActive ? 'active' : 'inactive',
+    subscriptions: subs,
+  };
+}
+
 function isBundledDefaultClientLogoUrl(url: string): boolean {
   const t = url.trim();
   if (!t) return true;
@@ -117,7 +142,6 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
 
   const [business, setBusiness] = useState<BusinessDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const [subscription, setSubscription] = useState<ActiveSubscriptionResponse | null>(null);
   const [slugDraft, setSlugDraft] = useState('');
@@ -142,19 +166,24 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
   const baselineSlug = (business?.slug ?? routeSlug).trim().toLowerCase();
 
   const reload = useCallback(async () => {
-    setLoading(true);
     setLoadError(null);
     try {
-      const d = await getBusinessDetail(routeSlug);
-      setBusiness(d);
-      setSlugDraft(d.slug ?? routeSlug);
-      const sub = await getActiveSubscription(routeSlug).catch(() => null);
+      const sub = await getActiveSubscription(routeSlug);
       setSubscription(sub);
+      setBusiness(businessDetailFromActiveSubscription(routeSlug, sub));
+      setSlugDraft((prev) => prev || sub.slug || routeSlug);
+      void getBusinessDetail(routeSlug)
+        .then((d) => {
+          setBusiness(d);
+          setSlugDraft(d.slug ?? routeSlug);
+        })
+        .catch(() => {
+          /* keep minimal row from subscription API */
+        });
     } catch (e) {
+      setSubscription(null);
       setBusiness(null);
-      setLoadError(e instanceof Error ? e.message : 'Could not load website.');
-    } finally {
-      setLoading(false);
+      setLoadError(e instanceof Error ? e.message : 'Could not load subscription.');
     }
   }, [routeSlug]);
 
@@ -303,22 +332,7 @@ function WebsiteSettingsLoaded({ routeSlug }: { routeSlug: string }) {
   };
 
   const archived = business ? isBusinessArchived(business) : false;
-  const displayName = (business?.name ?? routeSlug).trim() || routeSlug;
-
-  if (loading && !business) {
-    return (
-      <PageContainer>
-        <main className="manage-business-page">
-          <Container className="manage-business-page__container py-3 py-md-4 px-3">
-            <div className="manage-business-page__loading text-center py-5">
-              <Spinner animation="border" className="mb-2" />
-              <p className="text-muted small mb-0">Loading…</p>
-            </div>
-          </Container>
-        </main>
-      </PageContainer>
-    );
-  }
+  const displayName = (business?.name ?? subscription?.plan_name ?? routeSlug).trim() || routeSlug;
 
   if (loadError || !business) {
     return (

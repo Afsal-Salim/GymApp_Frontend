@@ -69,6 +69,11 @@ export type BusinessDetail = {
   website_content?: CrystalWebsiteSetupPayload['content'] | Record<string, unknown>;
   /** When the API exposes it, toggles listing / operational state (separate from subscription). */
   is_active?: boolean;
+  /**
+   * Owner list (paginated) may include this on each row: compare to today for Active vs Inactive when
+   * `subscriptions` is omitted.
+   */
+  subscription_end_date?: string;
   subscriptions?: BusinessSubscription[];
   /** Aggregate lead count for this website from owner list payload. */
   total_leads?: number;
@@ -811,35 +816,20 @@ export async function getPublicBusinessBySlug(slug: string): Promise<PublicBusin
 /** `plan_tier` on GET `/businesses/<slug>/active-subscription/` (public). */
 export type ActiveSubscriptionPlanTier = 'trial' | 'starter' | 'pro' | 'other';
 
-export type ActiveSubscriptionPlanFeature = { id: number; name: string };
-
-export type ActiveSubscriptionPlanDetail = {
-  id: number;
-  name: string;
-  tier: string;
-  duration_days: number;
-  currency: string;
-  price: string;
-  features: ActiveSubscriptionPlanFeature[];
-};
-
-export type ActiveSubscriptionNested = {
-  id: number;
-  plan_name: string;
-  plan_tier?: ActiveSubscriptionPlanTier | string;
-  subscription_start_date: string;
-  subscription_end_date: string;
-  plan?: ActiveSubscriptionPlanDetail;
-};
-
-/** Response from GET `/businesses/<slug>/active-subscription/` (public, no auth). */
+/**
+ * Response from GET `/businesses/<slug>/active-subscription/` (public, no auth).
+ * The API returns only these fields (no nested `subscription` object).
+ */
 export type ActiveSubscriptionResponse = {
   slug: string;
   is_active: boolean;
   has_active_subscription: boolean;
+  subscription_start_date: string | null;
   subscription_end_date: string | null;
+  /** Human-readable plan label when the API provides it. */
+  plan_name: string | null;
   plan_tier: ActiveSubscriptionPlanTier | null;
-  subscription: ActiveSubscriptionNested | null;
+  /** Optional message on error-shaped bodies (e.g. 404). */
   detail?: string;
 };
 
@@ -849,15 +839,17 @@ function inactiveActiveSubscriptionResponse(slug: string, detail?: string): Acti
     slug: s,
     is_active: false,
     has_active_subscription: false,
+    subscription_start_date: null,
     subscription_end_date: null,
+    plan_name: null,
     plan_tier: null,
-    subscription: null,
     ...(detail ? { detail } : {}),
   };
 }
 
 /**
- * Normalizes current and legacy API/cache shapes into {@link ActiveSubscriptionResponse}.
+ * Normalizes GET `/businesses/<slug>/active-subscription/` JSON into {@link ActiveSubscriptionResponse}.
+ * Prefers top-level fields per current API; still merges legacy nested `subscription` when present (older caches).
  */
 export function normalizeActiveSubscriptionResponse(raw: unknown, fallbackSlug: string): ActiveSubscriptionResponse {
   if (!raw || typeof raw !== 'object') {
@@ -870,22 +862,21 @@ export function normalizeActiveSubscriptionResponse(raw: unknown, fallbackSlug: 
     typeof o.is_active === 'boolean' ? o.is_active
     : hasSub ? true
     : false;
+
   const nestedRaw = o.subscription;
   const nested =
     nestedRaw && typeof nestedRaw === 'object' ?
-      (nestedRaw as ActiveSubscriptionNested)
+      (nestedRaw as { plan_tier?: unknown; subscription_end_date?: unknown; plan?: { tier?: unknown } })
     : null;
-
-  const planFromNested =
-    nested && typeof nested.plan === 'object' && nested.plan !== null ?
-      (nested.plan as ActiveSubscriptionPlanDetail)
-    : undefined;
 
   const planTierRaw =
     (o.plan_tier as string | null | undefined) ??
-    nested?.plan_tier ??
-    planFromNested?.tier ??
-    null;
+    (typeof nested?.plan_tier === 'string' ? nested.plan_tier : null) ??
+    (nested && typeof nested.plan === 'object' && nested.plan !== null ?
+      typeof (nested.plan as { tier?: string }).tier === 'string' ?
+        (nested.plan as { tier: string }).tier
+      : null
+    : null);
   const tierLc = typeof planTierRaw === 'string' ? planTierRaw.trim().toLowerCase() : '';
   const planTier: ActiveSubscriptionResponse['plan_tier'] =
     tierLc === 'trial' || tierLc === 'starter' || tierLc === 'pro' || tierLc === 'other' ? tierLc
@@ -894,9 +885,18 @@ export function normalizeActiveSubscriptionResponse(raw: unknown, fallbackSlug: 
 
   const endTop = o.subscription_end_date;
   const endTopStr = typeof endTop === 'string' && endTop.trim() ? endTop : null;
-  const endNested = nested?.subscription_end_date;
-  const endNestedStr = typeof endNested === 'string' && endNested.trim() ? endNested : null;
+  const endNestedStr =
+    typeof nested?.subscription_end_date === 'string' && nested.subscription_end_date.trim() ?
+      nested.subscription_end_date
+    : null;
   const subscription_end_date = endTopStr ?? endNestedStr ?? null;
+
+  const startRaw = o.subscription_start_date;
+  const subscription_start_date =
+    typeof startRaw === 'string' && startRaw.trim() ? startRaw.trim() : null;
+
+  const nameRaw = o.plan_name;
+  const plan_name = typeof nameRaw === 'string' && nameRaw.trim() ? nameRaw.trim() : null;
 
   const detail = typeof o.detail === 'string' ? o.detail : undefined;
 
@@ -904,9 +904,10 @@ export function normalizeActiveSubscriptionResponse(raw: unknown, fallbackSlug: 
     slug: s,
     is_active: isActive,
     has_active_subscription: hasSub,
+    subscription_start_date,
     subscription_end_date,
+    plan_name,
     plan_tier: planTier as ActiveSubscriptionResponse['plan_tier'],
-    subscription: nested,
     ...(detail ? { detail } : {}),
   };
 }

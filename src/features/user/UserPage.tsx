@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Container, Row, Col, Card, Spinner, Button, ListGroup, Badge, Pagination, Alert, Form } from 'react-bootstrap';
+import { Container, Row, Col, Card, Spinner, Button, ListGroup, Badge, Pagination, Alert, Form, Modal } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import {
   getProfileCached,
@@ -22,12 +22,14 @@ import {
   invalidateUserBusinessListCache,
   invalidateUserAnalyticsCache,
   resolveBusinessLogoDisplayUrl,
+  getActiveSubscription,
 } from '../../api';
-import type { UserProfile, BusinessListItem, BusinessDetail, WebsiteAnalytics, AnalyticsRangePreset } from '../../api';
+import type { UserProfile, BusinessListItem, BusinessDetail, WebsiteAnalytics, AnalyticsRangePreset, ActiveSubscriptionResponse } from '../../api';
 import { useToast } from '../../contexts/ToastContext';
 import { publicGymSiteHostLabel } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import { GYM_CLIENT_BRAND_LOGO_SRC, isLegacyCrystalGemLogoUrl } from '../crystal/gymClientBrandLogo';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import './UserPage.css';
 
 const OverallLeadsByWebsiteChart = dynamic(
@@ -63,10 +65,16 @@ function isBusinessActive(b: { subscriptions?: { subscription_end_date?: string 
 }
 
 /**
- * “Active” for Websites list badge, counts, and sort: subscription end dates when the list payload includes
- * subscriptions; otherwise `is_active` from the API so active gyms still rank above inactive ones.
+ * “Active” for Websites list badge: subscription still valid (end date ≥ today) when the API sends
+ * `subscription_end_date` (top-level or nested under `subscriptions`), else `is_active` when no dates exist.
+ * Soft-deleted (`record_status: inactive`) sites are never shown as Active.
  */
 function isGymActiveForList(b: BusinessListItem): boolean {
+  if ((b as BusinessDetail).record_status === 'inactive') return false;
+  const top = typeof b.subscription_end_date === 'string' ? b.subscription_end_date.trim() : '';
+  if (top) {
+    return isSubscriptionActive(top);
+  }
   const subs = b.subscriptions;
   if (Array.isArray(subs) && subs.length > 0) {
     return isBusinessActive(b);
@@ -78,6 +86,21 @@ function isGymActiveForList(b: BusinessListItem): boolean {
 function publicSiteDisplayLabel(slug: string | null | undefined): string {
   const label = publicGymSiteHostLabel(slug ?? '');
   return label === '—' ? '—' : label.replace(/\/$/, '');
+}
+
+function formatSubscriptionDate(s: string | null | undefined): string {
+  if (!s?.trim()) return '—';
+  try {
+    const d = new Date(s);
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return s;
+  }
+}
+
+function formatPlanTierLabel(tier: ActiveSubscriptionResponse['plan_tier']): string {
+  if (!tier) return '—';
+  return tier === 'other' ? 'Other' : tier.charAt(0).toUpperCase() + tier.slice(1);
 }
 
 function toMetricNumber(value: unknown): number | null {
@@ -166,13 +189,15 @@ function BusinessCardSiteLogo({
 
 function BusinessCard({
   b,
-  onNavigateToSettings,
+  onOpenSubscriptionDetail,
+  onOpenSettings,
   isActive,
   actionSlug,
   onRestore,
 }: {
   b: BusinessListItem;
-  onNavigateToSettings: (slug: string) => void;
+  onOpenSubscriptionDetail: (b: BusinessListItem) => void;
+  onOpenSettings: (slug: string) => void;
   isActive: (x: BusinessListItem) => boolean;
   actionSlug: string | null;
   onRestore: (b: BusinessListItem) => void;
@@ -184,7 +209,11 @@ function BusinessCard({
   const metrics = useMemo(() => getBusinessCardMetrics(b), [b]);
 
   const goSettings = () => {
-    if (b.slug) onNavigateToSettings(b.slug);
+    if (b.slug) onOpenSettings(b.slug);
+  };
+
+  const openDetail = () => {
+    if (b.slug) onOpenSubscriptionDetail(b);
   };
 
   return (
@@ -196,15 +225,15 @@ function BusinessCard({
           className="user-page__business-list-item-main user-page__business-list-item-main--clickable"
           role={b.slug ? 'button' : undefined}
           tabIndex={b.slug ? 0 : -1}
-          onClick={() => goSettings()}
+          onClick={() => openDetail()}
           onKeyDown={(e) => {
             if (!b.slug) return;
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              goSettings();
+              openDetail();
             }
           }}
-          aria-label={b.slug ? `Open settings for ${logoLabel}` : undefined}
+          aria-label={b.slug ? `View subscription details for ${logoLabel}` : undefined}
         >
           <div className="user-page__business-card-header">
             <BusinessCardSiteLogo business={b} label={logoLabel} />
@@ -274,14 +303,15 @@ function BusinessCard({
                 <Button
                   variant="outline-primary"
                   size="sm"
-                  className="user-page__btn-manage user-page__business-action-btn"
+                  className="user-page__btn-manage user-page__btn-settings-icon user-page__business-action-btn"
                   title="Website settings — manage, QR code, address, and more"
+                  aria-label="Website settings"
                   onClick={(e) => {
                     e.stopPropagation();
                     goSettings();
                   }}
                 >
-                  Settings
+                  <SettingsOutlinedIcon className="user-page__settings-icon" fontSize="small" aria-hidden />
                 </Button>
               </>
             : null}
@@ -438,6 +468,49 @@ export default function UserPage() {
     },
     [router]
   );
+
+  const [subscriptionModalBusiness, setSubscriptionModalBusiness] = useState<BusinessListItem | null>(null);
+  const [subscriptionModalDetail, setSubscriptionModalDetail] = useState<ActiveSubscriptionResponse | null>(null);
+  const [subscriptionModalError, setSubscriptionModalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const slug = subscriptionModalBusiness?.slug?.trim();
+    if (!slug) {
+      setSubscriptionModalDetail(null);
+      setSubscriptionModalError(null);
+      return;
+    }
+    let cancelled = false;
+    setSubscriptionModalDetail(null);
+    setSubscriptionModalError(null);
+    void getActiveSubscription(slug)
+      .then((sub) => {
+        if (!cancelled) {
+          setSubscriptionModalDetail(sub);
+          setSubscriptionModalError(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setSubscriptionModalDetail(null);
+          setSubscriptionModalError(e instanceof Error ? e.message : 'Could not load subscription.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [subscriptionModalBusiness]);
+
+  const openSubscriptionDetailModal = useCallback((b: BusinessListItem) => {
+    if (!b.slug?.trim()) return;
+    setSubscriptionModalBusiness(b);
+  }, []);
+
+  const closeSubscriptionDetailModal = useCallback(() => {
+    setSubscriptionModalBusiness(null);
+    setSubscriptionModalDetail(null);
+    setSubscriptionModalError(null);
+  }, []);
 
   const stored = getUserInfo();
   const displayName = profile?.username ?? profile?.email ?? stored.username ?? stored.email ?? '—';
@@ -778,7 +851,8 @@ export default function UserPage() {
                         <BusinessCard
                           key={(b as { id?: string }).id ?? b.slug ?? `business-${index}`}
                           b={b}
-                          onNavigateToSettings={goWebsiteSettings}
+                          onOpenSubscriptionDetail={openSubscriptionDetailModal}
+                          onOpenSettings={goWebsiteSettings}
                           isActive={isGymActiveForList}
                           actionSlug={recordActionSlug}
                           onRestore={handleRestoreBusiness}
@@ -883,6 +957,69 @@ export default function UserPage() {
         </div>
 
       </main>
+
+      <Modal show={subscriptionModalBusiness !== null} onHide={closeSubscriptionDetailModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {(subscriptionModalBusiness?.name || subscriptionModalBusiness?.slug || 'Website').trim() || 'Website'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {subscriptionModalError ?
+            <Alert variant="warning" className="mb-0">
+              {subscriptionModalError}
+            </Alert>
+          : (
+            <dl className="row mb-0 small">
+              <dt className="col-sm-4 text-muted">Site</dt>
+              <dd className="col-sm-8 mb-2">
+                {subscriptionModalBusiness?.slug ?
+                  publicSiteDisplayLabel(subscriptionModalBusiness.slug)
+                : '—'}
+              </dd>
+              <dt className="col-sm-4 text-muted">Plan</dt>
+              <dd className="col-sm-8 mb-2">{subscriptionModalDetail?.plan_name?.trim() || '—'}</dd>
+              <dt className="col-sm-4 text-muted">Tier</dt>
+              <dd className="col-sm-8 mb-2">{formatPlanTierLabel(subscriptionModalDetail?.plan_tier ?? null)}</dd>
+              <dt className="col-sm-4 text-muted">Starts</dt>
+              <dd className="col-sm-8 mb-2">{formatSubscriptionDate(subscriptionModalDetail?.subscription_start_date)}</dd>
+              <dt className="col-sm-4 text-muted">Renews / ends</dt>
+              <dd className="col-sm-8 mb-2">{formatSubscriptionDate(subscriptionModalDetail?.subscription_end_date)}</dd>
+              <dt className="col-sm-4 text-muted">Site status</dt>
+              <dd className="col-sm-8 mb-2">
+                {subscriptionModalDetail?.is_active === undefined ? '—' : subscriptionModalDetail.is_active ? 'Active' : 'Inactive'}
+              </dd>
+              <dt className="col-sm-4 text-muted">Subscription</dt>
+              <dd className="col-sm-8 mb-0">
+                {subscriptionModalDetail?.has_active_subscription === undefined ?
+                  '—'
+                : subscriptionModalDetail.has_active_subscription ?
+                  'Active'
+                : 'None / expired'}
+              </dd>
+            </dl>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="justify-content-between">
+          <Button variant="outline-secondary" size="sm" onClick={closeSubscriptionDetailModal}>
+            Close
+          </Button>
+          {subscriptionModalBusiness?.slug ?
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                const s = subscriptionModalBusiness.slug!.trim();
+                closeSubscriptionDetailModal();
+                goWebsiteSettings(s);
+              }}
+            >
+              Website settings
+            </Button>
+          : null}
+        </Modal.Footer>
+      </Modal>
+
       {scrollFabMounted &&
         showScrollTopFab &&
         createPortal(

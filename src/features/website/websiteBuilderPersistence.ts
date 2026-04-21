@@ -1,0 +1,257 @@
+import type { Editor } from 'grapesjs';
+import {
+  getBusinessDetail,
+  invalidatePublicGymBundleCache,
+  invalidateUserBusinessListCache,
+  patchWebsiteSetupDraft,
+  type BusinessDetail,
+} from '../../api';
+import {
+  cloneGymClientSiteDefaults,
+  parseGymClientWebsiteThemeFromApi,
+  type CrystalWebsiteSetupPayload,
+  type GymClientSiteContent,
+  type GymClientVisualBuilderState,
+  parseProWebsiteTemplateKey,
+  type ProWebsiteTemplateKey,
+  withLegacyHeroBackgroundMigrated,
+} from '../crystal/gymClientSiteContent';
+import { GYM_CLIENT_DEFAULT_LIGHT_HEX, GYM_CLIENT_DEFAULT_TEXT_HEX, readCrystalWebsitePreviewFromStorage, writeCrystalWebsitePreviewToStorage, type CrystalWebsiteDraftPayload } from './setup/createWebsiteFormState';
+import { PRO_TEMPLATE_LABELS, WEBSITE_BUILDER_ANIMATION_CSS, WEBSITE_BUILDER_CUSTOM_SCRATCH } from './websiteBuilderConstants';
+
+function defaultTheme(): CrystalWebsiteSetupPayload['theme'] {
+  return parseGymClientWebsiteThemeFromApi(
+    {},
+    {
+      accentHex: '#ea580c',
+      darkHex: '#0c0a09',
+      textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+      lightHex: GYM_CLIENT_DEFAULT_LIGHT_HEX,
+    }
+  );
+}
+
+function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPayload['theme'] {
+  const wt = detail.website_theme;
+  if (!wt || typeof wt !== 'object') return defaultTheme();
+  return parseGymClientWebsiteThemeFromApi(wt, {
+    accentHex: '#ea580c',
+    darkHex: '#0c0a09',
+    textHex: GYM_CLIENT_DEFAULT_TEXT_HEX,
+    lightHex: GYM_CLIENT_DEFAULT_LIGHT_HEX,
+  });
+}
+
+function canvasCssWithBuilderHelpers(css: string): string {
+  return `${WEBSITE_BUILDER_ANIMATION_CSS}\n${css}`;
+}
+
+function isNonEmptyProject(raw: unknown): raw is Record<string, unknown> {
+  return Boolean(raw && typeof raw === 'object' && Object.keys(raw as object).length > 0);
+}
+
+function proTemplateKeyFromSeed(seed: string): ProWebsiteTemplateKey | undefined {
+  return parseProWebsiteTemplateKey(seed);
+}
+
+export function displayLabelForTemplateSeedKey(key: string): string {
+  const k = key.trim().toLowerCase();
+  if (k === 'custom') return WEBSITE_BUILDER_CUSTOM_SCRATCH.name;
+  return PRO_TEMPLATE_LABELS[k] ?? (k ? `Template · ${k}` : 'Custom');
+}
+
+function firstSeedKey(...vals: (string | undefined | null)[]): string {
+  for (const v of vals) {
+    const t = typeof v === 'string' ? v.trim().toLowerCase() : '';
+    if (t) return t;
+  }
+  return '';
+}
+
+async function fetchProTemplateHtmlCss(key: string): Promise<{ html: string; css: string }> {
+  /** Next-only route (not under `/api/`) so `next.config` rewrites proxying `/api/*` → Django cannot steal this request. */
+  const r = await fetch(`/gjs-pro-template/${encodeURIComponent(key)}`);
+  if (!r.ok) {
+    throw new Error(`Could not load template assets (${r.status}).`);
+  }
+  return r.json() as Promise<{ html: string; css: string }>;
+}
+
+function mergeSiteContentFromDetail(detail: BusinessDetail): GymClientSiteContent {
+  const raw = detail.website_content;
+  if (raw && typeof raw === 'object') {
+    return withLegacyHeroBackgroundMigrated({ ...(raw as GymClientSiteContent) });
+  }
+  return cloneGymClientSiteDefaults();
+}
+
+function defaultCreateDraft(): CrystalWebsiteDraftPayload {
+  return {
+    slug: 'preview',
+    theme: defaultTheme(),
+    content: cloneGymClientSiteDefaults(),
+  };
+}
+
+export type WebsiteBuilderResolvedLoad =
+  | {
+      kind: 'project';
+      project: Record<string, unknown>;
+      templateSeedKey: string;
+      displayLabel: string;
+    }
+  | {
+      kind: 'html';
+      html: string;
+      css: string;
+      templateSeedKey: string;
+      displayLabel: string;
+    };
+
+/**
+ * Resolves initial GrapesJS load: saved project, snapshots, Pro template fetch, or scratch.
+ */
+export async function resolveWebsiteBuilderInitialCanvas(opts: {
+  mode: 'create' | 'edit';
+  routeSlug: string;
+  templateQuery: string | null;
+}): Promise<WebsiteBuilderResolvedLoad> {
+  const q = (opts.templateQuery ?? '').trim().toLowerCase();
+
+  if (opts.mode === 'edit' && opts.routeSlug) {
+    const detail = await getBusinessDetail(opts.routeSlug);
+    const content = mergeSiteContentFromDetail(detail);
+    const vb = content.visualBuilder;
+
+    if (vb?.grapesProject && isNonEmptyProject(vb.grapesProject)) {
+      const seed = firstSeedKey(vb.templateSeedKey, q, content.proTemplateKey) || 'custom';
+      return {
+        kind: 'project',
+        project: vb.grapesProject,
+        templateSeedKey: seed,
+        displayLabel: displayLabelForTemplateSeedKey(seed),
+      };
+    }
+
+    if (vb?.htmlSnapshot?.trim() && vb?.cssSnapshot != null) {
+      const seed = firstSeedKey(vb.templateSeedKey, q, content.proTemplateKey) || 'custom';
+      return {
+        kind: 'html',
+        html: vb.htmlSnapshot,
+        css: canvasCssWithBuilderHelpers(vb.cssSnapshot),
+        templateSeedKey: seed,
+        displayLabel: displayLabelForTemplateSeedKey(seed),
+      };
+    }
+
+    const seed = firstSeedKey(q, content.proTemplateKey) || 'custom';
+    if (seed === 'custom') {
+      return {
+        kind: 'html',
+        html: WEBSITE_BUILDER_CUSTOM_SCRATCH.html,
+        css: canvasCssWithBuilderHelpers(WEBSITE_BUILDER_CUSTOM_SCRATCH.css),
+        templateSeedKey: 'custom',
+        displayLabel: WEBSITE_BUILDER_CUSTOM_SCRATCH.name,
+      };
+    }
+    const { html, css } = await fetchProTemplateHtmlCss(seed);
+    return {
+      kind: 'html',
+      html,
+      css: canvasCssWithBuilderHelpers(css),
+      templateSeedKey: seed,
+      displayLabel: displayLabelForTemplateSeedKey(seed),
+    };
+  }
+
+  const preview = readCrystalWebsitePreviewFromStorage();
+  const content = preview?.content ? withLegacyHeroBackgroundMigrated({ ...preview.content }) : undefined;
+  const vb = content?.visualBuilder;
+
+  if (vb?.grapesProject && isNonEmptyProject(vb.grapesProject)) {
+    const seed = firstSeedKey(vb.templateSeedKey, q, content?.proTemplateKey) || 'custom';
+    return {
+      kind: 'project',
+      project: vb.grapesProject,
+      templateSeedKey: seed,
+      displayLabel: displayLabelForTemplateSeedKey(seed),
+    };
+  }
+
+  if (vb?.htmlSnapshot?.trim() && vb?.cssSnapshot != null) {
+    const seed = firstSeedKey(vb.templateSeedKey, q, content?.proTemplateKey) || 'custom';
+    return {
+      kind: 'html',
+      html: vb.htmlSnapshot,
+      css: canvasCssWithBuilderHelpers(vb.cssSnapshot),
+      templateSeedKey: seed,
+      displayLabel: displayLabelForTemplateSeedKey(seed),
+    };
+  }
+
+  const seed = firstSeedKey(q, content?.proTemplateKey) || 'custom';
+  if (seed === 'custom') {
+    return {
+      kind: 'html',
+      html: WEBSITE_BUILDER_CUSTOM_SCRATCH.html,
+      css: canvasCssWithBuilderHelpers(WEBSITE_BUILDER_CUSTOM_SCRATCH.css),
+      templateSeedKey: 'custom',
+      displayLabel: WEBSITE_BUILDER_CUSTOM_SCRATCH.name,
+    };
+  }
+
+  const { html, css } = await fetchProTemplateHtmlCss(seed);
+  return {
+    kind: 'html',
+    html,
+    css: canvasCssWithBuilderHelpers(css),
+    templateSeedKey: seed,
+    displayLabel: displayLabelForTemplateSeedKey(seed),
+  };
+}
+
+export function buildVisualBuilderStateFromEditor(editor: Editor, templateSeedKey: string): GymClientVisualBuilderState {
+  return {
+    grapesProject: editor.getProjectData() as Record<string, unknown>,
+    htmlSnapshot: editor.getHtml(),
+    cssSnapshot: editor.getCss(),
+    templateSeedKey,
+    savedAt: new Date().toISOString(),
+  };
+}
+
+export async function persistVisualBuilderToEdit(slug: string, editor: Editor, templateSeedKey: string): Promise<void> {
+  const key = slug.trim().toLowerCase();
+  if (!key) throw new Error('Missing business slug.');
+  const detail = await getBusinessDetail(key);
+  const theme = themeFromBusinessDetail(detail);
+  const base = mergeSiteContentFromDetail(detail);
+  const vb = buildVisualBuilderStateFromEditor(editor, templateSeedKey);
+  const pro = proTemplateKeyFromSeed(templateSeedKey);
+  const content: GymClientSiteContent = {
+    ...base,
+    ...(pro ? { proTemplateKey: pro } : {}),
+    visualBuilder: vb,
+  };
+  await patchWebsiteSetupDraft({
+    slug: detail.slug?.trim().toLowerCase() || key,
+    theme,
+    content,
+  });
+  invalidateUserBusinessListCache();
+  invalidatePublicGymBundleCache(key);
+}
+
+export function persistVisualBuilderToCreate(editor: Editor, templateSeedKey: string): boolean {
+  const draft = readCrystalWebsitePreviewFromStorage() ?? defaultCreateDraft();
+  const vb = buildVisualBuilderStateFromEditor(editor, templateSeedKey);
+  const pro = proTemplateKeyFromSeed(templateSeedKey);
+  return writeCrystalWebsitePreviewToStorage({
+    ...draft,
+    content: {
+      ...draft.content,
+      ...(pro ? { proTemplateKey: pro } : {}),
+      visualBuilder: vb,
+    },
+  });
+}

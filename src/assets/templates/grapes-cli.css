@@ -1,0 +1,24 @@
+/* Inspired by grapesjs-dev packages/cli/index.html default body content. */
+.grapes-cli-root {
+  min-height: 60vh;
+  padding: 3rem 1.5rem;
+}
+
+.grapes-cli-box {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 28px 24px;
+  font: caption;
+  line-height: 1.6;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+}
+
+.grapes-cli-box code {
+  font-size: 0.9em;
+  background: #e2e8f0;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

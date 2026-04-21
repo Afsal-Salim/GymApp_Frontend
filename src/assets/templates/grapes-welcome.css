@@ -1,0 +1,52 @@
+/* Adapted from grapesjs-dev packages/core/index.html (default canvas seed). */
+.grapes-welcome-root .panel {
+  width: 90%;
+  max-width: 700px;
+  border-radius: 3px;
+  padding: 30px 20px;
+  margin: 80px auto 48px;
+  background-color: #d983a6;
+  box-shadow: 0px 3px 10px 0px rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+  font: caption;
+  font-weight: 100;
+}
+
+.grapes-welcome-root .welcome {
+  text-align: center;
+  font-weight: 100;
+  margin: 0px;
+}
+
+.grapes-welcome-root .logo {
+  width: 70px;
+  height: 70px;
+  vertical-align: middle;
+}
+
+.grapes-welcome-root .logo path {
+  pointer-events: none;
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 7;
+  stroke: #fff;
+}
+
+.grapes-welcome-root .big-title {
+  text-align: center;
+  font-size: 3.5rem;
+  margin: 15px 0;
+}
+
+.grapes-welcome-root .description {
+  text-align: justify;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.grapes-welcome-root .description code {
+  font-size: 0.85em;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

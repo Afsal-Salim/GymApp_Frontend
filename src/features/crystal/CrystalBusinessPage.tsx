@@ -1627,16 +1627,11 @@ function formatSubscriptionEndDateLabel(iso: string): string {
 }
 
 function resolvePlanTier(sub: ActiveSubscriptionResponse): ActiveSubscriptionPlanTier | null {
-  if (sub.plan_tier) return sub.plan_tier;
-  const nested = sub.subscription?.plan_tier;
-  if (!nested) return null;
-  const lc = String(nested).trim().toLowerCase();
-  if (lc === 'trial' || lc === 'starter' || lc === 'pro' || lc === 'other') return lc;
-  return 'other';
+  return sub.plan_tier ?? null;
 }
 
 function resolveSubscriptionEndDate(sub: ActiveSubscriptionResponse): string | null {
-  return sub.subscription_end_date ?? sub.subscription?.subscription_end_date ?? null;
+  return sub.subscription_end_date;
 }
 
 /** Public gym is “off” for visitors when the subscription API says no access. */

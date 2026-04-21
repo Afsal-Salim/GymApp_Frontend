@@ -1,0 +1,99 @@
+.website-builder-page {
+  background: #f8fafc;
+  min-height: 70vh;
+}
+
+.website-builder-page__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.website-builder-page__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+}
+
+.website-builder-page__canvas {
+  min-height: 72vh;
+  overflow: hidden;
+}
+
+.website-builder-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.website-builder-page__toolbar .gjs-pn-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  line-height: 1.2;
+  background: #fff;
+}
+
+.website-builder-page__editor {
+  min-height: 68vh;
+}
+
+.website-builder-page__loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 68vh;
+}
+
+.website-builder-page__sidebar {
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.website-builder-page__page-btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.4rem 0.55rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.83rem;
+}
+
+.website-builder-page__page-btn.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+#wb-blocks .gjs-block {
+  width: 100%;
+  min-height: auto;
+  margin: 0 0 8px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  box-shadow: none;
+}
+
+#wb-traits,
+#wb-styles,
+#wb-layers {
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1200px) {
+  .website-builder-page__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .website-builder-page__sidebar {
+    max-height: none;
+  }
+}
