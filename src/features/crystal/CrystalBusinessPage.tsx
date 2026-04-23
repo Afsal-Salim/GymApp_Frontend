@@ -2088,6 +2088,15 @@ export default function CrystalBusinessPage() {
     [resolvedGymClientTheme]
   );
 
+  const visualBuilderPages = useMemo(
+    () => normalizeVisualBuilderPages(siteContent?.visualBuilder),
+    [siteContent?.visualBuilder],
+  );
+  const activeVisualBuilderPage = useMemo(
+    () => pickVisualBuilderPage(visualBuilderPages, routePageSlug),
+    [visualBuilderPages, routePageSlug],
+  );
+
   const dataReadyPublic = Boolean(slug && slug !== 'preview' && !loading && siteContent);
   const publicLoadShell = Boolean(slug && slug !== 'preview' && !error && !notFound && (loading || dataReadyPublic));
   const publicIntroLayer = Boolean(
@@ -2358,14 +2367,6 @@ export default function CrystalBusinessPage() {
       publicSubscription &&
       ownerIsOnTrialForClientRechargeModal(publicSubscription) &&
       !rechargeModalDismissed
-  );
-  const visualBuilderPages = useMemo(
-    () => normalizeVisualBuilderPages(siteContent?.visualBuilder),
-    [siteContent?.visualBuilder],
-  );
-  const activeVisualBuilderPage = useMemo(
-    () => pickVisualBuilderPage(visualBuilderPages, routePageSlug),
-    [visualBuilderPages, routePageSlug],
   );
   const activeProTemplateKey =
     !activeVisualBuilderPage &&

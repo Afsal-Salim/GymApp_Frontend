@@ -65,7 +65,7 @@ function clampSupportListToPageWindow(
   page: number,
   pageSize: number
 ): ClientSupportListResponse {
-  let { results, meta, count } = parsed;
+  const { results, meta, count } = parsed;
   if (results.length <= pageSize) {
     return parsed;
   }

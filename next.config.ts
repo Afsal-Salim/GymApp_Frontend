@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import bundleAnalyzer from '@next/bundle-analyzer';
 
 /** API base from `.env` only (`NEXT_PUBLIC_*` or legacy `VITE_API_BASE_URL`). No default URL in code. */
 function resolvedApiBase(): string {
@@ -30,6 +31,11 @@ function shouldEnableApiProxy(): boolean {
   }
 }
 
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
+});
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   /** Hide `X-Powered-By: Next.js` in production responses. */
@@ -56,4 +62,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

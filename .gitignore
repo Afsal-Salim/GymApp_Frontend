@@ -27,3 +27,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local perf / bundle reports (regenerate with npm run analyze / Lighthouse)
+reports/

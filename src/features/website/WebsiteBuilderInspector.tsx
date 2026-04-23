@@ -1117,7 +1117,7 @@ function ButtonContent({
   builderPages: BuilderPageOption[];
 }) {
   const [label, setLabel] = useState('');
-  const [href, setHref] = useState('#');
+  const [, setHref] = useState('#');
   const [action, setAction] = useState<ButtonActionChoice>('none');
   const [sectionTarget, setSectionTarget] = useState('');
   const [pageId, setPageId] = useState('');

@@ -7,8 +7,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import HeadsetMicOutlinedIcon from '@mui/icons-material/HeadsetMicOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import { Container, Nav, Navbar as BSNavbar, Button, Modal } from 'react-bootstrap';
 import { getAccessToken, clearTokens, getUserInfo, CRYSTAL_AUTH_CHANGED_EVENT } from '../../../../api';
 import { STORAGE_ACCESS_TOKEN, STORAGE_USER_AVATAR_URL } from '../../../../config/storageKeys';
@@ -88,19 +86,9 @@ export default function Navbar() {
     router.push('/user');
   };
 
-  const goToAccountSettings = () => {
-    closeProfileModal();
-    router.push('/user');
-  };
-
   const goToSupport = () => {
     closeProfileModal();
     router.push('/support');
-  };
-
-  const goToUpgrade = () => {
-    closeProfileModal();
-    router.push('/plans');
   };
 
   return (

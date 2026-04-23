@@ -631,7 +631,7 @@ export default function WebsiteBuilderPage() {
   const gridLayoutRef = useRef<HTMLDivElement | null>(null);
   const inspectorAsideRef = useRef<HTMLElement | null>(null);
   /** Latest “open inspector from canvas” handler (editor init effect runs before expandRightPanel in source order). */
-  const openInspectFromCanvasRef = useRef<(ed: Editor, comp: Component | null) => void>((_ed, _comp) => {});
+  const openInspectFromCanvasRef = useRef<(ed: Editor, comp: Component | null) => void>(() => {});
 
   /** null = fill grid cell; numbers = fixed canvas card size (resizable like devtools). */
   const [canvasDims, setCanvasDims] = useState<{ w: number; h: number } | null>(null);

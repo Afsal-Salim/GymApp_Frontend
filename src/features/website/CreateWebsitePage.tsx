@@ -249,7 +249,8 @@ function applyPreviewGallerySlotsToDraft(
   const baseGallery = draft.content.gallery;
   if (slots.length === 0) {
     if (!baseGallery?.previewImageOrder?.length) return draft;
-    const { previewImageOrder: _drop, ...rest } = baseGallery;
+    const { previewImageOrder, ...rest } = baseGallery;
+    void previewImageOrder;
     return {
       ...draft,
       content: {
@@ -2130,7 +2131,7 @@ export default function CreateWebsitePage() {
           coachPhotoStagedFiles: coachSnap,
         })
       : form;
-    let draft = mapFormToWebsiteDraft({ ...formForSetup, slug });
+    const draft = mapFormToWebsiteDraft({ ...formForSetup, slug });
     if (logoFileSnapshot) {
       draft.content.logo.src = '';
     }

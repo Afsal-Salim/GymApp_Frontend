@@ -9,8 +9,6 @@ import { RouteTransitionLoader } from '@/layouts/RouteTransitionLoader';
 import MarketingRoutePrefetcher from '@/app/_components/MarketingRoutePrefetcher';
 import '@/layouts/MainLayout.css';
 
-const SHOW_IN_DEVELOPMENT_BANNER = true;
-
 /** Overlay duration — long enough to cover slow dev compiles and dynamic route RSC. */
 const ROUTE_TRANSITION_OVERLAY_MS = 2800;
 
@@ -35,32 +33,6 @@ function isAuthPath(pathname: string): boolean {
 function isUserAppPath(pathname: string): boolean {
   const pathOnly = pathname.split('?')[0];
   return pathOnly === '/user' || pathOnly.startsWith('/user/');
-}
-
-function InDevelopmentBanner({ pathname }: { pathname: string }) {
-  if (!SHOW_IN_DEVELOPMENT_BANNER) return null;
-  const pathOnly = pathname.split('?')[0];
-  if (pathOnly === '/404' || pathOnly.startsWith('/404/')) return null;
-  if (pathOnly.startsWith('/templates/')) return null;
-  return (
-    <div
-      role="status"
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 1100,
-        background: '#b45309',
-        color: '#fff',
-        textAlign: 'center',
-        padding: '6px 12px',
-        fontSize: '0.8125rem',
-        fontWeight: 600,
-        letterSpacing: '0.02em',
-      }}
-    >
-      In development
-    </div>
-  );
 }
 
 function ScrollToTop({ pathname }: { pathname: string }) {
@@ -122,13 +94,11 @@ function shouldSuppressRouteLoaderForCrystalGymClient(pathname: string): boolean
 export default function ClientAppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showRouteLoader, setShowRouteLoader] = useState(false);
-  const bootPathRef = useRef<string | null>(null);
+  /** Frozen first pathname for this shell instance (enter motion on later navigations). */
+  const [bootPath] = useState(() => pathname);
   const prevPathnameRef = useRef<string | null>(null);
 
-  if (bootPathRef.current === null) {
-    bootPathRef.current = pathname;
-  }
-  const showPageRouteEnterMotion = pathname !== bootPathRef.current;
+  const showPageRouteEnterMotion = pathname !== bootPath;
   const hideMarketingChrome = shouldHideMainLayoutChrome(pathname);
   const hideFooter = shouldHideFooter(pathname);
   const notFoundLayout = isDedicatedNotFoundPath(pathname);
@@ -184,7 +154,6 @@ export default function ClientAppShell({ children }: { children: React.ReactNode
 
   return (
     <div className={`main-layout${notFoundLayout ? ' main-layout--not-found' : ''}`}>
-      {/* <InDevelopmentBanner pathname={pathname} /> */}
       <ScrollToTop pathname={pathname} />
       {!hideMarketingChrome && <PageTransitionBar pathname={pathname} />}
       <RouteTransitionLoader active={showRouteLoader} />

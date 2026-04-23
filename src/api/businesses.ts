@@ -1098,7 +1098,8 @@ export type { CrystalWebsiteSetupPayload };
  */
 export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload): Promise<void> {
   try {
-    const { editBusinessSlug: _previewOnly, ...body } = payload;
+    const { editBusinessSlug, ...body } = payload;
+    void editBusinessSlug;
     await privateApi.post(`${BASE}/website-setup/`, body);
   } catch (e) {
     throw new Error(getAxiosErrorMessage(e, 'Failed to save website setup'));

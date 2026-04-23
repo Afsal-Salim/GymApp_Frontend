@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Container, Row, Col, Card, Spinner, Button, ListGroup, Badge, Pagination, Alert, Form, Modal } from 'react-bootstrap';
+import { Row, Col, Card, Spinner, Button, ListGroup, Badge, Pagination, Alert, Form, Modal } from 'react-bootstrap';
 import { PageContainer } from '../../components';
 import {
   getProfileCached,

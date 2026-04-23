@@ -412,7 +412,8 @@ export function withPreviewEditReturn(
   const s = editBusinessSlug?.trim().toLowerCase();
   if (!s) {
     if (!('editBusinessSlug' in draft) || draft.editBusinessSlug === undefined) return draft;
-    const { editBusinessSlug: _, ...rest } = draft;
+    const { editBusinessSlug, ...rest } = draft;
+    void editBusinessSlug;
     return rest as CrystalWebsiteDraftPayload;
   }
   return { ...draft, editBusinessSlug: s };
