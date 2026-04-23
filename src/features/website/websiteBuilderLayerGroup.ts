@@ -29,15 +29,42 @@ function patchDefaultToolbarItemTitles(comp: Component) {
   for (const m of tlb.models) {
     const cmd = m.get('command');
     let hint: string | undefined;
-    if (typeof cmd === 'function') hint = 'Select parent — edit the section or container above';
-    else if (cmd === 'tlb-move') hint = 'Move — drag to reposition (free move on page)';
-    else if (cmd === 'tlb-clone') hint = 'Duplicate this block';
-    else if (cmd === 'tlb-delete') hint = 'Delete from page';
-    else if (cmd === WB_TLB_DETACH) hint = 'Lift out — parent no longer moves this block with it';
-    if (!hint) continue;
+    let shortLabel: string | undefined;
+    if (typeof cmd === 'function') {
+      hint = 'Select parent — edit the section or container above';
+      shortLabel = 'Move up';
+    } else if (cmd === 'tlb-move') {
+      hint = 'Move — drag to reposition (free move on page)';
+      shortLabel = 'Move';
+    } else if (cmd === 'tlb-clone') {
+      hint = 'Duplicate this block';
+      shortLabel = 'Duplicate';
+    } else if (cmd === 'tlb-delete') {
+      hint = 'Delete from page';
+      shortLabel = 'Delete';
+    } else if (cmd === WB_TLB_DETACH) {
+      hint = 'Lift out — parent no longer moves this block with it';
+      shortLabel = 'Lift out';
+    } else if (cmd === WB_TLB_FRONT) {
+      hint = 'Bring to front — paint above sibling layers';
+      shortLabel = 'To front';
+    } else if (cmd === WB_TLB_BACK) {
+      hint = 'Send to back — paint below sibling layers';
+      shortLabel = 'To back';
+    } else if (cmd === WB_TLB_GROUP) {
+      hint = 'Group — wrap multi-selected layers (Ctrl/Cmd+click first)';
+      shortLabel = 'Group';
+    } else if (cmd === WB_TLB_UNGROUP) {
+      hint = 'Ungroup — lift children out of this group';
+      shortLabel = 'Ungroup';
+    }
+    if (!shortLabel) continue;
     const attrs = (m.get('attributes') as Record<string, string> | undefined) ?? {};
-    if (attrs.title) continue;
-    m.set('attributes', { ...attrs, title: hint });
+    m.set('attributes', {
+      ...attrs,
+      title: attrs.title || hint || shortLabel,
+      'data-wb-toolbar-label': shortLabel,
+    });
   }
 }
 
@@ -225,27 +252,36 @@ function augmentToolbar(editor: Editor, comp: Component) {
     {
       label: icon('arrowUp', '↑'),
       command: WB_TLB_FRONT,
-      attributes: { title: 'Bring to front — paint above sibling layers' },
+      attributes: {
+        title: 'Bring to front — paint above sibling layers',
+        'data-wb-toolbar-label': 'To front',
+      },
     },
     {
       label: '↓',
       command: WB_TLB_BACK,
-      attributes: { title: 'Send to back — paint below sibling layers' },
+      attributes: { title: 'Send to back — paint below sibling layers', 'data-wb-toolbar-label': 'To back' },
     },
     {
       label: '⧉',
       command: WB_TLB_GROUP,
-      attributes: { title: 'Group — wrap multi-selected layers (Ctrl/Cmd+click first)' },
+      attributes: {
+        title: 'Group — wrap multi-selected layers (Ctrl/Cmd+click first)',
+        'data-wb-toolbar-label': 'Group',
+      },
     },
     {
       label: '⧈',
       command: WB_TLB_UNGROUP,
-      attributes: { title: 'Ungroup — lift children out of this group' },
+      attributes: { title: 'Ungroup — lift children out of this group', 'data-wb-toolbar-label': 'Ungroup' },
     },
     {
       label: '⎋',
       command: WB_TLB_DETACH,
-      attributes: { title: 'Lift out — move this block out of its container (independent layer)' },
+      attributes: {
+        title: 'Lift out — move this block out of its container (independent layer)',
+        'data-wb-toolbar-label': 'Lift out',
+      },
     },
   ];
   for (const row of rows) tlb.add(row);

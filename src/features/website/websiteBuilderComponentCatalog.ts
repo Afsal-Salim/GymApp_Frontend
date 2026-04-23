@@ -1,5 +1,5 @@
 import type { Component, Editor } from 'grapesjs';
-import { siblingIndex, WB_LAYER_GROUP_ATTR } from './websiteBuilderLayerGroup';
+import { isWbLayerGroup, siblingIndex, WB_LAYER_GROUP_ATTR } from './websiteBuilderLayerGroup';
 import { nameLastAddedLayer } from './websiteBuilderInspector';
 import {
   WEBSITE_BUILDER_ANIMATION_CSS,
@@ -13,6 +13,10 @@ import {
   DESIGN_SYSTEM_SECTION_ORDER,
   type DesignSystemSetId,
 } from './websiteBuilderDesignSystemBlocks';
+import {
+  ICON_COMPONENT_CATALOG_ENTRIES,
+  ICON_GRID_KIT_CATALOG_ENTRY,
+} from './websiteBuilderIconBlocks';
 
 export type ComponentLibraryFilter =
   | 'all'
@@ -21,6 +25,7 @@ export type ComponentLibraryFilter =
   | 'forms'
   | 'info'
   | 'content'
+  | 'icons'
   | 'trust'
   | 'pricing'
   | 'sections'
@@ -46,6 +51,9 @@ export type ComponentLibraryPreviewKind =
   | 'embed'
   | 'default';
 
+/** Design-system section previews lay out at this width, then scale down to the iframe (avoids mobile breakpoints). */
+export const WB_LIB_DS_SECTION_PREVIEW_WIDTH = 1200;
+
 export type ComponentCatalogEntry = {
   blockId: string;
   title: string;
@@ -61,6 +69,7 @@ export const COMPONENT_LIBRARY_FILTERS: { id: ComponentLibraryFilter; label: str
   { id: 'forms', label: 'Forms' },
   { id: 'info', label: 'Info' },
   { id: 'content', label: 'Content' },
+  { id: 'icons', label: 'Icons' },
   { id: 'trust', label: 'Trust' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'sections', label: 'Sections' },
@@ -122,6 +131,13 @@ const catalog: ComponentCatalogEntry[] = [
     blockId: 'wb-enquiry-card',
     title: 'Quick enquiry',
     description: 'Compact card whose button opens the service enquiry modal on the live site.',
+    filter: 'modals',
+    preview: 'modal',
+  },
+  {
+    blockId: 'wb-modals-lead-strip',
+    title: 'Modals · Lead row',
+    description: 'Join, visit, trial, and enquiry buttons—same Crystal lead modals as other CTAs.',
     filter: 'modals',
     preview: 'modal',
   },
@@ -316,6 +332,15 @@ const catalog: ComponentCatalogEntry[] = [
   { blockId: 'wb-nav-1', title: 'Nav · sticky bar', description: 'Logo, links, and contact button; sticks to top.', filter: 'navigation', preview: 'nav' },
   { blockId: 'wb-nav-2', title: 'Nav · centered', description: 'Stacked brand and centered links (dark).', filter: 'navigation', preview: 'nav' },
   { blockId: 'wb-nav-3', title: 'Nav · pill links', description: 'Light bar with pill-shaped navigation items.', filter: 'navigation', preview: 'nav' },
+  {
+    blockId: 'wb-scroll-top',
+    title: 'Scroll to top',
+    description: 'Fixed bottom-left control; smooth-scrolls the page to the top (pairs with in-page # anchor links).',
+    filter: 'navigation',
+    preview: 'nav',
+  },
+  ...(ICON_COMPONENT_CATALOG_ENTRIES as ComponentCatalogEntry[]),
+  ICON_GRID_KIT_CATALOG_ENTRY as ComponentCatalogEntry,
   ...buildDesignSystemCatalogEntries(),
 ];
 
@@ -397,6 +422,187 @@ export function buildComponentPreviewSrcDoc(editor: Editor, blockId: string): st
 </html>`;
 }
 
+/** Scrollable preview mode for tall blocks (eg. design-system sections) at native card width. */
+export function buildScrollableComponentPreviewSrcDoc(editor: Editor, blockId: string): string {
+  const html = getBlockHtmlString(editor, blockId);
+  if (!html) return '';
+  const designW = WB_LIB_DS_SECTION_PREVIEW_WIDTH;
+  const dsPreviewEndCss = `
+      /* --- Library: design-system section iframe (must be LAST to win cascade) --- */
+      .wb-lib-preview-root .fade-up,
+      .wb-lib-preview-root .wb-fade-up,
+      .wb-lib-preview-root .wb-fade-in,
+      .wb-lib-preview-root .wb-slide-left,
+      .wb-lib-preview-root .wb-slide-right,
+      .wb-lib-preview-root .wb-zoom-in {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+        transition: none !important;
+      }
+      .wb-lib-preview-root [class*='wb-ds-reveal'] {
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+        animation: none !important;
+      }
+      .wb-lib-preview-root .wb-sys-nav {
+        position: static !important;
+        top: auto !important;
+      }
+      .wb-lib-preview-root .wb-sys-hero,
+      .wb-lib-preview-root .wb-sys-section {
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+      }
+      .wb-lib-preview-root [class*='hero__shell'],
+      .wb-lib-preview-root [class*='hero__stage'] {
+        min-height: 0 !important;
+      }
+      .wb-lib-preview-root [class*='hero__imgCol'],
+      .wb-lib-preview-root [class*='hero__media'] {
+        min-height: 9rem !important;
+      }
+      .wb-lib-preview-root .wb-sys-section__head {
+        margin-bottom: 0.7rem !important;
+      }
+      .wb-lib-preview-root .wb-sys-h1 {
+        font-size: clamp(1rem, 4vw, 1.35rem) !important;
+      }
+      .wb-lib-preview-root .wb-sys-h2 {
+        font-size: clamp(0.9rem, 3.2vw, 1.1rem) !important;
+      }
+      .wb-lib-preview-root .wb-sys-sub,
+      .wb-lib-preview-root .wb-sys-lead,
+      .wb-lib-preview-root .wb-sys-feature__desc {
+        font-size: 0.72rem !important;
+        line-height: 1.4 !important;
+      }
+      .wb-lib-preview-root .wb-sys-map {
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      .wb-lib-preview-root .wb-sys-contact-split {
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+      .wb-lib-preview-root .wb-sys-price {
+        max-width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+  `;
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 0 !important;
+        height: auto !important;
+        background: #f8fafc;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scrollbar-width: none;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+      }
+      html::-webkit-scrollbar,
+      body::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+      .wb-lib-preview-slot {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      .wb-lib-preview-scaler {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: ${designW}px;
+        transform-origin: top center;
+        will-change: transform;
+      }
+      .wb-lib-preview-root {
+        width: 100%;
+        min-height: 0 !important;
+        box-sizing: border-box;
+      }
+      ${WEBSITE_BUILDER_ANIMATION_CSS}
+      ${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}
+      ${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}
+      ${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}
+      ${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}
+      ${dsPreviewEndCss}
+    </style>
+  </head>
+  <body>
+    <div class="wb-lib-preview-slot">
+      <div class="wb-lib-preview-scaler">
+        <div class="wb-lib-preview-root wb-template-root">${html}</div>
+      </div>
+    </div>
+    <script defer src="/wb-component-animations.js"></script>
+  </body>
+</html>`;
+}
+
+/** Full-page preview for a design system set (Navbar → Footer), for library template cards. */
+export function buildDesignSystemTemplatePreviewSrcDoc(editor: Editor, setId: DesignSystemSetId): string {
+  const html = DESIGN_SYSTEM_SECTION_ORDER.map((key) => getBlockHtmlString(editor, `wb-ds-${setId}-${key}`))
+    .filter((s) => s.trim().length > 0)
+    .join('\n');
+  if (!html) return '';
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: #f8fafc;
+        overflow: auto;
+        scrollbar-width: none;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+      }
+      html::-webkit-scrollbar,
+      body::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+      .wb-lib-template-preview-root {
+        min-height: 100%;
+      }
+      ${WEBSITE_BUILDER_ANIMATION_CSS}
+      ${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}
+      ${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}
+      ${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}
+      ${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}
+    </style>
+  </head>
+  <body>
+    <div class="wb-lib-template-preview-root wb-template-root">${html}</div>
+    <script defer src="/wb-component-animations.js"></script>
+  </body>
+</html>`;
+}
+
 /** Scale iframe preview content so it fits the card visual (same-origin srcdoc only). */
 export function applyLibraryPreviewFit(iframe: HTMLIFrameElement): void {
   const doc = iframe.contentDocument;
@@ -422,6 +628,74 @@ export function applyLibraryPreviewFit(iframe: HTMLIFrameElement): void {
     run();
     requestAnimationFrame(run);
   });
+}
+
+/**
+ * Lay out design-system section previews at a fixed desktop width, scale to the iframe,
+ * and size the outer slot so scrolling matches content height (no dead vertical space).
+ */
+export function applyDesignSystemSectionPreviewFit(iframe: HTMLIFrameElement): void {
+  const doc = iframe.contentDocument;
+  if (!doc) return;
+  const htmlEl = doc.documentElement;
+  const body = doc.body;
+  const slot = doc.querySelector('.wb-lib-preview-slot') as HTMLElement | null;
+  const scaler = doc.querySelector('.wb-lib-preview-scaler') as HTMLElement | null;
+  const root = doc.querySelector('.wb-lib-preview-root') as HTMLElement | null;
+  if (!slot || !scaler || !root) return;
+
+  const run = () => {
+    const iw = Math.max(1, Math.floor(iframe.clientWidth));
+    const ih = Math.max(1, Math.floor(iframe.clientHeight));
+    const designW = WB_LIB_DS_SECTION_PREVIEW_WIDTH;
+    const s = Math.min(1, iw / designW);
+    scaler.style.width = `${designW}px`;
+    scaler.style.left = '50%';
+    scaler.style.top = '0';
+    scaler.style.transform = 'none';
+    scaler.style.transformOrigin = 'top center';
+    void scaler.offsetWidth;
+    const h = Math.max(1, root.scrollHeight);
+    scaler.style.transform = `translateX(-50%) scale(${s})`;
+    const slotH = Math.ceil(h * s);
+    slot.style.height = `${slotH}px`;
+
+    const short = slotH < ih;
+    if (short) {
+      htmlEl.style.height = '100%';
+      htmlEl.style.overflow = 'hidden';
+      body.style.minHeight = `${ih}px`;
+      body.style.height = '100%';
+      body.style.boxSizing = 'border-box';
+      body.style.display = 'flex';
+      body.style.flexDirection = 'column';
+      body.style.justifyContent = 'center';
+      body.style.alignItems = 'stretch';
+      body.style.overflow = 'hidden';
+      slot.style.width = '100%';
+      slot.style.alignSelf = 'stretch';
+    } else {
+      htmlEl.style.height = '';
+      htmlEl.style.overflow = '';
+      body.style.minHeight = '';
+      body.style.height = '';
+      body.style.boxSizing = '';
+      body.style.display = '';
+      body.style.flexDirection = '';
+      body.style.justifyContent = '';
+      body.style.alignItems = '';
+      body.style.overflow = '';
+      slot.style.width = '';
+      slot.style.alignSelf = '';
+    }
+  };
+
+  requestAnimationFrame(() => {
+    run();
+    requestAnimationFrame(run);
+  });
+  window.setTimeout(run, 120);
+  window.setTimeout(run, 420);
 }
 
 /** HTML5 drag payload from the components palette / library onto the Grapes canvas. */
@@ -581,11 +855,25 @@ export function insertBlockByIdAtFrameClientPoint(
   return true;
 }
 
+/**
+ * Palette / library inserts must not append into the previously inserted
+ * `wb-canvas-layer-group` (Grapes auto-selects it), or every block nests and
+ * layout + motion observers break (empty pricing, “Layer 2 / Layer 2 …”).
+ */
+function resolvePaletteInsertTarget(editor: Editor): Component | undefined {
+  const wrap = editor.getWrapper();
+  if (!wrap) return undefined;
+  const sel = editor.getSelected();
+  if (!sel || sel === wrap) return wrap;
+  if (isWbLayerGroup(sel)) return wrap;
+  return sel;
+}
+
 /** Add the block’s HTML to the current selection (or the page) without leaving the editor. */
 export function insertBlockById(editor: Editor, blockId: string): boolean {
   const html = getBlockHtmlString(editor, blockId);
   if (!html) return false;
-  const target = editor.getSelected() || editor.getWrapper();
+  const target = resolvePaletteInsertTarget(editor);
   if (!target) return false;
   const wrapped = `<div class="wb-canvas-layer-group" ${WB_LAYER_GROUP_ATTR}="1">${html}</div>`;
   target.append(wrapped);

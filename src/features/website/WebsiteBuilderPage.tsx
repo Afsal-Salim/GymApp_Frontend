@@ -37,7 +37,13 @@ import grapesjs, { type Component, type Editor } from 'grapesjs';
 import beautify from 'js-beautify';
 import { Button, Container, Form, Modal, Spinner } from 'react-bootstrap';
 import { PageContainer } from '../../components';
-import { apiBaseUrl, publicGymSiteHostLabel, publicGymSiteUrl, serviceEnquiryPath } from '../../config/env';
+import {
+  apiBaseUrl,
+  nextBaseUrl,
+  publicGymSiteHostLabel,
+  publicGymSiteUrl,
+  serviceEnquiryPath,
+} from '../../config/env';
 import 'grapesjs/dist/css/grapes.min.css';
 import './WebsiteBuilderPage.css';
 import { expandBlockManagerCategories, registerWebsiteBuilderExtensions } from './websiteBuilderBlocks';
@@ -69,6 +75,7 @@ import { attachCanvasBlockPaletteDrop } from './websiteBuilderCanvasBlockPalette
 import { WebsiteBuilderComponentsLibrary } from './WebsiteBuilderComponentsLibrary';
 import { attachCanvasClipboardPaste } from './websiteBuilderCanvasClipboardPaste';
 import { attachCanvasLayerOrderContextMenu } from './websiteBuilderCanvasContextMenu';
+import { filterCssUsedByPageHtml } from './websiteBuilderPageUsedCss';
 import {
   attachCanvasSelectionFocus,
   attachSelectionListener,
@@ -117,6 +124,34 @@ function syncPages(editor: Editor, setPages: (items: BuilderPageTab[]) => void, 
 const PREVIEW_WINDOW_NAME = 'gymCrystalSitePreview';
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+/** Blob preview documents need absolute script URLs; relative `/file.js` does not load from `blob:`. */
+function absolutePublicAssetUrl(path: string): string {
+  if (typeof window === 'undefined') return path;
+  const p = path.startsWith('/') ? path : `/${path}`;
+  const base = nextBaseUrl.endsWith('/') ? nextBaseUrl.slice(0, -1) : nextBaseUrl;
+  return `${window.location.origin}${base}${p}`;
+}
+
+function buildPreviewLeadBodyAttrs(mode: 'create' | 'edit', routeSlug: string): string {
+  let slug = mode === 'edit' ? routeSlug.trim().toLowerCase() : '';
+  if (!slug && mode === 'create') {
+    slug = (readCrystalWebsitePreviewFromStorage()?.slug ?? '').trim().toLowerCase();
+  }
+  const parts: string[] = [];
+  if (slug && slug !== 'preview' && SLUG_PATTERN.test(slug)) {
+    parts.push(`data-wb-public-gym-slug="${escapeHtmlAttr(slug)}"`);
+  }
+  const api = (apiBaseUrl || '').replace(/\/$/, '');
+  if (api) parts.push(`data-wb-api-base="${escapeHtmlAttr(api)}"`);
+  const enq = (serviceEnquiryPath || '').trim();
+  if (enq) parts.push(`data-wb-service-enquiry-path="${escapeHtmlAttr(enq)}"`);
+  return parts.length ? ` ${parts.join(' ')}` : '';
+}
 
 const LS_SIDEBAR_L_W = 'wb_builder_sidebar_left_w_v1';
 const LS_SIDEBAR_R_W = 'wb_builder_sidebar_right_w_v1';
@@ -265,27 +300,88 @@ function attachCanvasLeadModalsBridge(editor: Editor, opts: { mode: 'create' | '
 }
 
 const WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID = 'wb-component-animations-canvas';
+const WB_CANVAS_COMPONENT_ANIM_EDITOR_STYLE_ID = 'wb-component-animations-editor-visibility';
 
 function attachCanvasComponentAnimations(editor: Editor): () => void {
-  const inject = () => {
+  const forceEditorVisibleMotionNodes = () => {
     try {
       const doc = editor.Canvas?.getDocument?.();
-      if (!doc?.head) return;
-      if (doc.getElementById(WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID)) return;
-      const s = doc.createElement('script');
-      s.id = WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID;
-      s.src = '/wb-component-animations.js';
-      s.defer = true;
-      doc.head.appendChild(s);
+      if (!doc?.body) return;
+      const nodes = doc.querySelectorAll('.fade-up, .wb-fade-up, .wb-ds-root.wb-fade-in');
+      for (let i = 0; i < nodes.length; i++) {
+        const el = nodes[i] as HTMLElement;
+        if (el.classList.contains('fade-up')) el.classList.add('show');
+        el.style.setProperty('opacity', '1', 'important');
+        el.style.setProperty('transform', 'none', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+      }
     } catch {
       /* ignore */
     }
   };
+
+  const scheduleForceEditorVisibleMotionNodes = () => {
+    forceEditorVisibleMotionNodes();
+    requestAnimationFrame(() => {
+      forceEditorVisibleMotionNodes();
+      requestAnimationFrame(forceEditorVisibleMotionNodes);
+    });
+    window.setTimeout(forceEditorVisibleMotionNodes, 60);
+    window.setTimeout(forceEditorVisibleMotionNodes, 180);
+  };
+
+  const inject = () => {
+    try {
+      const doc = editor.Canvas?.getDocument?.();
+      if (!doc?.head) return;
+      if (!doc.getElementById(WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID)) {
+        const s = doc.createElement('script');
+        s.id = WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID;
+        s.src = '/wb-component-animations.js';
+        s.defer = true;
+        doc.head.appendChild(s);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      // Editor-only guard: animation utility classes like `.fade-up` start at opacity:0.
+      // In the builder canvas this can hide newly inserted cards before runtime observers mark them shown.
+      // Force visibility in-editor so components are immediately editable; preview/export keep real animation.
+      const doc = editor.Canvas?.getDocument?.();
+      if (!doc?.head) return;
+      if (!doc.getElementById(WB_CANVAS_COMPONENT_ANIM_EDITOR_STYLE_ID)) {
+        const st = doc.createElement('style');
+        st.id = WB_CANVAS_COMPONENT_ANIM_EDITOR_STYLE_ID;
+        st.textContent = `
+          .fade-up,
+          .wb-fade-up,
+          .wb-ds-root.wb-fade-in {
+            opacity: 1 !important;
+            transform: none !important;
+            animation: none !important;
+          }
+        `;
+        doc.head.appendChild(st);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    scheduleForceEditorVisibleMotionNodes();
+  };
   editor.on('canvas:frame:load', inject);
+  editor.on('component:add', scheduleForceEditorVisibleMotionNodes);
+  editor.on('component:update', scheduleForceEditorVisibleMotionNodes);
+  editor.on('load', scheduleForceEditorVisibleMotionNodes);
   queueMicrotask(inject);
   return () => {
     try {
       editor.off('canvas:frame:load', inject);
+      editor.off('component:add', scheduleForceEditorVisibleMotionNodes);
+      editor.off('component:update', scheduleForceEditorVisibleMotionNodes);
+      editor.off('load', scheduleForceEditorVisibleMotionNodes);
     } catch {
       /* ignore */
     }
@@ -491,6 +587,7 @@ export default function WebsiteBuilderPage() {
   const [previewBusy, setPreviewBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [clearCanvasModalOpen, setClearCanvasModalOpen] = useState(false);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('content');
   const [inspectorSelection, setInspectorSelection] = useState<SelectionInfo | null>(null);
@@ -1160,6 +1257,22 @@ export default function WebsiteBuilderPage() {
     router.push(href);
   }, [handleSave, pendingHref, router]);
 
+  const handleClearCanvasConfirm = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    try {
+      editor.setComponents('<main class="wb-page wb-template-root"></main>');
+      setInspectorSelection(null);
+      try {
+        editor.refresh();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setClearCanvasModalOpen(false);
+    }
+  }, []);
+
   const handleDownloadHtml = useCallback(() => {
     const editor = editorRef.current;
     if (!editor || !resolved) return;
@@ -1200,8 +1313,9 @@ ${html}
   const handleOpenCode = useCallback(() => {
     const editor = editorRef.current;
     if (!editor || !resolved) return;
-    setCodeHtml(editor.getHtml() ?? '');
-    setCodeCss(editor.getCss() ?? '');
+    const html = editor.getHtml() ?? '';
+    setCodeHtml(html);
+    setCodeCss(filterCssUsedByPageHtml(html, editor.getCss() ?? ''));
     setCodeModalOpen(true);
   }, [resolved]);
 
@@ -1244,6 +1358,9 @@ ${html}
       }
       const html = editor.getHtml() ?? '';
       const css = editor.getCss() ?? '';
+      const bodyLeadAttrs = buildPreviewLeadBodyAttrs(mode, routeSlug);
+      const animScriptSrc = absolutePublicAssetUrl('/wb-component-animations.js');
+      const leadScriptSrc = absolutePublicAssetUrl('/wb-crystal-lead-modals.js');
       const doc = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1259,10 +1376,10 @@ ${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}
 ${css}
   </style>
 </head>
-<body class="wb-template-root">
+<body class="wb-template-root"${bodyLeadAttrs}>
 ${html}
-<script defer src="/wb-component-animations.js"></script>
-<script src="/wb-crystal-lead-modals.js"></script>
+<script defer src="${animScriptSrc}"></script>
+<script src="${leadScriptSrc}"></script>
 </body>
 </html>`;
       const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
@@ -1686,6 +1803,17 @@ ${html}
                 <ViewModuleOutlinedIcon fontSize="small" className="website-builder-page__workbar-library-icon" aria-hidden />
                 Library
               </Button>
+              <Button
+                size="sm"
+                type="button"
+                variant="outline-danger"
+                disabled={resolving || Boolean(resolveErr) || !resolved}
+                title="Clear current page canvas"
+                onClick={() => setClearCanvasModalOpen(true)}
+              >
+                <DeleteOutlineOutlinedIcon fontSize="small" aria-hidden />
+                Clear
+              </Button>
             </div>
             <div className="website-builder-page__workbar-group website-builder-page__workbar-group--center">
               <button
@@ -1800,6 +1928,28 @@ ${html}
             </Modal.Footer>
           </Modal>
 
+          <Modal show={clearCanvasModalOpen} onHide={() => setClearCanvasModalOpen(false)} centered animation>
+            <Modal.Header closeButton>
+              <Modal.Title as="h2" className="h5 mb-0">
+                Clear canvas
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p className="mb-2 fw-semibold">Are you sure?</p>
+              <p className="text-muted small mb-0">
+                This will remove all sections and components from the current page canvas. This action cannot be undone with one click.
+              </p>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="outline-secondary" onClick={() => setClearCanvasModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={() => handleClearCanvasConfirm()}>
+                Clear canvas
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
           <Modal
             show={codeModalOpen}
             onHide={() => setCodeModalOpen(false)}
@@ -1819,7 +1969,10 @@ ${html}
                     </span>
                     <div>
                       <h2 className="wb-code-modal__title">Current page code</h2>
-                      <p className="wb-code-modal__subtitle">View and copy the HTML and CSS code of your current page.</p>
+                      <p className="wb-code-modal__subtitle">
+                        View and copy your current page HTML, and CSS rules that match this markup (not the full canvas
+                        stylesheet).
+                      </p>
                     </div>
                   </div>
                   <button
@@ -1900,7 +2053,7 @@ ${html}
                     <div className="wb-code-modal__card-foot">
                       <span className="wb-code-modal__card-note">
                         <InfoOutlinedIcon className="wb-code-modal__card-note-icon" fontSize="inherit" aria-hidden />
-                        Styles generated for your current page.
+                        CSS kept when a selector matches your current HTML (plus referenced @keyframes).
                       </span>
                       <span className="wb-code-modal__card-meta">
                         <span className="wb-code-modal__status wb-code-modal__status--css" aria-hidden />
@@ -2155,6 +2308,7 @@ ${html}
                   selection={inspectorSelection}
                   tab={inspectorTab}
                   onTabChange={setInspectorTab}
+                  builderPages={pages}
                 />
               </div>
             </aside>

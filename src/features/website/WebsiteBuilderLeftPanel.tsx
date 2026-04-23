@@ -29,10 +29,12 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import WidgetsOutlinedIcon from '@mui/icons-material/WidgetsOutlined';
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Component, Editor } from 'grapesjs';
 import { BlockPreview } from './WebsiteBuilderComponentsLibrary';
 import {
+  buildDesignSystemTemplatePreviewSrcDoc,
   getComponentCatalog,
   insertBlockById,
   insertFullDesignSystemPage,
@@ -40,6 +42,7 @@ import {
   type ComponentLibraryPreviewKind,
   type ComponentsLibraryOpenTarget,
 } from './websiteBuilderComponentCatalog';
+import type { DesignSystemSetId } from './websiteBuilderDesignSystemBlocks';
 
 export type LeftPanelTab = 'pages' | 'structure' | 'components';
 
@@ -66,6 +69,8 @@ type PaletteCard = {
   titleLine2?: string;
   desc: string;
   blockId?: string;
+  /** Full-page design system: live iframe preview (same srcDoc as components library). */
+  designSystemSetId?: DesignSystemSetId;
   onInsert?: () => void;
   icon: ReactNode;
   accent?: PaletteAccent;
@@ -86,6 +91,38 @@ function onPaletteTileKeyDown(e: KeyboardEvent, run: () => void) {
     e.preventDefault();
     run();
   }
+}
+
+function PaletteDesignSystemTemplatePreview({
+  editor,
+  setId,
+  label,
+}: {
+  editor: Editor;
+  setId: DesignSystemSetId;
+  label: string;
+}) {
+  const srcDoc = useMemo(() => buildDesignSystemTemplatePreviewSrcDoc(editor, setId), [editor, setId]);
+  if (!srcDoc) {
+    return (
+      <div className="wb-palette-tile__preview-fallback" aria-hidden>
+        <span className={`wb-palette-tile__fb-ico wb-palette-ico ${paletteAccentClass(undefined)}`}>
+          <LayersOutlinedIcon fontSize="inherit" />
+        </span>
+        <span className="wb-palette-tile__fb-label">{label}</span>
+      </div>
+    );
+  }
+  return (
+    <iframe
+      title={`${label} full-page preview`}
+      className="wb-comp-lib__template-preview-frame"
+      srcDoc={srcDoc}
+      loading="lazy"
+      tabIndex={-1}
+      aria-hidden
+    />
+  );
 }
 
 function paletteAccentClass(accent: PaletteAccent | undefined): string {
@@ -185,6 +222,7 @@ function ComponentsPalette({
             title: 'POWER',
             titleLine2: 'Insert full page',
             desc: 'Dark + red · Navbar through Footer',
+            designSystemSetId: 'power',
             onInsert: () => {
               if (!editor) return;
               insertFullDesignSystemPage(editor, 'power');
@@ -197,6 +235,7 @@ function ComponentsPalette({
             title: 'ELITE',
             titleLine2: 'Insert full page',
             desc: 'Light + blue · Navbar through Footer',
+            designSystemSetId: 'elite',
             onInsert: () => {
               if (!editor) return;
               insertFullDesignSystemPage(editor, 'elite');
@@ -209,6 +248,7 @@ function ComponentsPalette({
             title: 'FOCUS',
             titleLine2: 'Insert full page',
             desc: 'Dark + green · Navbar through Footer',
+            designSystemSetId: 'focus',
             onInsert: () => {
               if (!editor) return;
               insertFullDesignSystemPage(editor, 'focus');
@@ -221,6 +261,7 @@ function ComponentsPalette({
             title: 'ENERGY',
             titleLine2: 'Insert full page',
             desc: 'Light + orange · Navbar through Footer',
+            designSystemSetId: 'energy',
             onInsert: () => {
               if (!editor) return;
               insertFullDesignSystemPage(editor, 'energy');
@@ -233,6 +274,7 @@ function ComponentsPalette({
             title: 'PRIME',
             titleLine2: 'Insert full page',
             desc: 'Dark + purple · Navbar through Footer',
+            designSystemSetId: 'prime',
             onInsert: () => {
               if (!editor) return;
               insertFullDesignSystemPage(editor, 'prime');
@@ -245,11 +287,38 @@ function ComponentsPalette({
             title: 'SPORTY',
             titleLine2: 'Insert full page',
             desc: 'Light + teal · Navbar through Footer',
+            designSystemSetId: 'sporty',
             onInsert: () => {
               if (!editor) return;
               insertFullDesignSystemPage(editor, 'sporty');
             },
             accent: 'pink',
+            icon: <LayersOutlinedIcon fontSize="inherit" />,
+          },
+          {
+            id: 'ds-cyberfit',
+            title: 'CYBERFIT',
+            titleLine2: 'Insert full page',
+            desc: 'Cyberpunk neon · Navbar through Footer',
+            designSystemSetId: 'cyberfit',
+            onInsert: () => {
+              if (!editor) return;
+              insertFullDesignSystemPage(editor, 'cyberfit');
+            },
+            accent: 'purple',
+            icon: <LayersOutlinedIcon fontSize="inherit" />,
+          },
+          {
+            id: 'ds-glassmorph',
+            title: 'GLASSMORPH',
+            titleLine2: 'Insert full page',
+            desc: 'White + blue glass · Navbar through Footer',
+            designSystemSetId: 'glassmorph',
+            onInsert: () => {
+              if (!editor) return;
+              insertFullDesignSystemPage(editor, 'glassmorph');
+            },
+            accent: 'blue',
             icon: <LayersOutlinedIcon fontSize="inherit" />,
           },
         ],
@@ -417,7 +486,8 @@ function ComponentsPalette({
       card.title.toLowerCase().includes(needle) ||
       (card.titleLine2?.toLowerCase().includes(needle) ?? false) ||
       card.desc.toLowerCase().includes(needle) ||
-      (card.blockId ? card.blockId.toLowerCase().includes(needle) : false)
+      (card.blockId ? card.blockId.toLowerCase().includes(needle) : false) ||
+      (card.designSystemSetId?.toLowerCase().includes(needle) ?? false)
     );
   };
 
@@ -537,7 +607,19 @@ function ComponentsPalette({
                   </span>
                 : null}
                 <div className="wb-components-palette__section-titles">
-                  <h3 className="wb-components-palette__section-title">{sec.title}</h3>
+                  <h3
+                    className={`wb-components-palette__section-title${sec.id === 'design-systems' ? ' wb-components-palette__section-title--with-badges' : ''}`}
+                  >
+                    {sec.title}
+                    {sec.id === 'design-systems' ?
+                      <>
+                        <span className="wb-ds-max-tag" aria-hidden>
+                          Max
+                        </span>
+                        <WorkspacePremiumOutlinedIcon className="wb-ds-max-crown" fontSize="inherit" aria-hidden />
+                      </>
+                    : null}
+                  </h3>
                   {sec.subtitle ?
                     <p className="wb-components-palette__section-subtitle">{sec.subtitle}</p>
                   : null}
@@ -573,7 +655,13 @@ function ComponentsPalette({
                   title={c.desc}
                 >
                   <div className="wb-palette-tile__preview" aria-hidden>
-                    {c.blockId ?
+                    {c.designSystemSetId ?
+                      <PaletteDesignSystemTemplatePreview
+                        editor={editor}
+                        setId={c.designSystemSetId}
+                        label={c.title}
+                      />
+                    : c.blockId ?
                       <BlockPreview
                         editor={editor}
                         blockId={c.blockId}

@@ -47,7 +47,11 @@
       '.wb-nlm-btn--ghost{background:#f1f5f9;color:#334155}' +
       '.wb-nlm-btn--primary{background:#2563eb;color:#fff}' +
       '.wb-nlm-done{text-align:center;padding:8px 0 4px}' +
-      '.wb-nlm-done h3{margin:0 0 8px;font-size:1.1rem;color:#0f172a}';
+      '.wb-nlm-done h3{margin:0 0 8px;font-size:1.1rem;color:#0f172a}' +
+      '.wb-sys-contact__feedback{margin:0 0 10px;font-size:.82rem;line-height:1.4}' +
+      '.wb-sys-contact__feedback--err{color:#b91c1c}' +
+      '.wb-sys-contact__feedback--ok{color:#15803d}' +
+      '.wb-sys-contact__feedback--muted{color:#64748b}';
     var st = document.createElement('style');
     st.id = STYLE_ID;
     st.textContent = css;
@@ -105,6 +109,93 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload),
     });
+  }
+
+  function ensurePhoneFieldOnContactForm(form) {
+    if (form.querySelector('input[name="phone"]')) return;
+    var email = form.querySelector('input[type="email"], input[name="email"]');
+    if (!email) return;
+    var ph = document.createElement('input');
+    ph.type = 'tel';
+    ph.name = 'phone';
+    ph.placeholder = 'Phone (10 digits)';
+    ph.setAttribute('inputmode', 'numeric');
+    ph.setAttribute('autocomplete', 'tel');
+    email.insertAdjacentElement('afterend', ph);
+  }
+
+  function getOrCreateContactFormFeedback(form) {
+    var el = form.querySelector('.wb-sys-contact__feedback');
+    if (!el) {
+      el = document.createElement('p');
+      el.className = 'wb-sys-contact__feedback';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      form.insertBefore(el, form.firstChild);
+    }
+    return el;
+  }
+
+  function submitInlineContactForm(form) {
+    ensureStyles();
+    var c = readCfg();
+    if (!c.apiBase || !c.servicePath) {
+      window.alert('Service enquiry is not configured on this page.');
+      return;
+    }
+    ensurePhoneFieldOnContactForm(form);
+    var fb = getOrCreateContactFormFeedback(form);
+    var nameEl = form.querySelector('[name="name"]');
+    var emailEl = form.querySelector('[name="email"]');
+    var phoneEl = form.querySelector('[name="phone"]');
+    var msgEl = form.querySelector('[name="message"]');
+    var name = nameEl ? nameEl.value.trim() : '';
+    var email = emailEl ? emailEl.value.trim() : '';
+    var phone = phoneEl ? digits10(phoneEl.value) : '';
+    var message = msgEl ? msgEl.value.trim() : '';
+    if (name.length < 2 || email.length < 5 || phone.length !== 10 || message.length < 3) {
+      fb.className = 'wb-sys-contact__feedback wb-sys-contact__feedback--err';
+      fb.textContent =
+        'Please enter your name, a valid email, a 10-digit mobile number, and a short message (at least 3 characters).';
+      return;
+    }
+    var btn =
+      form.querySelector('button[type="submit"]') || form.querySelector('button.wb-sys-btn--block');
+    if (form._wbEnquirySubmitting) return;
+    form._wbEnquirySubmitting = true;
+    fb.className = 'wb-sys-contact__feedback wb-sys-contact__feedback--muted';
+    fb.textContent = 'Sending…';
+    if (btn) {
+      btn.disabled = true;
+      if (!btn.getAttribute('data-wb-btn-label')) btn.setAttribute('data-wb-btn-label', btn.textContent);
+      btn.textContent = 'Sending…';
+    }
+    postServiceEnquiry(c.apiBase, c.servicePath, { name: name, email: email, phone: phone, message: message })
+      .then(function (r) {
+        form._wbEnquirySubmitting = false;
+        if (btn) {
+          btn.disabled = false;
+          var lab = btn.getAttribute('data-wb-btn-label');
+          if (lab) btn.textContent = lab;
+        }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        fb.className = 'wb-sys-contact__feedback wb-sys-contact__feedback--ok';
+        fb.textContent = 'Thanks — your message was sent. We will get back to you shortly.';
+        if (nameEl) nameEl.value = '';
+        if (emailEl) emailEl.value = '';
+        if (phoneEl) phoneEl.value = '';
+        if (msgEl) msgEl.value = '';
+      })
+      .catch(function () {
+        form._wbEnquirySubmitting = false;
+        if (btn) {
+          btn.disabled = false;
+          var lab = btn.getAttribute('data-wb-btn-label');
+          if (lab) btn.textContent = lab;
+        }
+        fb.className = 'wb-sys-contact__feedback wb-sys-contact__feedback--err';
+        fb.textContent = 'Could not send right now. Please try again or use phone / email above.';
+      });
   }
 
   function joinModal() {
@@ -327,8 +418,26 @@
       if (kind === 'join') joinModal();
       else if (kind === 'visit') visitModal();
       else if (kind === 'trial') trialModal();
-      else if (kind === 'enquiry') enquiryModal();
+      else if (kind === 'enquiry') {
+        var cform = el.closest('form.wb-sys-contact__form');
+        if (cform) {
+          submitInlineContactForm(cform);
+          return;
+        }
+        enquiryModal();
+      }
     },
     false
+  );
+
+  document.addEventListener(
+    'submit',
+    function (e) {
+      var form = e.target;
+      if (!form || form.nodeName !== 'FORM' || !form.classList.contains('wb-sys-contact__form')) return;
+      e.preventDefault();
+      submitInlineContactForm(form);
+    },
+    true
   );
 })();

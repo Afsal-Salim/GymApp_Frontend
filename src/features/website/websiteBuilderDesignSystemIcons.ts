@@ -43,6 +43,13 @@ export const DS_ICO = {
     'wb-ds-ico wb-ds-ico--spo-nav',
     `<path d="M14.5 3.5L7 12h5.5L9 21l8-8.5H12l2.5-9z"/>`,
   ),
+  /** CYBERFIT — hex circuit mark */
+  cyberMark: svg(
+    20,
+    20,
+    'wb-ds-ico wb-ds-ico--cyb-nav',
+    `<path d="M12 2.2l7.2 4.2v8.2L12 18.8l-7.2-4.2V6.4L12 2.2z"/><path d="M12 6.5L8.2 8.7v4.6L12 15.5l3.8-2.2V8.7L12 6.5z"/>`,
+  ),
   fatLoss: svg(
     22,
     22,
@@ -174,5 +181,12 @@ export const DS_ICO = {
     18,
     'wb-ds-ico wb-ds-ico--social',
     `<path d="M8 3h8a5 5 0 0 1 5 5v8a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5V8a5 5 0 0 1 5-5zm8 2H8a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3zm-4 2.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5zm4.8-3.3a1 1 0 1 1-1 1 1 1 0 0 1 1-1z"/>`,
+  ),
+  /** Nav tier badge — compact crown (amber via `.wb-sys-tag-crown`) */
+  crownNav: svgFill(
+    16,
+    16,
+    'wb-ds-ico wb-ds-ico--crown-nav',
+    `<path d="M5 17 6 9l3.2 2.1L12 5l3.8 6.1L18 9l1 8H5zm-1 2h16" />`,
   ),
 } as const;

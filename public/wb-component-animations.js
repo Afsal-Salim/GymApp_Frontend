@@ -126,7 +126,6 @@
     for (var r = 0; r < roots.length; r++) {
       var root = roots[r];
       if (root.getAttribute('data-wb-ds-gallery-init')) continue;
-      root.setAttribute('data-wb-ds-gallery-init', '1');
 
       var vp = root.querySelector('.wb-sys-carousel__viewport');
       var track = root.querySelector('.wb-sys-carousel__track');
@@ -137,11 +136,18 @@
       var prev = root.querySelector('.wb-sys-carousel__btn--prev');
       var next = root.querySelector('.wb-sys-carousel__btn--next');
       if (slides.length < 1) continue;
+      root.setAttribute('data-wb-ds-gallery-init', '1');
 
+      /**
+       * Scroll offset for slide i: distance from track's left edge to slide's left edge.
+       * Slides often share offsetParent with the track (the positioned .wb-sys-carousel), so
+       * raw slide.offsetLeft is wrong for vp.scrollLeft — must subtract track.offsetLeft.
+       */
       function slideScrollTarget(i) {
         var s = slides[i];
-        if (!s) return 0;
-        return s.offsetLeft;
+        if (!s || !track) return 0;
+        if (s.offsetParent === track) return s.offsetLeft;
+        return s.offsetLeft - track.offsetLeft;
       }
 
       function activeIndex() {
@@ -169,11 +175,29 @@
       function goTo(i) {
         if (i < 0) i = slides.length - 1;
         if (i >= slides.length) i = 0;
+        var s = slides[i];
+        if (!s) return;
         var left = slideScrollTarget(i);
+        var maxLeft = Math.max(0, track.scrollWidth - vp.clientWidth);
+        if (left < 0) left = 0;
+        if (left > maxLeft) left = maxLeft;
+        /* Direct viewport scroll is most reliable across canvas/preview/public runtime contexts. */
         try {
           vp.scrollTo({ left: left, behavior: 'smooth' });
-        } catch (e) {
-          vp.scrollLeft = left;
+        } catch (e1) {
+          try {
+            vp.scrollLeft = left;
+          } catch (e2) {
+            try {
+              s.scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
+            } catch (e3) {
+              try {
+                s.scrollIntoView(true);
+              } catch (e4) {
+                vp.scrollLeft = left;
+              }
+            }
+          }
         }
         setDots(i);
       }
@@ -182,19 +206,70 @@
         goTo(activeIndex() + dir);
       }
 
-      if (prev) prev.addEventListener('click', function () { step(-1); resetAutoplay(); });
-      if (next) next.addEventListener('click', function () { step(1); resetAutoplay(); });
+      /* Capture + stopPropagation: GrapesJS binds click on iframe body (bubble) with preventDefault and would steal nav. */
+      function wireNav(btn, dir) {
+        if (!btn) return;
+        try {
+          if (!btn.getAttribute('type')) btn.setAttribute('type', 'button');
+        } catch (e0) {
+          /* ignore */
+        }
+        var run = function (ev) {
+          if (ev) {
+            if (typeof ev.preventDefault === 'function') ev.preventDefault();
+            if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+          }
+          step(dir);
+          resetAutoplay();
+        };
+        btn.addEventListener(
+          'pointerdown',
+          function (ev) {
+            run(ev);
+          },
+          true
+        );
+        btn.addEventListener(
+          'click',
+          function (ev) {
+            run(ev);
+          },
+          true
+        );
+      }
+      wireNav(prev, -1);
+      wireNav(next, 1);
 
       for (var d = 0; d < dots.length; d++) {
-        dots[d].addEventListener(
-          'click',
-          (function (idx) {
-            return function () {
-              goTo(idx);
-              resetAutoplay();
-            };
-          })(d)
-        );
+        (function (dot, idx) {
+          try {
+            if (!dot.getAttribute('type')) dot.setAttribute('type', 'button');
+          } catch (e0) {
+            /* ignore */
+          }
+          var runDot = function (ev) {
+            if (ev) {
+              if (typeof ev.preventDefault === 'function') ev.preventDefault();
+              if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+            }
+            goTo(idx);
+            resetAutoplay();
+          };
+          dot.addEventListener(
+            'pointerdown',
+            function (ev) {
+              runDot(ev);
+            },
+            true
+          );
+          dot.addEventListener(
+            'click',
+            function (ev) {
+              runDot(ev);
+            },
+            true
+          );
+        })(dots[d], d);
       }
 
       var scrollTick = false;
@@ -248,6 +323,56 @@
     }
   }
 
+  function prefersReducedMotion() {
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function smoothScrollDocumentTop(win) {
+    var w = win || window;
+    var doc = w.document;
+    var behavior = prefersReducedMotion() ? 'auto' : 'smooth';
+    try {
+      w.scrollTo({ top: 0, left: 0, behavior: behavior });
+    } catch (e0) {
+      /* ignore */
+    }
+    try {
+      doc.documentElement.scrollTo({ top: 0, left: 0, behavior: behavior });
+    } catch (e1) {
+      /* ignore */
+    }
+    try {
+      doc.body.scrollTo({ top: 0, left: 0, behavior: behavior });
+    } catch (e2) {
+      try {
+        doc.documentElement.scrollTop = 0;
+        doc.body.scrollTop = 0;
+      } catch (e3) {
+        /* ignore */
+      }
+    }
+  }
+
+  function initScrollTopButtons() {
+    var roots = document.querySelectorAll('[data-wb-scroll-top]');
+    for (var r = 0; r < roots.length; r++) {
+      var root = roots[r];
+      if (root.getAttribute('data-wb-scroll-top-init')) continue;
+      root.setAttribute('data-wb-scroll-top-init', '1');
+      root.addEventListener('click', function (ev) {
+        if (ev) {
+          if (typeof ev.preventDefault === 'function') ev.preventDefault();
+          if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+        }
+        smoothScrollDocumentTop(window);
+      });
+    }
+  }
+
   function initEnquirySlides() {
     var roots = document.querySelectorAll('[data-wb-enquiry-slide]');
     for (var r = 0; r < roots.length; r++) {
@@ -276,6 +401,7 @@
     initTestimonialCarousels();
     initDesignSystemGalleries();
     initEnquirySlides();
+    initScrollTopButtons();
   }
 
   function mountMutationObserver() {

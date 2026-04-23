@@ -2,8 +2,16 @@ import type { Editor } from 'grapesjs';
 import type { ComponentCatalogEntry, ComponentLibraryPreviewKind } from './websiteBuilderComponentCatalog';
 import { DS_ICO } from './websiteBuilderDesignSystemIcons';
 
-/** Six visual systems aligned to the fitness landing reference grid (POWER … SPORTY). */
-export type DesignSystemSetId = 'power' | 'elite' | 'focus' | 'energy' | 'prime' | 'sporty';
+/** Visual design sets for full-page fitness landings (POWER … CYBERFIT). */
+export type DesignSystemSetId =
+  | 'power'
+  | 'elite'
+  | 'focus'
+  | 'energy'
+  | 'prime'
+  | 'sporty'
+  | 'cyberfit'
+  | 'glassmorph';
 
 type DesignSetId = DesignSystemSetId;
 
@@ -14,7 +22,12 @@ export const DESIGN_SYSTEM_SETS: { id: DesignSetId; category: string; label: str
   { id: 'energy', category: 'Design · ENERGY', label: 'ENERGY' },
   { id: 'prime', category: 'Design · PRIME', label: 'PRIME' },
   { id: 'sporty', category: 'Design · SPORTY', label: 'SPORTY' },
+  { id: 'cyberfit', category: 'Design · CYBERFIT', label: 'CYBERFIT' },
+  { id: 'glassmorph', category: 'Design · GLASSMORPH', label: 'GLASSMORPH' },
 ];
+
+/** Max tier strip next to nav brand (gradient pill + crown) — all design-system navs. */
+const DS_MAX_BADGE_ROW = `<span class="wb-sys-ds-badges" aria-hidden="true"><span class="wb-sys-tag wb-sys-tag--max">Max</span><span class="wb-sys-tag-crown">${DS_ICO.crownNav}</span></span>`;
 
 const IMG_HERO =
   'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1600&auto=format&fit=crop&q=88';
@@ -24,8 +37,9 @@ const IMG_G1 =
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=960&auto=format&fit=crop&q=86';
 const IMG_G2 =
   'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=960&auto=format&fit=crop&q=86';
+/** Equipment / training floor — distinct from G1/G2; stable Unsplash asset. */
 const IMG_G3 =
-  'https://images.unsplash.com/photo-1581009146145-5e350ccc1b5e?w=960&auto=format&fit=crop&q=86';
+  'https://images.unsplash.com/photo-1574689046283-16f3b6db14db?w=960&auto=format&fit=crop&q=86';
 const IMG_G4 =
   'https://images.unsplash.com/photo-1593079831263-1a2839b31bfb?w=960&auto=format&fit=crop&q=86';
 /** Moody training hero for FOCUS split layout */
@@ -51,6 +65,16 @@ const IMG_HERO_SPORTY =
   'https://images.unsplash.com/photo-1593079831263-1a2839b31bfb?w=1600&auto=format&fit=crop&q=88';
 const IMG_ABOUT_SPORTY =
   'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=1200&auto=format&fit=crop&q=86';
+/** CYBERFIT — dark gym floor + neon energy (reliable Unsplash delivery) */
+const IMG_HERO_CYBER =
+  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=2000&q=88';
+const IMG_ABOUT_CYBER =
+  'https://images.unsplash.com/photo-1581009146145-bd50c405ffea?auto=format&fit=crop&w=1600&q=86';
+/** GLASSMORPH — cool daylight + blue mood visuals */
+const IMG_HERO_GLASS =
+  'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1600&auto=format&fit=crop&q=88';
+const IMG_ABOUT_GLASS =
+  'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=1200&auto=format&fit=crop&q=88';
 
 /** Named wrapper so the layer tree shows Nav, Hero, About, etc. */
 function dsSection(layerName: string, innerHtml: string): string {
@@ -63,9 +87,12 @@ function navHtml(set: DesignSetId): string {
       'Nav',
       `<nav class="wb-sys wb-sys-nav wb-sys--power wb-sys-pwr-nav">
         <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
           <a href="#" class="wb-sys-brand wb-sys-brand--gympower" aria-label="Gym Power home">
             <span class="wb-sys-brand__mark">${DS_ICO.bolt}</span><span class="wb-sys-brand__gym">GYM</span><span class="wb-sys-brand__pwr">POWER</span>
           </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
           <div class="wb-sys-nav__links">
             <a href="#">Home</a>
             <a href="#about">About</a>
@@ -85,9 +112,12 @@ function navHtml(set: DesignSetId): string {
       'Nav',
       `<nav class="wb-sys wb-sys-nav wb-sys--focus wb-sys-foc-nav">
         <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
           <a href="#" class="wb-sys-brand wb-sys-brand--focusgym" aria-label="Focus Gym home">
             <span class="wb-sys-brand__mark wb-sys-brand__mark--foc">${DS_ICO.focusMark}</span><span class="wb-sys-brand__foc">FOCUS</span><span class="wb-sys-brand__gymtag">GYM</span>
           </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
           <div class="wb-sys-nav__links">
             <a href="#">Home</a>
             <a href="#about">About</a>
@@ -107,9 +137,12 @@ function navHtml(set: DesignSetId): string {
       'Nav',
       `<nav class="wb-sys wb-sys-nav wb-sys--prime wb-sys-prm-nav">
         <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
           <a href="#" class="wb-sys-brand wb-sys-brand--primefit" aria-label="Prime Fitness home">
             <span class="wb-sys-brand__mark wb-sys-brand__mark--prm">${DS_ICO.primeBolt}</span><span class="wb-sys-brand__prm">PRIME</span><span class="wb-sys-brand__fitness">FITNESS</span>
           </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
           <div class="wb-sys-nav__links">
             <a href="#">Home</a>
             <a href="#about">About</a>
@@ -129,9 +162,12 @@ function navHtml(set: DesignSetId): string {
       'Nav',
       `<nav class="wb-sys wb-sys-nav wb-sys--elite wb-sys-eli-nav">
         <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
           <a href="#" class="wb-sys-brand wb-sys-brand--elitefit" aria-label="Elite Fitness home">
             <span class="wb-sys-brand__mark wb-sys-brand__mark--eli">${DS_ICO.eliteShield}</span><span class="wb-sys-brand__eli">ELITE</span><span class="wb-sys-brand__fit">FITNESS</span>
           </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
           <div class="wb-sys-nav__links">
             <a href="#">Home</a>
             <a href="#about">About</a>
@@ -151,9 +187,12 @@ function navHtml(set: DesignSetId): string {
       'Nav',
       `<nav class="wb-sys wb-sys-nav wb-sys--energy wb-sys-eng-nav">
         <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
           <a href="#" class="wb-sys-brand wb-sys-brand--energyfit" aria-label="Energy Fit home">
             <span class="wb-sys-brand__mark wb-sys-brand__mark--en">${DS_ICO.energyShield}</span><span class="wb-sys-brand__en">ENERGY</span><span class="wb-sys-brand__fit">FIT</span>
           </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
           <div class="wb-sys-nav__links">
             <a href="#">Home</a>
             <a href="#about">About</a>
@@ -173,9 +212,12 @@ function navHtml(set: DesignSetId): string {
       'Nav',
       `<nav class="wb-sys wb-sys-nav wb-sys--sporty wb-sys-spo-nav">
         <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
           <a href="#" class="wb-sys-brand wb-sys-brand--sportygym" aria-label="Sporty Gym home">
             <span class="wb-sys-brand__mark wb-sys-brand__mark--spo">${DS_ICO.sportyMark}</span><span class="wb-sys-brand__spo">SPORTY</span><span class="wb-sys-brand__gymnam">Gym</span>
           </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
           <div class="wb-sys-nav__links">
             <a href="#">Home</a>
             <a href="#about">About</a>
@@ -190,11 +232,97 @@ function navHtml(set: DesignSetId): string {
       </nav>`,
     );
   }
+  if (set === 'cyberfit') {
+    return dsSection(
+      'Nav',
+      `<nav class="wb-sys wb-sys-nav wb-sys--cyberfit wb-sys-cyb-nav">
+        <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
+          <a href="#" class="wb-sys-brand wb-sys-brand--cyberfit" aria-label="Neon District home">
+            <span class="wb-sys-brand__mark wb-sys-brand__mark--cyb">${DS_ICO.cyberMark}</span><span class="wb-sys-brand__cyb">NEON</span><span class="wb-sys-brand__fitneon">DISTRICT</span>
+          </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
+          <div class="wb-sys-nav__links">
+            <a href="#">Home</a>
+            <a href="#about">About</a>
+            <a href="#programs">Programs</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#gallery">Gallery</a>
+            <a href="#contact">Contact</a>
+          </div>
+          <div class="wb-sys-nav__cta">
+            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+          </div>
+        </div>
+      </nav>`,
+    );
+  }
+  if (set === 'glassmorph') {
+    return dsSection(
+      'Nav',
+      `<nav class="wb-sys wb-sys-nav wb-sys--glassmorph wb-sys-gls-nav">
+        <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
+          <a href="#" class="wb-sys-brand wb-sys-brand--glassmorph" aria-label="GLASSMORPH home">
+            <span class="wb-sys-brand__gls">08. GLASSMORPH</span>
+          </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
+          <div class="wb-sys-nav__links">
+            <a href="#">Home</a>
+            <a href="#about">About</a>
+            <a href="#programs">Programs</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#gallery">Gallery</a>
+            <a href="#contact">Contact</a>
+          </div>
+          <div class="wb-sys-nav__cta">
+            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+          </div>
+        </div>
+      </nav>`,
+    );
+  }
+  if (set === 'glassmorph') {
+    return dsSection(
+      'Hero',
+      `<header class="wb-sys wb-sys-hero wb-sys--glassmorph wb-sys-gls-hero">
+        <div class="wb-sys-gls-themebar">
+          <span class="wb-sys-gls-themebar__id">08. GLASSMORPH</span>
+          <span class="wb-sys-gls-themebar__meta">Modern · transparent · blue</span>
+          <span class="wb-sys-gls-themebar__swatches" aria-hidden="true">
+            <i style="--gls-swatch:#dfe9ff"></i><i style="--gls-swatch:#6f8cff"></i><i style="--gls-swatch:#7dc8ff"></i><i style="--gls-swatch:#ffffff"></i>
+          </span>
+        </div>
+        <div class="wb-sys-gls-hero__shell">
+          <div class="wb-sys-gls-hero__copyCol">
+            <span class="wb-sys-eyebrow wb-ds-reveal wb-ds-reveal--d1">Modern transparency</span>
+            <div class="wb-sys-gls-hero__badges wb-ds-reveal wb-ds-reveal--d1">
+              <span class="wb-sys-tag wb-sys-tag--premium">Premium</span>
+            </div>
+            <h1 class="wb-sys-h1 wb-sys-h1--gls-display wb-ds-reveal wb-ds-reveal--d2">Elevate your every move</h1>
+            <p class="wb-sys-lead wb-sys-lead--gls wb-ds-reveal wb-ds-reveal--d3">A premium glass-style fitness experience with structured coaching, clear progress tracking, and calm energy built into every session.</p>
+            <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
+              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">View Programs</a>
+            </div>
+          </div>
+          <div class="wb-sys-gls-hero__imgCol wb-sys-gls-imgfx" aria-hidden="true">
+            <img src="${IMG_HERO_GLASS}" alt="" width="960" height="640" loading="lazy" decoding="async" />
+          </div>
+        </div>
+      </header>`,
+    );
+  }
   return dsSection(
     'Nav',
     `<nav class="wb-sys wb-sys-nav wb-sys--${set}">
         <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
           <a href="#" class="wb-sys-brand">APEX GYM</a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
           <div class="wb-sys-nav__links">
             <a href="#">Home</a>
             <a href="#about">About</a>
@@ -341,6 +469,60 @@ function heroHtml(set: DesignSetId): string {
           </div>
         </div>
       </header>`,
+    );
+  }
+  if (set === 'cyberfit') {
+    return dsSection(
+      'Hero',
+      `<header class="wb-sys wb-sys-hero wb-sys--cyberfit wb-sys-cyb-hero">
+        <div class="wb-sys-cyb-hero__toprail" aria-hidden="true"></div>
+        <div class="wb-sys-cyb-hero__stage">
+          <div class="wb-sys-cyb-hero__media wb-sys-cyb-imgfx" aria-hidden="true">
+            <img src="${IMG_HERO_CYBER}" alt="Athletes training under neon gym lighting" width="1600" height="900" loading="eager" decoding="async" referrerpolicy="no-referrer" />
+          </div>
+          <div class="wb-sys-cyb-hero__veil"></div>
+          <div class="wb-sys-cyb-hero__content">
+            <span class="wb-sys-eyebrow wb-ds-reveal wb-ds-reveal--d1">Neon district · elite training</span>
+            <h1 class="wb-sys-h1 wb-sys-h1--cyb wb-ds-reveal wb-ds-reveal--d2">Train beyond limits</h1>
+            <p class="wb-sys-lead wb-sys-lead--cyb wb-ds-reveal wb-ds-reveal--d3">High-voltage coaching, biometric-aware programming, and a floor lit for PRs—where discipline meets synthwave energy.</p>
+            <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
+              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">View Programs</a>
+            </div>
+          </div>
+        </div>
+      </header>`,
+    );
+  }
+  if (set === 'glassmorph') {
+    return dsSection(
+      'About',
+      `<section id="about" class="wb-sys wb-sys-section wb-sys--glassmorph wb-sys-gls-about">
+        <div class="wb-sys-gls-about__card">
+          <div class="wb-sys-gls-about__copy">
+            <span class="wb-sys-eyebrow">About us</span>
+            <h2 class="wb-sys-h2 wb-sys-h2--gls-kicker">Transparent training, real results</h2>
+            <p class="wb-sys-sub wb-sys-sub--gls">We combine performance programming with a clean, focused atmosphere so members can build consistency without burnout.</p>
+            <div class="wb-sys-stats wb-sys-stats--metrics wb-sys-stats--gls">
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">8+</span>
+                <span class="wb-sys-stat-lbl">Years experience</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">18+</span>
+                <span class="wb-sys-stat-lbl">Expert trainers</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">2700+</span>
+                <span class="wb-sys-stat-lbl">Happy members</span>
+              </div>
+            </div>
+          </div>
+          <div class="wb-sys-gls-about__visual wb-sys-gls-imgfx" aria-hidden="true">
+            <img src="${IMG_ABOUT_GLASS}" alt="" width="520" height="400" loading="lazy" decoding="async" />
+          </div>
+        </div>
+      </section>`,
     );
   }
   return dsSection(
@@ -571,6 +753,37 @@ function aboutHtml(set: DesignSetId): string {
       </section>`,
     );
   }
+  if (set === 'cyberfit') {
+    return dsSection(
+      'About',
+      `<section id="about" class="wb-sys wb-sys-section wb-sys--cyberfit wb-sys-cyb-about">
+        <div class="wb-sys-cyb-about__card">
+          <div class="wb-sys-cyb-about__copy">
+            <span class="wb-sys-eyebrow">About us</span>
+            <h2 class="wb-sys-h2 wb-sys-h2--cyb">The future is fit</h2>
+            <p class="wb-sys-sub wb-sys-sub--cyb">Neon-noir floors, quantified progression, and coaches who treat every session like a mission brief—built for athletes who want the edge without the noise.</p>
+            <div class="wb-sys-stats wb-sys-stats--metrics wb-sys-stats--cyb">
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">5+</span>
+                <span class="wb-sys-stat-lbl">Years</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">15+</span>
+                <span class="wb-sys-stat-lbl">Coaches</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">3000+</span>
+                <span class="wb-sys-stat-lbl">Members</span>
+              </div>
+            </div>
+          </div>
+          <div class="wb-sys-cyb-about__visual wb-sys-cyb-imgfx" aria-hidden="true">
+            <img src="${IMG_ABOUT_CYBER}" alt="Coached training on the gym floor" width="560" height="420" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+          </div>
+        </div>
+      </section>`,
+    );
+  }
   return dsSection(
     'About',
     `<section id="about" class="wb-sys wb-sys-section wb-sys--${set}">
@@ -606,6 +819,67 @@ function aboutHtml(set: DesignSetId): string {
 }
 
 function featuresHtml(set: DesignSetId): string {
+  if (set === 'cyberfit') {
+    const inner = `
+      <section id="programs" class="wb-sys wb-sys-section wb-sys-section--features wb-sys--cyberfit">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-cyb-features__head">
+          <span class="wb-sys-eyebrow">Systems</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--cyb">Engineered for overload</h2>
+          <p class="wb-sys-sub wb-sys-sub--cyb">Three uplinks that define the Neon District stack—rename or rewire to match your club.</p>
+        </div>
+        <div class="wb-sys-cyb-feature-grid">
+          <article class="wb-sys-cyb-feature fade-up hover-scale">
+            <div class="wb-sys-cyb-feature__icon" aria-hidden="true">${DS_ICO.healthTracking}</div>
+            <h3 class="wb-sys-cyb-feature__title">Cyber tracking</h3>
+            <p class="wb-sys-cyb-feature__desc">Live metrics, session logs, and recovery signals so you always know if you are trending up.</p>
+          </article>
+          <article class="wb-sys-cyb-feature fade-up hover-scale">
+            <div class="wb-sys-cyb-feature__icon" aria-hidden="true">${DS_ICO.crossTraining}</div>
+            <h3 class="wb-sys-cyb-feature__title">Hyper workouts</h3>
+            <p class="wb-sys-cyb-feature__desc">Hybrid strength and engine blocks with pacing that hits like a mainframe overclock—then backs off.</p>
+          </article>
+          <article class="wb-sys-cyb-feature fade-up hover-scale">
+            <div class="wb-sys-cyb-feature__icon" aria-hidden="true">${DS_ICO.flexibility}</div>
+            <h3 class="wb-sys-cyb-feature__title">Bio sync</h3>
+            <p class="wb-sys-cyb-feature__desc">Mobility finishers and nervous-system resets so hard weeks still feel sustainable.</p>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Programs', inner);
+  }
+  if (set === 'glassmorph') {
+    const inner = `
+      <section id="programs" class="wb-sys wb-sys-section wb-sys-section--features wb-sys--glassmorph">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-gls-features__head">
+          <span class="wb-sys-eyebrow">Programs</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--gls-kicker">Move smarter every day</h2>
+          <p class="wb-sys-sub wb-sys-sub--gls">Four guided tracks designed for strength, conditioning, and long-term wellness.</p>
+        </div>
+        <div class="wb-sys-grid4 wb-sys-grid4--gls">
+          <article class="wb-sys-feature wb-sys-feature--gls fade-up hover-scale">
+            <div class="wb-sys-feature__icon" aria-hidden="true">${DS_ICO.strengthTraining}</div>
+            <h3 class="wb-sys-feature__title">Functional training</h3>
+            <p class="wb-sys-feature__desc">Build practical strength with coached compound patterns and progressive overload.</p>
+          </article>
+          <article class="wb-sys-feature wb-sys-feature--gls fade-up hover-scale">
+            <div class="wb-sys-feature__icon" aria-hidden="true">${DS_ICO.enduranceFlame}</div>
+            <h3 class="wb-sys-feature__title">HIIT workouts</h3>
+            <p class="wb-sys-feature__desc">Short, high-impact intervals to improve stamina and maximize training efficiency.</p>
+          </article>
+          <article class="wb-sys-feature wb-sys-feature--gls fade-up hover-scale">
+            <div class="wb-sys-feature__icon" aria-hidden="true">${DS_ICO.flexibility}</div>
+            <h3 class="wb-sys-feature__title">Core and mobility</h3>
+            <p class="wb-sys-feature__desc">Support every lift with better stability, range of motion, and movement quality.</p>
+          </article>
+          <article class="wb-sys-feature wb-sys-feature--gls fade-up hover-scale">
+            <div class="wb-sys-feature__icon" aria-hidden="true">${DS_ICO.coaching}</div>
+            <h3 class="wb-sys-feature__title">Personal coaching</h3>
+            <p class="wb-sys-feature__desc">Individualized plans and accountability for members at every fitness level.</p>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Body', inner);
+  }
   const head =
     set === 'focus' ?
       `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-foc-features__head">
@@ -789,6 +1063,100 @@ function featuresHtml(set: DesignSetId): string {
 }
 
 function pricingHtml(set: DesignSetId): string {
+  if (set === 'cyberfit') {
+    const inner = `
+      <section id="pricing" class="wb-sys wb-sys-section wb-sys--cyberfit">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-cyb-pricing__head">
+          <span class="wb-sys-eyebrow">Pricing</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--cyb">Choose your plan</h2>
+          <p class="wb-sys-sub wb-sys-sub--cyb">Basic, Pro, and Elite—each uplink with its own neon signature. Pro is recommended for most operators.</p>
+        </div>
+        <div class="wb-sys-price wb-sys-cyb-price">
+          <article class="wb-sys-price__tier wb-sys-cyb-price__tier--cyan fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Basic</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Floor access</h3>
+            <p class="wb-sys-price__amt wb-sys-cyb-price__amt--cyan">$29<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Open gym hours</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Locker + scan-in</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>App telemetry</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-cyb-price__tier--magenta fade-up hover-scale">
+            <span class="wb-sys-price__badge wb-sys-price__badge--cyb">Recommended</span>
+            <span class="wb-sys-eyebrow">Pro</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Classes included</h3>
+            <p class="wb-sys-price__amt wb-sys-cyb-price__amt--magenta">$59<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check" aria-hidden="true"></span>All group formats</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Priority booking</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Quarterly review</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-cyb-price__tier--violet fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Elite</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Coaching plus</h3>
+            <p class="wb-sys-price__amt wb-sys-cyb-price__amt--violet">$99<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check" aria-hidden="true"></span>1:1 programming</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Nutrition sync</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Concierge scheduling</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Pricing', inner);
+  }
+  if (set === 'glassmorph') {
+    const inner = `
+      <section id="pricing" class="wb-sys wb-sys-section wb-sys--glassmorph">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-gls-pricing__head">
+          <span class="wb-sys-eyebrow">Choose your plan</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--gls-kicker">Memberships that fit your pace</h2>
+          <p class="wb-sys-sub wb-sys-sub--gls">Simple monthly options with transparent benefits and no hidden complexity.</p>
+        </div>
+        <div class="wb-sys-price wb-sys-gls-price">
+          <article class="wb-sys-price__tier wb-sys-price__tier--gls fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Basic</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Floor access</h3>
+            <p class="wb-sys-price__amt">$39<span class="wb-sys-price__per">/ month</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Open gym hours</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Locker room access</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>App check-ins</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-price__tier--gls wb-sys-price__tier--gls-hit fade-up hover-scale">
+            <span class="wb-sys-price__badge wb-sys-price__badge--gls">Most popular</span>
+            <span class="wb-sys-eyebrow">Standard</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Classes included</h3>
+            <p class="wb-sys-price__amt">$59<span class="wb-sys-price__per">/ month</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check" aria-hidden="true"></span>All group formats</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Priority booking</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Monthly check-in</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-price__tier--gls fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Premium</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Coaching plus</h3>
+            <p class="wb-sys-price__amt">$99<span class="wb-sys-price__per">/ month</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check" aria-hidden="true"></span>1:1 programming</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Nutrition support</li>
+              <li><span class="wb-sys-check" aria-hidden="true"></span>Dedicated support</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Pricing', inner);
+  }
   const head =
     set === 'power' ?
       `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-pwr-pricing__head">
@@ -895,6 +1263,39 @@ function galleryCarouselDots(count: number): string {
 }
 
 function galleryHtml(set: DesignSetId): string {
+  if (set === 'cyberfit') {
+    const inner = `
+      <section id="gallery" class="wb-sys wb-sys-section wb-sys--cyberfit">
+        <div class="wb-sys-section__head wb-sys-section__head--center">
+          <span class="wb-sys-eyebrow">Gallery</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--cyb">Inside the grid</h2>
+          <p class="wb-sys-sub wb-sys-sub--cyb">Three neon bays—tight spacing, heavy grade. Replace images to match your facility.</p>
+        </div>
+        <div class="wb-sys-cyb-gallery">
+          <figure class="wb-sys-cyb-gallery__cell wb-sys-cyb-imgfx"><img src="${IMG_G1}" alt="Training floor" width="640" height="380" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></figure>
+          <figure class="wb-sys-cyb-gallery__cell wb-sys-cyb-imgfx"><img src="${IMG_G2}" alt="Gym interior" width="640" height="380" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></figure>
+          <figure class="wb-sys-cyb-gallery__cell wb-sys-cyb-imgfx"><img src="${IMG_G3}" alt="Equipment" width="640" height="380" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></figure>
+        </div>
+      </section>`;
+    return dsSection('Gallery', inner);
+  }
+  if (set === 'glassmorph') {
+    const inner = `
+      <section id="gallery" class="wb-sys wb-sys-section wb-sys--glassmorph">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-gls-gallery__head">
+          <span class="wb-sys-eyebrow">Gallery</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--gls-kicker">Inside the studio</h2>
+          <p class="wb-sys-sub wb-sys-sub--gls">Bright spaces, premium equipment, and a calm high-performance atmosphere.</p>
+        </div>
+        <div class="wb-sys-gls-gallery">
+          <figure class="wb-sys-gls-gallery__cell wb-sys-gls-imgfx"><img src="${IMG_G1}" alt="Gym floor" width="520" height="320" loading="lazy" decoding="async" /></figure>
+          <figure class="wb-sys-gls-gallery__cell wb-sys-gls-imgfx"><img src="${IMG_G2}" alt="Training area" width="520" height="320" loading="lazy" decoding="async" /></figure>
+          <figure class="wb-sys-gls-gallery__cell wb-sys-gls-imgfx"><img src="${IMG_G3}" alt="Equipment" width="520" height="320" loading="lazy" decoding="async" /></figure>
+          <figure class="wb-sys-gls-gallery__cell wb-sys-gls-imgfx"><img src="${IMG_G4}" alt="Members training" width="520" height="320" loading="lazy" decoding="async" /></figure>
+        </div>
+      </section>`;
+    return dsSection('Gallery', inner);
+  }
   const slideCount = 4;
   const carouselSkin =
     set === 'power' ? ' wb-sys-carousel--pwr'
@@ -934,6 +1335,34 @@ function galleryHtml(set: DesignSetId): string {
 }
 
 function mapHtml(set: DesignSetId): string {
+  if (set === 'cyberfit') {
+    const inner = `
+      <section class="wb-sys wb-sys-section wb-sys--cyberfit">
+        <div class="wb-sys-section__head wb-sys-section__head--center">
+          <span class="wb-sys-eyebrow">Visit</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--cyb">Find us</h2>
+          <p class="wb-sys-sub wb-sys-sub--cyb">Neon District HQ, Neo Tokyo 10011 · Mon–Sun 05:30–24:00</p>
+        </div>
+        <div class="wb-sys-map wb-sys-map--cyb-neon">
+          <iframe title="Gym location map" src="https://maps.google.com/maps?q=Tokyo+Japan&amp;z=12&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </section>`;
+    return dsSection('Maps', inner);
+  }
+  if (set === 'glassmorph') {
+    const inner = `
+      <section class="wb-sys wb-sys-section wb-sys--glassmorph">
+        <div class="wb-sys-section__head wb-sys-section__head--center">
+          <span class="wb-sys-eyebrow">Visit</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--gls-kicker">Find us</h2>
+          <p class="wb-sys-sub wb-sys-sub--gls">Tower Plaza, Midtown · Mon–Sun 5:30–23:00</p>
+        </div>
+        <div class="wb-sys-map wb-sys-map--gls-light">
+          <iframe title="Gym location map" src="https://maps.google.com/maps?q=Midtown+New+York&amp;z=13&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </section>`;
+    return dsSection('Maps', inner);
+  }
   const mapWrapClass =
     set === 'power' ? 'wb-sys-map wb-sys-map--pwr-night'
     : set === 'focus' ? 'wb-sys-map wb-sys-map--foc-night'
@@ -977,6 +1406,78 @@ function mapHtml(set: DesignSetId): string {
 }
 
 function contactHtml(set: DesignSetId): string {
+  if (set === 'cyberfit') {
+    const mail = 'hello@neondistrict.fit';
+    const head = `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-cyb-contact__head">
+          <span class="wb-sys-eyebrow">Get in touch</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--cyb">Open a channel</h2>
+          <p class="wb-sys-sub wb-sys-sub--cyb">Ping the desk, uplink email, or drop a packet in the form—we respond within one business cycle.</p>
+        </div>`;
+    const inner = `
+      <section id="contact" class="wb-sys wb-sys-section wb-sys--cyberfit">
+        ${head}
+        <div class="wb-sys-contact-split wb-sys-cyb-contact-split">
+          <div class="wb-sys-contact__info">
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.phone}</span>
+              <div><strong>Phone</strong><br /><a href="tel:+13105550177">+1 (310) 555-0177</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mail}</span>
+              <div><strong>Email</strong><br /><a href="mailto:${mail}">${mail}</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mapPin}</span>
+              <div><strong>Address</strong><br />Neon District HQ, Neo Tokyo 10011</div>
+            </div>
+          </div>
+          <form class="wb-sys-contact__form wb-sys-cyb-contact__form">
+            <input type="text" name="name" placeholder="Name" autocomplete="name" />
+            <input type="email" name="email" placeholder="Email" autocomplete="email" />
+            <input type="tel" name="phone" placeholder="Phone (10 digits)" inputmode="numeric" autocomplete="tel" />
+            <textarea name="message" rows="4" placeholder="Message"></textarea>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
+          </form>
+        </div>
+      </section>`;
+    return dsSection('Contacts', inner);
+  }
+  if (set === 'glassmorph') {
+    const mail = 'hello@glassmorph.fit';
+    const head = `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-gls-contact__head">
+          <span class="wb-sys-eyebrow">Get in touch</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--gls-kicker">We are here to help</h2>
+          <p class="wb-sys-sub wb-sys-sub--gls">Ask about memberships, schedules, or your first training plan.</p>
+        </div>`;
+    const inner = `
+      <section id="contact" class="wb-sys wb-sys-section wb-sys--glassmorph">
+        ${head}
+        <div class="wb-sys-contact-split wb-sys-gls-contact-split">
+          <div class="wb-sys-contact__info">
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.phone}</span>
+              <div><strong>Phone</strong><br /><a href="tel:+12125550123">+1 (212) 555-0123</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mail}</span>
+              <div><strong>Email</strong><br /><a href="mailto:${mail}">${mail}</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mapPin}</span>
+              <div><strong>Address</strong><br />Tower Plaza, Midtown, New York</div>
+            </div>
+          </div>
+          <form class="wb-sys-contact__form wb-sys-gls-contact__form">
+            <input type="text" name="name" placeholder="Name" autocomplete="name" />
+            <input type="email" name="email" placeholder="Email" autocomplete="email" />
+            <input type="tel" name="phone" placeholder="Phone (10 digits)" inputmode="numeric" autocomplete="tel" />
+            <textarea name="message" rows="4" placeholder="Message"></textarea>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
+          </form>
+        </div>
+      </section>`;
+    return dsSection('Contacts', inner);
+  }
   const mail =
     set === 'power' ? 'hello@gympower.com'
     : set === 'focus' ? 'hello@focusgym.com'
@@ -1064,8 +1565,9 @@ function contactHtml(set: DesignSetId): string {
           <form class="wb-sys-contact__form">
             <input type="text" name="name" placeholder="Name" autocomplete="name" />
             <input type="email" name="email" placeholder="Email" autocomplete="email" />
+            <input type="tel" name="phone" placeholder="Phone (10 digits)" inputmode="numeric" autocomplete="tel" />
             <textarea name="message" rows="4" placeholder="Message"></textarea>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="enquiry">Send message</button>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
           </form>
         </div>
       </section>`;
@@ -1119,6 +1621,21 @@ function footerHtml(set: DesignSetId): string {
             </p>
             <p class="wb-sys-footer__tag">Your goals, our mission—training that feels clear, supportive, and built to last.</p>
           </div>`
+    : set === 'cyberfit' ?
+      `<div class="wb-sys-footer__brand">
+            <p class="wb-sys-footer__logo wb-sys-footer__logo--cyberfit">
+              <span class="wb-sys-footer__logo-mark wb-sys-footer__logo-mark--cyb">${DS_ICO.cyberMark}</span>
+              <span class="wb-sys-footer__cyb-gradient">Neon District</span>
+            </p>
+            <p class="wb-sys-footer__tag wb-sys-footer__tag--cyb">Train beyond limits—neon discipline, measurable voltage, zero downtime.</p>
+          </div>`
+    : set === 'glassmorph' ?
+      `<div class="wb-sys-footer__brand">
+            <p class="wb-sys-footer__logo wb-sys-footer__logo--glassmorph">
+              <span class="wb-sys-footer__gls-wordmark">GLASSMORPH</span>
+            </p>
+            <p class="wb-sys-footer__tag wb-sys-footer__tag--gls">Modern transparency. Intelligent training. Measurable progress.</p>
+          </div>`
     : `<div class="wb-sys-footer__brand">
             <p class="wb-sys-footer__logo">APEX GYM</p>
             <p class="wb-sys-footer__tag">Strength, community, and measurable outcomes—built for members who show up.</p>
@@ -1154,6 +1671,16 @@ function footerHtml(set: DesignSetId): string {
               <a href="#" aria-label="Twitter" class="wb-sys-footer__social-link">${DS_ICO.socialTw}</a>
               <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link">${DS_ICO.socialIg}</a>
               <a href="#" aria-label="LinkedIn" class="wb-sys-footer__social-link">${DS_ICO.socialLi}</a>`
+    : set === 'cyberfit' ?
+      `<a href="#" aria-label="Facebook" class="wb-sys-footer__social-link wb-sys-footer__social-link--cyb">${DS_ICO.socialFb}</a>
+              <a href="#" aria-label="X" class="wb-sys-footer__social-link wb-sys-footer__social-link--cyb">${DS_ICO.socialX}</a>
+              <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link wb-sys-footer__social-link--cyb">${DS_ICO.socialIg}</a>
+              <a href="#" aria-label="LinkedIn" class="wb-sys-footer__social-link wb-sys-footer__social-link--cyb">${DS_ICO.socialLi}</a>`
+    : set === 'glassmorph' ?
+      `<a href="#" aria-label="Facebook" class="wb-sys-footer__social-link wb-sys-footer__social-link--gls">${DS_ICO.socialFb}</a>
+              <a href="#" aria-label="X" class="wb-sys-footer__social-link wb-sys-footer__social-link--gls">${DS_ICO.socialX}</a>
+              <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link wb-sys-footer__social-link--gls">${DS_ICO.socialIg}</a>
+              <a href="#" aria-label="LinkedIn" class="wb-sys-footer__social-link wb-sys-footer__social-link--gls">${DS_ICO.socialLi}</a>`
     : `<a href="#" aria-label="Facebook" class="wb-sys-footer__social-link">${DS_ICO.socialFb}</a>
               <a href="#" aria-label="Twitter" class="wb-sys-footer__social-link">${DS_ICO.socialTw}</a>
               <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link">${DS_ICO.socialIg}</a>`;
@@ -1170,9 +1697,13 @@ function footerHtml(set: DesignSetId): string {
       `© ${new Date().getFullYear()} Energy Fit. All rights reserved.`
     : set === 'sporty' ?
       `© ${new Date().getFullYear()} Sporty Gym. All rights reserved.`
+    : set === 'cyberfit' ?
+      `© ${new Date().getFullYear()} Neon District. All rights reserved.`
+    : set === 'glassmorph' ?
+      `© ${new Date().getFullYear()} GLASSMORPH. All rights reserved.`
     : `© ${new Date().getFullYear()} Apex Gym. All rights reserved.`;
   const quickLinks =
-    set === 'elite' ?
+    set === 'elite' || set === 'cyberfit' || set === 'glassmorph' ?
       `<li><a href="#">Home</a></li>
               <li><a href="#about">About</a></li>
               <li><a href="#programs">Programs</a></li>
@@ -1188,6 +1719,8 @@ function footerHtml(set: DesignSetId): string {
     set === 'elite' ? ' wb-sys-footer--eli'
     : set === 'energy' ? ' wb-sys-footer--eng'
     : set === 'sporty' ? ' wb-sys-footer--spo'
+    : set === 'cyberfit' ? ' wb-sys-footer--cyb'
+    : set === 'glassmorph' ? ' wb-sys-footer--gls'
     : '';
   const inner = `
       <footer class="wb-sys wb-sys-footer wb-sys--${set}${footerSkin}">

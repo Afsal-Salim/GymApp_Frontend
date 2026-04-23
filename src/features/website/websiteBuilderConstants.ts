@@ -563,6 +563,43 @@ export const WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS = `
 .wb-wa-float.pulse {
   animation: wbWaFloatPulse 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
+
+/* Fixed “back to top” — library block; sits bottom-left so it does not cover the WhatsApp float (right). */
+.wb-scroll-top {
+  position: fixed;
+  left: 1.1rem;
+  bottom: 1.1rem;
+  z-index: 12500;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  color: #0f172a;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.14), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  cursor: pointer;
+  font: inherit;
+  line-height: 0;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, filter 0.2s ease;
+}
+.wb-scroll-top:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18), 0 1px 0 rgba(255, 255, 255, 0.95) inset;
+}
+.wb-scroll-top:active {
+  transform: translateY(0);
+}
+.wb-scroll-top svg {
+  display: block;
+  flex-shrink: 0;
+}
+
 @keyframes wbWaFloatPulse {
   0%, 100% { box-shadow: 0 8px 28px rgba(16, 185, 129, 0.48), 0 2px 8px rgba(15, 23, 42, 0.12), 0 1px 0 rgba(255, 255, 255, 0.2) inset; }
   50% { box-shadow: 0 14px 40px rgba(52, 211, 153, 0.55), 0 4px 12px rgba(15, 23, 42, 0.14), 0 1px 0 rgba(255, 255, 255, 0.24) inset; }
@@ -713,6 +750,15 @@ export const WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS = `
 
 /** Responsive guardrails for imported Pro HTML/CSS inside Grapes canvas. */
 export const WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS = `
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 .wb-template-root,
 .wb-page {
   width: 100%;
@@ -788,6 +834,39 @@ export const WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS = `
     width: 100%;
     max-width: 100%;
   }
+}
+
+/* --- Library: inline SVG icons (draggable blocks) --- */
+.wb-icon-block {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem;
+  border-radius: 14px;
+  background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  color: #1e293b;
+  line-height: 0;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+.wb-icon-block svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  display: block;
+}
+.wb-template-root .wb-icon-block svg,
+.wb-page .wb-icon-block svg {
+  max-width: 100%;
+  height: 2.5rem;
+}
+.wb-icons-kit__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
 }
 `;
 

@@ -15,18 +15,24 @@ import type { Component, Editor } from 'grapesjs';
 import type { InspectorKind, SelectionInfo } from './websiteBuilderInspector';
 import { findOne, getDirectText, getHeroContent, setDirectText } from './websiteBuilderInspector';
 import { looksLikeGoogleMapsUrl, normalizeGoogleMapsIframeSrc } from './websiteBuilderGoogleMapsEmbed';
+import { waMeHrefFromDigits } from './websiteBuilderBlocks';
 
 export type InspectorTab = 'content' | 'design' | 'advanced';
+
+/** Grapes page list (id + display name) for “link to page” in Basics. */
+export type BuilderPageOption = { id: string; name: string };
 
 type Props = {
   editor: Editor | null;
   selection: SelectionInfo | null;
   tab: InspectorTab;
   onTabChange: (t: InspectorTab) => void;
+  /** When set, link buttons can target another builder page (href uses a simple `/slug` path). */
+  builderPages?: BuilderPageOption[];
 };
 
 const SECTION_TYPES = ['Hero', 'About', 'Services', 'Pricing', 'Contact', 'Custom'] as const;
-type ButtonActionChoice = 'none' | 'section' | 'join' | 'visit' | 'trial' | 'enquiry';
+type ButtonActionChoice = 'none' | 'section' | 'page' | 'custom' | 'join' | 'visit' | 'trial' | 'enquiry';
 
 function sliceMax(s: string, max: number) {
   return s.length > max ? s.slice(0, max) : s;
@@ -56,20 +62,82 @@ function sanitizeSectionTarget(raw: string): string {
     .slice(0, 80);
 }
 
-function inferLinkButtonAction(comp: Component): ButtonActionChoice {
+function slugifyPagePathSegment(name: string): string {
+  const s = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .slice(0, 48);
+  return s || 'page';
+}
+
+function hrefForBuilderPage(page: BuilderPageOption, index: number): string {
+  if (index === 0) return '/';
+  return `/${slugifyPagePathSegment(page.name)}`;
+}
+
+function findPageIndexByHref(href: string, pages: BuilderPageOption[]): number | null {
+  const h = href.trim();
+  if (!pages.length) return null;
+  if (h === '#') return null;
+  if (h === '/' || h === '') return 0;
+  const path = h.replace(/^\//, '').split('?')[0].split('#')[0];
+  if (!path) return 0;
+  for (let i = 0; i < pages.length; i++) {
+    const want = hrefForBuilderPage(pages[i]!, i);
+    if (want === `/${path}` || want === h) return i;
+  }
+  for (let i = 0; i < pages.length; i++) {
+    if (slugifyPagePathSegment(pages[i]!.name) === path) return i;
+  }
+  return null;
+}
+
+function parseOnclickHref(onclick: string): string | null {
+  const m = onclick.match(/window\.location\.href\s*=\s*['"]([^'"]+)['"]/);
+  return m?.[1] ?? null;
+}
+
+function parseMailtoEmail(href: string): string {
+  const raw = href.trim();
+  if (!raw.toLowerCase().startsWith('mailto:')) return '';
+  try {
+    const rest = raw.slice('mailto:'.length);
+    return decodeURIComponent(rest.split('?')[0] ?? '');
+  } catch {
+    return '';
+  }
+}
+
+function parseTelNumber(href: string): string {
+  return href.replace(/^tel:/i, '').trim();
+}
+
+function inferLinkButtonAction(comp: Component, pages: BuilderPageOption[]): ButtonActionChoice {
   const attrs = comp.getAttributes?.() ?? {};
   const modal = sanitizeModalAction(String(attrs['data-wb-open'] ?? ''));
   if (modal) return modal;
   const href = String(attrs.href ?? '').trim();
   if (href.startsWith('#') && href.length > 1) return 'section';
+  const idx = findPageIndexByHref(href, pages);
+  if (idx != null && idx >= 0) return 'page';
+  if (href && href !== '#') return 'custom';
   return 'none';
 }
 
-function inferPushButtonAction(comp: Component): ButtonActionChoice {
+function inferPushButtonAction(comp: Component, pages: BuilderPageOption[]): ButtonActionChoice {
   const attrs = comp.getAttributes?.() ?? {};
   const modal = sanitizeModalAction(String(attrs['data-wb-open'] ?? ''));
   if (modal) return modal;
   const onclick = String(attrs.onclick ?? '');
+  const nav = parseOnclickHref(onclick);
+  if (nav) {
+    if (nav.startsWith('#') && nav.length > 1) return 'section';
+    const idx = findPageIndexByHref(nav, pages);
+    if (idx != null && idx >= 0) return 'page';
+    return 'custom';
+  }
   if (/href\s*=\s*['"]#/.test(onclick) || /location\.hash\s*=/.test(onclick)) return 'section';
   return 'none';
 }
@@ -103,7 +171,7 @@ function WrapperHint() {
 
 type HeroBg = 'image' | 'video' | 'slider' | 'color';
 
-export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange }: Props) {
+export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange, builderPages = [] }: Props) {
   const selected = useMemo(() => {
     if (!editor || !selection || selection.kind === 'wrapper') return null;
     return editor.getSelected() ?? null;
@@ -162,7 +230,12 @@ export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange }:
             <WrapperHint />
           : <InspectorEmpty />
         : tab === 'content' ?
-          <ContentPanel editor={editor} selection={selection} selected={selected ?? undefined} />
+          <ContentPanel
+            editor={editor}
+            selection={selection}
+            selected={selected ?? undefined}
+            builderPages={builderPages}
+          />
         : tab === 'design' ?
           <DesignPanel selection={selection} selected={selected ?? undefined} />
         : <AdvancedPanelForm selected={selected ?? undefined} />}
@@ -190,10 +263,12 @@ function ContentPanel({
   editor,
   selection,
   selected,
+  builderPages,
 }: {
   editor: Editor | null;
   selection: SelectionInfo;
   selected: ReturnType<Editor['getSelected']>;
+  builderPages: BuilderPageOption[];
 }) {
   if (!editor || !selected) return <InspectorEmpty />;
 
@@ -206,11 +281,20 @@ function ContentPanel({
   if (selection.kind === 'text') {
     return <TextContent comp={selected} />;
   }
+  if (selection.kind === 'whatsappLink') {
+    return <WhatsAppLinkContent comp={selected} />;
+  }
+  if (selection.kind === 'mailtoLink') {
+    return <MailtoLinkContent comp={selected} />;
+  }
+  if (selection.kind === 'telLink') {
+    return <TelLinkContent comp={selected} />;
+  }
   if (selection.kind === 'button') {
-    return <ButtonContent comp={selected} />;
+    return <ButtonContent comp={selected} builderPages={builderPages} />;
   }
   if (selection.kind === 'pushButton') {
-    return <PushButtonContent comp={selected} />;
+    return <PushButtonContent comp={selected} builderPages={builderPages} />;
   }
   if (selection.kind === 'iframe') {
     return <IframeContent comp={selected} />;
@@ -531,26 +615,53 @@ function TextContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelecte
   );
 }
 
-function PushButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelected']>> }) {
+function PushButtonContent({
+  comp,
+  builderPages,
+}: {
+  comp: NonNullable<ReturnType<Editor['getSelected']>>;
+  builderPages: BuilderPageOption[];
+}) {
   const [label, setLabel] = useState('');
   const [btnType, setBtnType] = useState('button');
   const [action, setAction] = useState<ButtonActionChoice>('none');
   const [sectionTarget, setSectionTarget] = useState('');
+  const [pageId, setPageId] = useState('');
+  const [customUrl, setCustomUrl] = useState('');
+
   useEffect(() => {
     setLabel(getDirectText(comp));
     const attrs = comp.getAttributes?.() ?? {};
     setBtnType(String(attrs.type || 'button'));
-    setAction(inferPushButtonAction(comp));
+    const nextAction = inferPushButtonAction(comp, builderPages);
+    setAction(nextAction);
     const onclick = String(attrs.onclick ?? '');
-    const hrefM = onclick.match(/href\s*=\s*['"]#([^'"]+)['"]/i);
-    const hashM = onclick.match(/location\.hash\s*=\s*['"]#?([^'"]+)['"]/i);
-    setSectionTarget(sanitizeSectionTarget(hrefM?.[1] ?? hashM?.[1] ?? ''));
-  }, [comp]);
+    const nav = parseOnclickHref(onclick);
+    if (nextAction === 'custom' && nav) setCustomUrl(nav);
+    else setCustomUrl('');
+    if (nextAction === 'section') {
+      const hrefM = onclick.match(/href\s*=\s*['"]#([^'"]+)['"]/i);
+      const hashM = onclick.match(/location\.hash\s*=\s*['"]#?([^'"]+)['"]/i);
+      setSectionTarget(sanitizeSectionTarget(hrefM?.[1] ?? hashM?.[1] ?? ''));
+    } else {
+      setSectionTarget('');
+    }
+    if (nextAction === 'page' && nav) {
+      const idx = findPageIndexByHref(nav, builderPages);
+      if (idx != null && idx >= 0 && builderPages[idx]) setPageId(builderPages[idx]!.id);
+      else if (builderPages[0]) setPageId(builderPages[0]!.id);
+    } else if (builderPages[0]) {
+      setPageId(builderPages[0]!.id);
+    } else {
+      setPageId('');
+    }
+  }, [comp, builderPages]);
 
   const applyAction = (nextAction: ButtonActionChoice) => {
     setAction(nextAction);
     if (nextAction === 'none') {
       patchAttributes(comp, { 'data-wb-open': undefined, onclick: undefined });
+      setCustomUrl('');
       return;
     }
     if (nextAction === 'section') {
@@ -559,6 +670,28 @@ function PushButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getS
         'data-wb-open': undefined,
         onclick: sectionId ? toOnclickNavigate(`#${sectionId}`) : undefined,
       });
+      return;
+    }
+    if (nextAction === 'page') {
+      const idx = Math.max(0, builderPages.findIndex((p) => p.id === pageId));
+      const p = builderPages[idx] ?? builderPages[0];
+      const href = p ? hrefForBuilderPage(p, idx) : '/';
+      patchAttributes(comp, {
+        'data-wb-open': undefined,
+        onclick: toOnclickNavigate(href),
+        type: 'button',
+      });
+      setBtnType('button');
+      return;
+    }
+    if (nextAction === 'custom') {
+      const u = customUrl.trim() || '/';
+      patchAttributes(comp, {
+        'data-wb-open': undefined,
+        onclick: toOnclickNavigate(u),
+        type: 'button',
+      });
+      setBtnType('button');
       return;
     }
     patchAttributes(comp, { 'data-wb-open': nextAction, onclick: undefined, type: 'button' });
@@ -598,7 +731,11 @@ function PushButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getS
           onChange={(e) => applyAction(e.target.value as ButtonActionChoice)}
         >
           <option value="none">None</option>
-          <option value="section">Go to section</option>
+          <option value="section">Go to section (this page)</option>
+          {builderPages.length > 0 ?
+            <option value="page">Go to another page</option>
+          : null}
+          <option value="custom">Custom URL</option>
           <option value="join">Open join modal</option>
           <option value="visit">Open plan visit modal</option>
           <option value="trial">Open trial modal</option>
@@ -624,9 +761,72 @@ function PushButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getS
               });
             }}
           />
-          <p className="website-builder-page__field-hint">Opens this page section like `#contact`.</p>
+          <p className="website-builder-page__field-hint">Uses in-page navigation (same as anchor link).</p>
         </div>
-      : <p className="website-builder-page__field-hint">Choose a modal action to open the lead popup on click.</p>}
+      : null}
+      {action === 'page' && builderPages.length > 0 ?
+        <div className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label" htmlFor="wb-ins-pb-page">
+            Page
+          </label>
+          <select
+            id="wb-ins-pb-page"
+            className="website-builder-page__field-control"
+            value={pageId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setPageId(id);
+              const idx = builderPages.findIndex((p) => p.id === id);
+              const i = idx >= 0 ? idx : 0;
+              const p = builderPages[i];
+              const href = p ? hrefForBuilderPage(p, i) : '/';
+              patchAttributes(comp, {
+                'data-wb-open': undefined,
+                onclick: toOnclickNavigate(href),
+              });
+            }}
+          >
+            {builderPages.map((p, i) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({hrefForBuilderPage(p, i)})
+              </option>
+            ))}
+          </select>
+          <p className="website-builder-page__field-hint">
+            Preview opens one static HTML snapshot. “Go to another page” runs in the real browser and jumps to that path on your app host—it does not switch Grapes pages inside preview.
+          </p>
+        </div>
+      : null}
+      {action === 'custom' ?
+        <div className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label" htmlFor="wb-ins-pb-custom">
+            URL
+          </label>
+          <input
+            id="wb-ins-pb-custom"
+            className="website-builder-page__field-control"
+            value={customUrl}
+            placeholder="https://… or /path"
+            onChange={(e) => {
+              const v = e.target.value;
+              setCustomUrl(v);
+              patchAttributes(comp, {
+                'data-wb-open': undefined,
+                onclick: v.trim() ? toOnclickNavigate(v.trim()) : undefined,
+              });
+            }}
+          />
+        </div>
+      : null}
+      {action === 'join' || action === 'visit' || action === 'trial' || action === 'enquiry' ?
+        <p className="website-builder-page__field-hint">
+          <strong>Button action</strong> above is what this control does. Lead modals run in the editor canvas and in Preview when{' '}
+          <code>NEXT_PUBLIC_API_BASE_URL</code> is set; join, visit, and trial also need a valid gym slug (edit site or create-flow preview slug). If something is missing, the browser shows a short alert when you click.
+        </p>
+      : null}
+      {action === 'none' ?
+        <p className="website-builder-page__field-hint">No click action. Choose section, page, URL, or a modal.</p>
+      : null}
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-pbtype">
           Type
@@ -735,19 +935,208 @@ function DivBlockContent() {
   );
 }
 
-function ButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelected']>> }) {
+function WhatsAppLinkContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelected']>> }) {
+  const [label, setLabel] = useState('');
+  const [phone, setPhone] = useState('');
+  useEffect(() => {
+    setLabel(getDirectText(comp));
+    const attrs = comp.getAttributes?.() ?? {};
+    const raw = String(attrs['data-wb-wa-phone'] ?? '').replace(/\D/g, '');
+    setPhone(raw);
+  }, [comp]);
+
+  return (
+    <>
+      <div className="website-builder-page__panel-group-title">WhatsApp</div>
+      <div className="website-builder-page__form-block">
+        <div className="website-builder-page__label-row">
+          <label className="website-builder-page__field-label mb-0" htmlFor="wb-ins-wa-label">
+            Button text
+          </label>
+          <span className="website-builder-page__char-count">{label.length}/80</span>
+        </div>
+        <input
+          id="wb-ins-wa-label"
+          className="website-builder-page__field-control"
+          maxLength={80}
+          value={label}
+          onChange={(e) => {
+            const v = e.target.value;
+            setLabel(v);
+            setDirectText(comp, v);
+          }}
+        />
+      </div>
+      <div className="website-builder-page__form-block">
+        <label className="website-builder-page__field-label" htmlFor="wb-ins-wa-phone">
+          Business phone (digits)
+        </label>
+        <input
+          id="wb-ins-wa-phone"
+          className="website-builder-page__field-control"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="e.g. 919876543210"
+          value={phone}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+            setPhone(digits);
+            const href = waMeHrefFromDigits(digits);
+            patchAttributes(comp, { 'data-wb-wa-phone': digits, href });
+          }}
+        />
+        <p className="website-builder-page__field-hint">Country code + number, no spaces. Tap opens WhatsApp chat (wa.me).</p>
+      </div>
+      <button type="button" className="website-builder-page__save-section-btn">
+        Save Section
+      </button>
+    </>
+  );
+}
+
+function MailtoLinkContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelected']>> }) {
+  const [label, setLabel] = useState('');
+  const [email, setEmail] = useState('');
+  useEffect(() => {
+    setLabel(getDirectText(comp));
+    const attrs = comp.getAttributes?.() ?? {};
+    setEmail(parseMailtoEmail(String(attrs.href ?? '')));
+  }, [comp]);
+
+  return (
+    <>
+      <div className="website-builder-page__panel-group-title">Email link</div>
+      <div className="website-builder-page__form-block">
+        <div className="website-builder-page__label-row">
+          <label className="website-builder-page__field-label mb-0" htmlFor="wb-ins-mailto-label">
+            Link text
+          </label>
+          <span className="website-builder-page__char-count">{label.length}/80</span>
+        </div>
+        <input
+          id="wb-ins-mailto-label"
+          className="website-builder-page__field-control"
+          maxLength={80}
+          value={label}
+          onChange={(e) => {
+            const v = e.target.value;
+            setLabel(v);
+            setDirectText(comp, v);
+          }}
+        />
+      </div>
+      <div className="website-builder-page__form-block">
+        <label className="website-builder-page__field-label" htmlFor="wb-ins-mailto">
+          Email address
+        </label>
+        <input
+          id="wb-ins-mailto"
+          type="email"
+          className="website-builder-page__field-control"
+          placeholder="hello@yourgym.com"
+          value={email}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            setEmail(v);
+            patchAttributes(comp, { href: v ? `mailto:${v}` : '#' });
+          }}
+        />
+        <p className="website-builder-page__field-hint">Visitors&apos; mail app opens with this address.</p>
+      </div>
+      <button type="button" className="website-builder-page__save-section-btn">
+        Save Section
+      </button>
+    </>
+  );
+}
+
+function TelLinkContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelected']>> }) {
+  const [label, setLabel] = useState('');
+  const [num, setNum] = useState('');
+  useEffect(() => {
+    setLabel(getDirectText(comp));
+    const attrs = comp.getAttributes?.() ?? {};
+    setNum(parseTelNumber(String(attrs.href ?? '')));
+  }, [comp]);
+
+  return (
+    <>
+      <div className="website-builder-page__panel-group-title">Call link</div>
+      <div className="website-builder-page__form-block">
+        <div className="website-builder-page__label-row">
+          <label className="website-builder-page__field-label mb-0" htmlFor="wb-ins-tel-label">
+            Link text
+          </label>
+          <span className="website-builder-page__char-count">{label.length}/80</span>
+        </div>
+        <input
+          id="wb-ins-tel-label"
+          className="website-builder-page__field-control"
+          maxLength={80}
+          value={label}
+          onChange={(e) => {
+            const v = e.target.value;
+            setLabel(v);
+            setDirectText(comp, v);
+          }}
+        />
+      </div>
+      <div className="website-builder-page__form-block">
+        <label className="website-builder-page__field-label" htmlFor="wb-ins-tel">
+          Phone number
+        </label>
+        <input
+          id="wb-ins-tel"
+          className="website-builder-page__field-control"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="+91 90000 00000"
+          value={num}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            setNum(v);
+            const digits = v.replace(/[^\d+]/g, '');
+            const href = digits ? `tel:${digits}` : '#';
+            patchAttributes(comp, { href });
+          }}
+        />
+        <p className="website-builder-page__field-hint">On phones, tap-to-call uses this tel: link.</p>
+      </div>
+      <button type="button" className="website-builder-page__save-section-btn">
+        Save Section
+      </button>
+    </>
+  );
+}
+
+function ButtonContent({
+  comp,
+  builderPages,
+}: {
+  comp: NonNullable<ReturnType<Editor['getSelected']>>;
+  builderPages: BuilderPageOption[];
+}) {
   const [label, setLabel] = useState('');
   const [href, setHref] = useState('#');
   const [action, setAction] = useState<ButtonActionChoice>('none');
   const [sectionTarget, setSectionTarget] = useState('');
+  const [pageId, setPageId] = useState('');
+  const [customUrl, setCustomUrl] = useState('');
+
   useEffect(() => {
     setLabel(getDirectText(comp));
     const attrs = comp.getAttributes?.() ?? {};
     const nextHref = String(attrs.href ?? '#');
     setHref(nextHref);
     setSectionTarget(sanitizeSectionTarget(nextHref.startsWith('#') ? nextHref.slice(1) : ''));
-    setAction(inferLinkButtonAction(comp));
-  }, [comp]);
+    const nextAction = inferLinkButtonAction(comp, builderPages);
+    setAction(nextAction);
+    const idx = findPageIndexByHref(nextHref, builderPages);
+    if (idx != null && idx >= 0 && builderPages[idx]) setPageId(builderPages[idx]!.id);
+    else if (builderPages[0]) setPageId(builderPages[0]!.id);
+    else setPageId('');
+    setCustomUrl(nextAction === 'custom' ? nextHref : '');
+  }, [comp, builderPages]);
 
   const applyAction = (nextAction: ButtonActionChoice) => {
     setAction(nextAction);
@@ -755,6 +1144,7 @@ function ButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
       patchAttributes(comp, { 'data-wb-open': undefined, href: '#' });
       setHref('#');
       setSectionTarget('');
+      setCustomUrl('');
       return;
     }
     if (nextAction === 'section') {
@@ -762,6 +1152,21 @@ function ButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
       const nextHref = target ? `#${target}` : '#';
       patchAttributes(comp, { 'data-wb-open': undefined, href: nextHref });
       setHref(nextHref);
+      return;
+    }
+    if (nextAction === 'page') {
+      const idx = Math.max(0, builderPages.findIndex((p) => p.id === pageId));
+      const p = builderPages[idx] ?? builderPages[0];
+      const nextHref = p ? hrefForBuilderPage(p, idx) : '/';
+      patchAttributes(comp, { 'data-wb-open': undefined, href: nextHref });
+      setHref(nextHref);
+      if (p) setPageId(p.id);
+      return;
+    }
+    if (nextAction === 'custom') {
+      const u = customUrl.trim() || '#';
+      patchAttributes(comp, { 'data-wb-open': undefined, href: u });
+      setHref(u);
       return;
     }
     patchAttributes(comp, { 'data-wb-open': nextAction, href: '#' });
@@ -801,7 +1206,11 @@ function ButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
           onChange={(e) => applyAction(e.target.value as ButtonActionChoice)}
         >
           <option value="none">None</option>
-          <option value="section">Go to section</option>
+          <option value="section">Go to section (this page)</option>
+          {builderPages.length > 0 ?
+            <option value="page">Go to another page</option>
+          : null}
+          <option value="custom">Custom URL</option>
           <option value="join">Open join modal</option>
           <option value="visit">Open plan visit modal</option>
           <option value="trial">Open trial modal</option>
@@ -826,9 +1235,68 @@ function ButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
             }}
             placeholder="pricing"
           />
-          <p className="website-builder-page__field-hint">Opens this page section like `#pricing`.</p>
+          <p className="website-builder-page__field-hint">Same-page anchor, e.g. <code>#pricing</code>.</p>
         </div>
-      : <p className="website-builder-page__field-hint">This button opens a modal on click.</p>}
+      : null}
+      {action === 'page' && builderPages.length > 0 ?
+        <div className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label" htmlFor="wb-ins-b-page">
+            Page
+          </label>
+          <select
+            id="wb-ins-b-page"
+            className="website-builder-page__field-control"
+            value={pageId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setPageId(id);
+              const idx = builderPages.findIndex((p) => p.id === id);
+              const i = idx >= 0 ? idx : 0;
+              const p = builderPages[i];
+              const nextHref = p ? hrefForBuilderPage(p, i) : '/';
+              setHref(nextHref);
+              patchAttributes(comp, { href: nextHref, 'data-wb-open': undefined });
+            }}
+          >
+            {builderPages.map((p, i) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({hrefForBuilderPage(p, i)})
+              </option>
+            ))}
+          </select>
+          <p className="website-builder-page__field-hint">Uses a simple path per page (first page is <code>/</code>).</p>
+          <p className="website-builder-page__field-hint">
+            Preview is one exported HTML page. This action navigates the browser to that path on your app host; it does not open another Grapes page inside preview.
+          </p>
+        </div>
+      : null}
+      {action === 'custom' ?
+        <div className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label" htmlFor="wb-ins-b-custom">
+            URL
+          </label>
+          <input
+            id="wb-ins-b-custom"
+            className="website-builder-page__field-control"
+            value={customUrl}
+            placeholder="https://example.com or /path"
+            onChange={(e) => {
+              const v = e.target.value;
+              setCustomUrl(v);
+              setHref(v.trim() || '#');
+              patchAttributes(comp, { href: v.trim() || '#', 'data-wb-open': undefined });
+            }}
+          />
+        </div>
+      : null}
+      {action === 'join' || action === 'visit' || action === 'trial' || action === 'enquiry' ?
+        <p className="website-builder-page__field-hint">
+          <strong>Button action</strong> above is what this link does. Lead modals run in the canvas and Preview when <code>NEXT_PUBLIC_API_BASE_URL</code> is set; join, visit, and trial need a valid gym slug. If configuration is missing, a short browser alert appears when you click.
+        </p>
+      : null}
+      {action === 'none' ?
+        <p className="website-builder-page__field-hint">Link is cleared to <code>#</code>. Pick an action or a custom URL.</p>
+      : null}
       <button type="button" className="website-builder-page__save-section-btn">
         Save Section
       </button>
@@ -971,7 +1439,7 @@ function opacityToPercent(style: Record<string, string>): number {
   if (!o) return 100;
   const n = parseFloat(o);
   if (Number.isNaN(n)) return 100;
-  if (n <= 1) return Math.round(n * 100);
+  if (n <= 1) return Math.min(100, Math.round(n * 100));
   return Math.min(100, Math.round(n));
 }
 
@@ -1221,6 +1689,19 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
     setMaxWidth(g('max-width'));
     setMinHeight(g('min-height'));
     setOpacityPct(opacityToPercent(raw));
+
+    // Some animated blocks start from CSS `opacity: 0` (e.g. `.fade-up`) before runtime "show" toggles.
+    // In editor mode this can leave selected cards invisible while slider reads 100%.
+    // If there is no explicit opacity style and computed opacity is 0, normalize to visible.
+    const rawOpacity = g('opacity');
+    if (!rawOpacity) {
+      const el = comp.getEl?.() as HTMLElement | undefined;
+      const view = el?.ownerDocument?.defaultView;
+      const computed = el && view ? Number.parseFloat(view.getComputedStyle(el).opacity || '1') : 1;
+      if (Number.isFinite(computed) && computed <= 0.001) {
+        applyStylePatch(comp, { opacity: '0.9999', visibility: 'visible' });
+      }
+    }
   }, [comp]);
 
   useEffect(() => {
@@ -1313,8 +1794,12 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
             onChange={(e) => {
               const n = Number(e.target.value);
               setOpacityPct(n);
-              const o = n >= 100 ? undefined : String(n / 100);
-              applyStylePatch(comp, { opacity: o });
+              const hidden = n <= 0;
+              const o = hidden ? '0' : n >= 100 ? '0.9999' : String(n / 100);
+              applyStylePatch(comp, {
+                opacity: o,
+                visibility: hidden ? 'hidden' : 'visible',
+              });
             }}
           />
         </div>

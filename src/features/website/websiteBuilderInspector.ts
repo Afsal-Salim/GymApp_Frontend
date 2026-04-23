@@ -8,6 +8,9 @@ export type InspectorKind =
   | 'text'
   | 'button'
   | 'pushButton'
+  | 'whatsappLink'
+  | 'mailtoLink'
+  | 'telLink'
   | 'image'
   | 'iframe'
   | 'div'
@@ -66,6 +69,12 @@ function titleForKind(kind: InspectorKind, tag: string): string {
       return 'Edit Text';
     case 'button':
       return 'Edit Button';
+    case 'whatsappLink':
+      return 'Edit WhatsApp link';
+    case 'mailtoLink':
+      return 'Edit Email link';
+    case 'telLink':
+      return 'Edit Call link';
     case 'image':
       return 'Edit Image';
     case 'nav':
@@ -89,6 +98,8 @@ export function describeSelection(selected: Component | undefined | null): Selec
   const tag = String(selected.get('tagName') || '').toLowerCase();
   const attrs = selected.getAttributes() || {};
   const typeName = String(selected.get('type') || '');
+  const cls = String(attrs.class || '');
+  const href = String(attrs.href || '').trim().toLowerCase();
 
   let kind: InspectorKind = 'unknown';
 
@@ -96,7 +107,12 @@ export function describeSelection(selected: Component | undefined | null): Selec
   else if (tag === 'iframe') kind = 'iframe';
   else if (tag === 'img') kind = 'image';
   else if (tag === 'button') kind = 'pushButton';
-  else if (tag === 'a' || typeName === 'link-button') kind = 'button';
+  else if (tag === 'a' || typeName === 'link-button') {
+    if (typeName === 'whatsapp-link' || /\bwb-wa-btn\b/.test(cls) || /\bwb-wa-float\b/.test(cls)) kind = 'whatsappLink';
+    else if (href.startsWith('mailto:')) kind = 'mailtoLink';
+    else if (href.startsWith('tel:')) kind = 'telLink';
+    else kind = 'button';
+  }
   else if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) kind = 'heading';
   else if (tag === 'p') kind = 'text';
   else if (['section', 'header', 'article', 'main'].includes(tag)) {

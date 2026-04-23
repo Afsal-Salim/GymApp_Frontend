@@ -3,15 +3,20 @@
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from 'grapesjs';
 import { useToast } from '../../contexts/ToastContext';
 import {
   type ComponentLibraryFilter,
   type ComponentLibraryPreviewKind,
+  applyDesignSystemSectionPreviewFit,
   applyLibraryPreviewFit,
+  buildDesignSystemTemplatePreviewSrcDoc,
   buildComponentPreviewSrcDoc,
+  buildScrollableComponentPreviewSrcDoc,
   COMPONENT_LIBRARY_FILTERS,
   copyBlockHtmlToClipboard,
   filterCatalog,
@@ -22,6 +27,13 @@ import {
   setBlockDragTransferData,
 } from './websiteBuilderComponentCatalog';
 import { DESIGN_SYSTEM_SETS } from './websiteBuilderDesignSystemBlocks';
+import {
+  ICON_GRID_KIT_CATALOG_ENTRY,
+  ICON_LIBRARY_SUBGROUP_FILTERS,
+  type IconLibrarySubgroup,
+  getIconLibraryItems,
+  iconLibrarySvgMarkup,
+} from './websiteBuilderIconBlocks';
 
 type Props = {
   editor: Editor | null;
@@ -114,38 +126,105 @@ export function BlockPreview({
   kind: ComponentLibraryPreviewKind;
 }) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const dsPreviewRoRef = useRef<ResizeObserver | null>(null);
+  const isScrollableMode = blockId.startsWith('wb-ds-');
   const srcDoc = useMemo(() => {
     if (!editor) return '';
-    return buildComponentPreviewSrcDoc(editor, blockId);
-  }, [editor, blockId]);
+    return isScrollableMode ? buildScrollableComponentPreviewSrcDoc(editor, blockId) : buildComponentPreviewSrcDoc(editor, blockId);
+  }, [editor, blockId, isScrollableMode]);
 
-  const scheduleFit = useCallback(() => {
+  const scheduleDefaultFit = useCallback(() => {
     const el = frameRef.current;
     if (!el) return;
     applyLibraryPreviewFit(el);
     window.setTimeout(() => applyLibraryPreviewFit(el), 160);
   }, []);
 
+  const handlePreviewFrameLoad = useCallback(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    dsPreviewRoRef.current?.disconnect();
+    dsPreviewRoRef.current = null;
+    if (isScrollableMode) {
+      applyDesignSystemSectionPreviewFit(el);
+      const ro = new ResizeObserver(() => applyDesignSystemSectionPreviewFit(el));
+      ro.observe(el);
+      const root = el.contentDocument?.querySelector('.wb-lib-preview-root');
+      if (root) ro.observe(root);
+      dsPreviewRoRef.current = ro;
+      return;
+    }
+    scheduleDefaultFit();
+  }, [isScrollableMode, scheduleDefaultFit]);
+
   useEffect(() => {
+    if (isScrollableMode) return;
     if (!srcDoc) return;
     const el = frameRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => scheduleFit());
+    const ro = new ResizeObserver(() => scheduleDefaultFit());
     ro.observe(el);
     return () => ro.disconnect();
-  }, [srcDoc, scheduleFit]);
+  }, [srcDoc, scheduleDefaultFit, isScrollableMode]);
+
+  useEffect(
+    () => () => {
+      dsPreviewRoRef.current?.disconnect();
+      dsPreviewRoRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    dsPreviewRoRef.current?.disconnect();
+    dsPreviewRoRef.current = null;
+  }, [srcDoc]);
 
   if (!srcDoc) return <PreviewMock kind={kind} />;
   return (
     <iframe
       ref={frameRef}
       title={`${blockId} preview`}
-      className="wb-comp-lib__preview-frame"
+      className={`wb-comp-lib__preview-frame${isScrollableMode ? ' wb-comp-lib__preview-frame--scroll' : ''}`}
       srcDoc={srcDoc}
       loading="lazy"
       tabIndex={-1}
       aria-hidden
-      onLoad={scheduleFit}
+      onLoad={handlePreviewFrameLoad}
+    />
+  );
+}
+
+function DesignSystemTemplatePreview({
+  editor,
+  setId,
+  label,
+}: {
+  editor: Editor | null;
+  setId: (typeof DESIGN_SYSTEM_SETS)[number]['id'];
+  label: string;
+}) {
+  const srcDoc = useMemo(() => {
+    if (!editor) return '';
+    return buildDesignSystemTemplatePreviewSrcDoc(editor, setId);
+  }, [editor, setId]);
+
+  if (!srcDoc) {
+    return (
+      <div className="wb-comp-lib__template-preview-fallback" aria-hidden>
+        {label}
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      title={`${label} full-page preview`}
+      className="wb-comp-lib__template-preview-frame"
+      srcDoc={srcDoc}
+      loading="lazy"
+      tabIndex={-1}
+      aria-hidden
     />
   );
 }
@@ -165,6 +244,7 @@ export function WebsiteBuilderComponentsLibrary({
   const [libraryScope, setLibraryScope] = useState<'blocks' | 'design-systems'>('blocks');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [iconSubgroup, setIconSubgroup] = useState<'all' | IconLibrarySubgroup>('all');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -178,10 +258,32 @@ export function WebsiteBuilderComponentsLibrary({
     setSearch('');
   }, [isOpen, initialFilter, initialScope]);
 
+  useEffect(() => {
+    if (activeFilter !== 'icons') setIconSubgroup('all');
+  }, [activeFilter]);
+
   const catalog = useMemo(() => getComponentCatalog(), []);
+  const isIconsLibraryView = libraryScope === 'blocks' && activeFilter === 'icons';
+
+  const iconItemsFiltered = useMemo(() => {
+    let rows = getIconLibraryItems();
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (r) => r.cardTitle.toLowerCase().includes(q) || r.slug.toLowerCase().includes(q),
+      );
+    }
+    if (iconSubgroup !== 'all') rows = rows.filter((r) => r.subgroup === iconSubgroup);
+    return rows;
+  }, [search, iconSubgroup]);
+
   const visible = useMemo(() => {
     if (libraryScope === 'design-systems') {
       return filterCatalog(catalog, 'design-systems', search);
+    }
+    if (activeFilter === 'icons') {
+      const kit = catalog.find((it) => it.blockId === ICON_GRID_KIT_CATALOG_ENTRY.blockId);
+      return kit ? [kit] : [];
     }
     const rows = filterCatalog(catalog, activeFilter, search);
     if (activeFilter === 'all') return rows.filter((it) => it.filter !== 'design-systems');
@@ -256,6 +358,8 @@ export function WebsiteBuilderComponentsLibrary({
 
   if (!isOpen) return null;
 
+  const kitEntry = catalog.find((it) => it.blockId === ICON_GRID_KIT_CATALOG_ENTRY.blockId) ?? ICON_GRID_KIT_CATALOG_ENTRY;
+
   return (
     <div
       className="wb-comp-lib"
@@ -275,26 +379,28 @@ export function WebsiteBuilderComponentsLibrary({
             </p>
           </div>
           <div className="wb-comp-lib__header-actions">
-            <div className="wb-comp-lib__view-toggle" role="group" aria-label="View mode">
-              <button
-                type="button"
-                className={`wb-comp-lib__view-btn${viewMode === 'grid' ? ' is-active' : ''}`}
-                onClick={() => setViewMode('grid')}
-                aria-pressed={viewMode === 'grid'}
-                title="Grid view"
-              >
-                <GridViewOutlinedIcon fontSize="small" />
-              </button>
-              <button
-                type="button"
-                className={`wb-comp-lib__view-btn${viewMode === 'list' ? ' is-active' : ''}`}
-                onClick={() => setViewMode('list')}
-                aria-pressed={viewMode === 'list'}
-                title="List view"
-              >
-                <ViewListOutlinedIcon fontSize="small" />
-              </button>
-            </div>
+            {!isIconsLibraryView ?
+              <div className="wb-comp-lib__view-toggle" role="group" aria-label="View mode">
+                <button
+                  type="button"
+                  className={`wb-comp-lib__view-btn${viewMode === 'grid' ? ' is-active' : ''}`}
+                  onClick={() => setViewMode('grid')}
+                  aria-pressed={viewMode === 'grid'}
+                  title="Grid view"
+                >
+                  <GridViewOutlinedIcon fontSize="small" />
+                </button>
+                <button
+                  type="button"
+                  className={`wb-comp-lib__view-btn${viewMode === 'list' ? ' is-active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                  aria-pressed={viewMode === 'list'}
+                  title="List view"
+                >
+                  <ViewListOutlinedIcon fontSize="small" />
+                </button>
+              </div>
+            : null}
             <button type="button" className="wb-comp-lib__close" onClick={onClose} aria-label="Close">
               <CloseOutlinedIcon fontSize="small" />
             </button>
@@ -323,17 +429,29 @@ export function WebsiteBuilderComponentsLibrary({
                 className={`wb-comp-lib__scope-btn${libraryScope === 'design-systems' ? ' is-active' : ''}`}
                 onClick={() => setLibraryScope('design-systems')}
               >
-                Design systems
+                <span className="wb-comp-lib__scope-inner">
+                  <span>Design systems</span>
+                  <span className="wb-ds-max-tag" aria-hidden>
+                    Max
+                  </span>
+                  <WorkspacePremiumOutlinedIcon
+                    className="wb-ds-max-crown wb-comp-lib__scope-crown"
+                    fontSize="inherit"
+                    aria-hidden
+                  />
+                </span>
               </button>
             </div>
-            <input
-              type="search"
-              className="wb-comp-lib__search"
-              placeholder="Search components…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search components"
-            />
+            {libraryScope === 'blocks' && activeFilter !== 'icons' ?
+              <input
+                type="search"
+                className="wb-comp-lib__search"
+                placeholder="Search components…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search components"
+              />
+            : null}
             <button
               type="button"
               className="wb-comp-lib__add-section"
@@ -349,26 +467,118 @@ export function WebsiteBuilderComponentsLibrary({
               <div className="wb-comp-lib__saved-title">Saved components</div>
               <p className="wb-comp-lib__saved-hint">Reusable blocks you save from the page will appear here in a future update.</p>
             </div>
-            {libraryScope === 'blocks' ?
-              <nav className="wb-comp-lib__side-nav" aria-label="Quick categories">
-                {COMPONENT_LIBRARY_FILTERS.filter((f) => f.id !== 'all').map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    className={`wb-comp-lib__side-link${activeFilter === f.id ? ' is-active' : ''}`}
-                    onClick={() => setActiveFilter(f.id)}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </nav>
-            :
+            {libraryScope === 'design-systems' ?
               <p className="wb-comp-lib__side-hint">Six full visual systems (nav → footer). Mix only if you mean to.</p>
-            }
+            : null}
           </aside>
 
           <div className="wb-comp-lib__main">
-            {libraryScope === 'blocks' ?
+            {isIconsLibraryView ?
+              <>
+                <div className="wb-comp-lib__icons-head">
+                  <div className="wb-comp-lib__icons-head-text">
+                    <h2 className="wb-comp-lib__icons-title">Icons</h2>
+                    <p className="wb-comp-lib__icons-sub">
+                      Choose from beautiful, customizable icons for your website.
+                    </p>
+                  </div>
+                  <div className="wb-comp-lib__icons-search">
+                    <SearchOutlinedIcon className="wb-comp-lib__icons-search-ico" fontSize="small" aria-hidden />
+                    <input
+                      type="search"
+                      className="wb-comp-lib__icons-search-input"
+                      placeholder="Search icons…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      aria-label="Search icons"
+                    />
+                  </div>
+                </div>
+                <div className="wb-comp-lib__pills wb-comp-lib__pills--icon-subgroups" role="tablist" aria-label="Icon categories">
+                  {ICON_LIBRARY_SUBGROUP_FILTERS.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={iconSubgroup === f.id}
+                      className={`wb-comp-lib__pill${iconSubgroup === f.id ? ' is-active' : ''}`}
+                      onClick={() => setIconSubgroup(f.id)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="wb-comp-lib__icon-kit-banner">
+                  <div className="wb-comp-lib__icon-kit-banner-text">
+                    <h3 className="wb-comp-lib__icon-kit-banner-title">{kitEntry.title}</h3>
+                    <p className="wb-comp-lib__icon-kit-banner-desc">{kitEntry.description}</p>
+                  </div>
+                  <div className="wb-comp-lib__icon-kit-banner-actions">
+                    <button
+                      type="button"
+                      className="wb-comp-lib__icon-kit-add"
+                      disabled={disabled}
+                      onClick={() => onInsert(kitEntry.blockId)}
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      className="wb-comp-lib__icon-kit-copy"
+                      disabled={disabled || copyingId === kitEntry.blockId}
+                      onClick={() => void onCopy(kitEntry.blockId)}
+                      aria-label="Copy all-in-one grid HTML"
+                    >
+                      <ContentCopyOutlinedIcon fontSize="small" />
+                    </button>
+                  </div>
+                </div>
+                <ul className="wb-comp-lib__icon-tile-grid">
+                  {iconItemsFiltered.length === 0 ?
+                    <li className="wb-comp-lib__icon-tile-empty">No icons match your search.</li>
+                  : iconItemsFiltered.map((it) => (
+                      <li
+                        key={it.blockId}
+                        className="wb-comp-lib__icon-tile"
+                        draggable={!disabled}
+                        onDragStart={(e) => {
+                          if (disabled) {
+                            e.preventDefault();
+                            return;
+                          }
+                          setBlockDragTransferData(e.dataTransfer, it.blockId);
+                        }}
+                      >
+                        <div
+                          className="wb-comp-lib__icon-tile-svg"
+                          dangerouslySetInnerHTML={{ __html: iconLibrarySvgMarkup(it.svgInner) }}
+                        />
+                        <span className="wb-comp-lib__icon-tile-name">{it.cardTitle}</span>
+                        <div className="wb-comp-lib__icon-tile-actions">
+                          <button
+                            type="button"
+                            className="wb-comp-lib__icon-tile-add"
+                            disabled={disabled}
+                            onClick={() => onInsert(it.blockId)}
+                          >
+                            Add
+                          </button>
+                          <button
+                            type="button"
+                            className="wb-comp-lib__icon-tile-copy"
+                            disabled={disabled || copyingId === it.blockId}
+                            onClick={() => void onCopy(it.blockId)}
+                            aria-label={`Copy ${it.cardTitle} HTML`}
+                          >
+                            <ContentCopyOutlinedIcon fontSize="inherit" />
+                          </button>
+                        </div>
+                      </li>
+                    ))
+                  }
+                </ul>
+              </>
+            : libraryScope === 'blocks' ?
               <div className="wb-comp-lib__pills" role="tablist" aria-label="Filter by type">
                 {COMPONENT_LIBRARY_FILTERS.map((f) => (
                   <button
@@ -385,66 +595,52 @@ export function WebsiteBuilderComponentsLibrary({
               </div>
             :
               <p className="wb-comp-lib__filter-hint">
-                <strong>Design systems</strong> · {visible.length} sections below · full pages above
+                <strong>Design systems</strong> · {visible.length} section blocks below · full templates listed as a section
               </p>
             }
 
-            {libraryScope === 'design-systems' ?
-              <div className="wb-comp-lib__template-sets" aria-label="Insert full template sets">
-                <p className="wb-comp-lib__template-sets-label">Insert a complete landing page</p>
-                <p className="wb-comp-lib__template-sets-desc">
-                  Adds all nine blocks in order (Navbar → Footer) for one visual system. Use the cards below for individual sections.
-                </p>
-                <div className="wb-comp-lib__template-sets-grid">
-                  {DESIGN_SYSTEM_SETS.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className="wb-comp-lib__template-set-btn"
-                      disabled={disabled}
-                      onClick={() => onInsertFullTemplate(s.id)}
-                    >
-                      <span className="wb-comp-lib__template-set-name">{s.label}</span>
-                      <span className="wb-comp-lib__template-set-meta">9 sections</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            : null}
-
-            {libraryScope === 'blocks' && activeFilter !== 'all' ?
+            {!isIconsLibraryView && libraryScope === 'blocks' && activeFilter !== 'all' ?
               <p className="wb-comp-lib__filter-hint">
                 Showing <strong>{getCategoryLabelForFilter(activeFilter)}</strong> · {visible.length} blocks
               </p>
             : null}
 
-            {libraryScope === 'blocks' ?
-              <div className="wb-comp-lib__template-sets wb-comp-lib__template-sets--compact" aria-label="Insert full template sets">
-                <p className="wb-comp-lib__template-sets-label">Full-page design templates</p>
-                <div className="wb-comp-lib__template-sets-grid">
-                  {DESIGN_SYSTEM_SETS.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className="wb-comp-lib__template-set-btn"
-                      disabled={disabled}
-                      onClick={() => onInsertFullTemplate(s.id)}
-                    >
-                      <span className="wb-comp-lib__template-set-name">{s.label}</span>
-                      <span className="wb-comp-lib__template-set-meta">9 sections</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            : null}
-
-            <ul className={viewMode === 'grid' ? 'wb-comp-lib__grid' : 'wb-comp-lib__grid wb-comp-lib__grid--list'}>
+            {!isIconsLibraryView ?
+              <ul className={viewMode === 'grid' ? 'wb-comp-lib__grid' : 'wb-comp-lib__grid wb-comp-lib__grid--list'}>
+              {libraryScope === 'design-systems' ?
+                <li className="wb-comp-lib__card wb-comp-lib__card--template-section">
+                  <div className="wb-comp-lib__template-sets" aria-label="Insert full template sets">
+                    <p className="wb-comp-lib__template-sets-label">Insert a complete landing page</p>
+                    <p className="wb-comp-lib__template-sets-desc">
+                      Adds all nine blocks in order (Navbar → Footer) for one visual system. Use the cards below for individual
+                      sections.
+                    </p>
+                    <div className="wb-comp-lib__template-sets-grid">
+                      {DESIGN_SYSTEM_SETS.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className="wb-comp-lib__template-set-btn"
+                          disabled={disabled}
+                          onClick={() => onInsertFullTemplate(s.id)}
+                        >
+                          <span className="wb-comp-lib__template-set-preview">
+                            <DesignSystemTemplatePreview editor={editor} setId={s.id} label={s.label} />
+                          </span>
+                          <span className="wb-comp-lib__template-set-name">{s.label}</span>
+                          <span className="wb-comp-lib__template-set-meta">9 sections</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </li>
+              : null}
               {visible.length === 0 ?
                 <li className="wb-comp-lib__empty">No components match your search. Try another word or clear filters.</li>
               : visible.map((it) => (
                   <li
                     key={it.blockId}
-                    className="wb-comp-lib__card"
+                    className={`wb-comp-lib__card${it.filter === 'design-systems' ? ' wb-comp-lib__card--design-system' : ''}`}
                     draggable={!disabled}
                     onDragStart={(e) => {
                       if (disabled) {
@@ -483,7 +679,8 @@ export function WebsiteBuilderComponentsLibrary({
                   </li>
                 ))
               }
-            </ul>
+              </ul>
+            : null}
           </div>
         </div>
       </div>
