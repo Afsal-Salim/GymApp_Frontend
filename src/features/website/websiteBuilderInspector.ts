@@ -153,3 +153,105 @@ export function attachSelectionListener(editor: Editor, onChange: (info: Selecti
     editor.off('component:update', notify);
   };
 }
+
+const WB_FLASH_STYLE_ID = 'wb-selection-flash-style';
+const WB_FLASH_CLASS = 'wb-canvas-selection-flash';
+
+type CanvasScrollOpts = ScrollIntoViewOptions & { force?: boolean };
+
+function ensureCanvasFlashStyle(editor: Editor) {
+  try {
+    const doc = editor.Canvas?.getDocument?.();
+    if (!doc?.head || doc.getElementById(WB_FLASH_STYLE_ID)) return;
+    const s = doc.createElement('style');
+    s.id = WB_FLASH_STYLE_ID;
+    s.textContent = `
+.${WB_FLASH_CLASS} {
+  outline: 3px solid rgba(37, 99, 235, 0.92) !important;
+  outline-offset: 3px !important;
+}
+`;
+    doc.head.appendChild(s);
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearFlashClassOnCanvas(editor: Editor) {
+  try {
+    const doc = editor.Canvas?.getDocument?.();
+    doc?.querySelectorAll(`.${WB_FLASH_CLASS}`).forEach((n) => n.classList.remove(WB_FLASH_CLASS));
+  } catch {
+    /* ignore */
+  }
+}
+
+type FlashHandles = { raf?: number; timeout?: number };
+const selectionFlashHandles = new WeakMap<Editor, FlashHandles>();
+
+function clearSelectionFlashHandles(editor: Editor) {
+  const h = selectionFlashHandles.get(editor);
+  if (!h) return;
+  if (h.raf != null) cancelAnimationFrame(h.raf);
+  if (h.timeout != null) window.clearTimeout(h.timeout);
+  selectionFlashHandles.delete(editor);
+}
+
+/**
+ * When a component is selected (e.g. from the Structure tree), scroll the canvas to it and flash an outline
+ * so the user can see which block it is. Uses Grapes `Canvas.scrollTo` so scrolling works inside the iframe.
+ */
+export function attachCanvasSelectionFocus(editor: Editor): () => void {
+  const onSelected = (comp: Component) => {
+    if (!comp || comp.is('wrapper')) return;
+
+    clearSelectionFlashHandles(editor);
+    clearFlashClassOnCanvas(editor);
+
+    const handles: FlashHandles = {};
+    selectionFlashHandles.set(editor, handles);
+
+    handles.raf = requestAnimationFrame(() => {
+      handles.raf = undefined;
+      const el = comp.getEl?.();
+      if (!el) {
+        selectionFlashHandles.delete(editor);
+        return;
+      }
+
+      try {
+        editor.Canvas.scrollTo(comp, {
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest',
+          force: false,
+        } as CanvasScrollOpts);
+      } catch {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        } catch {
+          try {
+            el.scrollIntoView({ block: 'nearest' });
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
+      ensureCanvasFlashStyle(editor);
+      el.classList.add(WB_FLASH_CLASS);
+      handles.timeout = window.setTimeout(() => {
+        el.classList.remove(WB_FLASH_CLASS);
+        const cur = selectionFlashHandles.get(editor);
+        if (cur === handles) selectionFlashHandles.delete(editor);
+      }, 1350);
+    });
+  };
+
+  editor.on('component:selected', onSelected);
+  return () => {
+    editor.off('component:selected', onSelected);
+    clearSelectionFlashHandles(editor);
+    clearFlashClassOnCanvas(editor);
+  };
+}

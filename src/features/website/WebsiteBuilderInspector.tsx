@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Component, Editor } from 'grapesjs';
 import type { InspectorKind, SelectionInfo } from './websiteBuilderInspector';
 import { findOne, getDirectText, getHeroContent, setDirectText } from './websiteBuilderInspector';
+import { looksLikeGoogleMapsUrl, normalizeGoogleMapsIframeSrc } from './websiteBuilderGoogleMapsEmbed';
 
 export type InspectorTab = 'content' | 'design' | 'advanced';
 
@@ -25,9 +26,57 @@ type Props = {
 };
 
 const SECTION_TYPES = ['Hero', 'About', 'Services', 'Pricing', 'Contact', 'Custom'] as const;
+type ButtonActionChoice = 'none' | 'section' | 'join' | 'visit' | 'trial' | 'enquiry';
 
 function sliceMax(s: string, max: number) {
   return s.length > max ? s.slice(0, max) : s;
+}
+
+function patchAttributes(comp: Component, patch: Record<string, string | undefined>) {
+  const next = { ...(comp.getAttributes?.() ?? {}) } as Record<string, string>;
+  for (const [key, value] of Object.entries(patch)) {
+    if (value == null || value === '') delete next[key];
+    else next[key] = value;
+  }
+  comp.set('attributes', next);
+}
+
+function sanitizeModalAction(raw: string): ButtonActionChoice | null {
+  const v = raw.trim().toLowerCase();
+  if (v === 'join' || v === 'enquiry' || v === 'visit' || v === 'trial') return v;
+  return null;
+}
+
+function sanitizeSectionTarget(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^#+/, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9-_]/g, '')
+    .slice(0, 80);
+}
+
+function inferLinkButtonAction(comp: Component): ButtonActionChoice {
+  const attrs = comp.getAttributes?.() ?? {};
+  const modal = sanitizeModalAction(String(attrs['data-wb-open'] ?? ''));
+  if (modal) return modal;
+  const href = String(attrs.href ?? '').trim();
+  if (href.startsWith('#') && href.length > 1) return 'section';
+  return 'none';
+}
+
+function inferPushButtonAction(comp: Component): ButtonActionChoice {
+  const attrs = comp.getAttributes?.() ?? {};
+  const modal = sanitizeModalAction(String(attrs['data-wb-open'] ?? ''));
+  if (modal) return modal;
+  const onclick = String(attrs.onclick ?? '');
+  if (/href\s*=\s*['"]#/.test(onclick) || /location\.hash\s*=/.test(onclick)) return 'section';
+  return 'none';
+}
+
+function toOnclickNavigate(url: string): string {
+  const escaped = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `window.location.href='${escaped}'`;
 }
 
 function InspectorEmpty() {
@@ -87,7 +136,7 @@ export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange }:
           onClick={() => onTabChange('content')}
         >
           <ArticleOutlinedIcon className="website-builder-page__inspector-tab-icon" fontSize="small" />
-          <span>Content</span>
+          <span>Basics</span>
         </button>
         <button
           type="button"
@@ -95,7 +144,7 @@ export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange }:
           onClick={() => onTabChange('design')}
         >
           <PaletteOutlinedIcon className="website-builder-page__inspector-tab-icon" fontSize="small" />
-          <span>Design</span>
+          <span>Style</span>
         </button>
         <button
           type="button"
@@ -103,7 +152,7 @@ export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange }:
           onClick={() => onTabChange('advanced')}
         >
           <SettingsOutlinedIcon className="website-builder-page__inspector-tab-icon" fontSize="small" />
-          <span>Advanced</span>
+          <span>More</span>
         </button>
       </div>
 
@@ -120,12 +169,12 @@ export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange }:
 
         {/* Grapes append targets — always mounted so the editor can bind; visibility follows tab + selection */}
         <div hidden={!showStylesDock} className="website-builder-page__gjs-dock">
-          <p className="website-builder-page__field-hint website-builder-page__gjs-dock-title">Style manager</p>
+          <p className="website-builder-page__field-hint website-builder-page__gjs-dock-title">More style options</p>
           <div id="wb-styles" className="website-builder-page__gjs-styles-host" />
         </div>
         <div hidden={!showAdvancedDock} className="website-builder-page__gjs-dock">
-          <p className="website-builder-page__field-hint">Motion presets (traits)</p>
-          <div id="wb-traits" className="website-builder-page__traits-host" />
+          <p className="website-builder-page__field-hint">Animation presets</p>
+          <div id="wb-traits" className="website-builder-page__traits-host website-builder-page__traits-skin" />
         </div>
         {tab === 'advanced' && selection && selection.kind !== 'wrapper' ?
           <button type="button" className="website-builder-page__save-section-btn website-builder-page__save-section-btn--after-dock">
@@ -485,10 +534,37 @@ function TextContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelecte
 function PushButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelected']>> }) {
   const [label, setLabel] = useState('');
   const [btnType, setBtnType] = useState('button');
+  const [action, setAction] = useState<ButtonActionChoice>('none');
+  const [sectionTarget, setSectionTarget] = useState('');
   useEffect(() => {
     setLabel(getDirectText(comp));
-    setBtnType(String(comp.getAttributes?.().type || 'button'));
+    const attrs = comp.getAttributes?.() ?? {};
+    setBtnType(String(attrs.type || 'button'));
+    setAction(inferPushButtonAction(comp));
+    const onclick = String(attrs.onclick ?? '');
+    const hrefM = onclick.match(/href\s*=\s*['"]#([^'"]+)['"]/i);
+    const hashM = onclick.match(/location\.hash\s*=\s*['"]#?([^'"]+)['"]/i);
+    setSectionTarget(sanitizeSectionTarget(hrefM?.[1] ?? hashM?.[1] ?? ''));
   }, [comp]);
+
+  const applyAction = (nextAction: ButtonActionChoice) => {
+    setAction(nextAction);
+    if (nextAction === 'none') {
+      patchAttributes(comp, { 'data-wb-open': undefined, onclick: undefined });
+      return;
+    }
+    if (nextAction === 'section') {
+      const sectionId = sanitizeSectionTarget(sectionTarget);
+      patchAttributes(comp, {
+        'data-wb-open': undefined,
+        onclick: sectionId ? toOnclickNavigate(`#${sectionId}`) : undefined,
+      });
+      return;
+    }
+    patchAttributes(comp, { 'data-wb-open': nextAction, onclick: undefined, type: 'button' });
+    setBtnType('button');
+  };
+
   return (
     <>
       <div className="website-builder-page__panel-group-title">Button</div>
@@ -511,6 +587,46 @@ function PushButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getS
           }}
         />
       </div>
+      <div className="website-builder-page__form-block">
+        <label className="website-builder-page__field-label" htmlFor="wb-ins-pb-action">
+          Button action
+        </label>
+        <select
+          id="wb-ins-pb-action"
+          className="website-builder-page__field-control"
+          value={action}
+          onChange={(e) => applyAction(e.target.value as ButtonActionChoice)}
+        >
+          <option value="none">None</option>
+          <option value="section">Go to section</option>
+          <option value="join">Open join modal</option>
+          <option value="visit">Open plan visit modal</option>
+          <option value="trial">Open trial modal</option>
+          <option value="enquiry">Open enquiry modal</option>
+        </select>
+      </div>
+      {action === 'section' ?
+        <div className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label" htmlFor="wb-ins-pb-section">
+            Section link name
+          </label>
+          <input
+            id="wb-ins-pb-section"
+            className="website-builder-page__field-control"
+            value={sectionTarget}
+            placeholder="contact"
+            onChange={(e) => {
+              const v = sanitizeSectionTarget(e.target.value);
+              setSectionTarget(v);
+              patchAttributes(comp, {
+                'data-wb-open': undefined,
+                onclick: v ? toOnclickNavigate(`#${v}`) : undefined,
+              });
+            }}
+          />
+          <p className="website-builder-page__field-hint">Opens this page section like `#contact`.</p>
+        </div>
+      : <p className="website-builder-page__field-hint">Choose a modal action to open the lead popup on click.</p>}
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-pbtype">
           Type
@@ -542,9 +658,16 @@ function IframeContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
   const [src, setSrc] = useState('');
   const [title, setTitle] = useState('');
   useEffect(() => {
-    const a = comp.getAttributes?.() ?? {};
-    setSrc(String(a.src ?? ''));
-    setTitle(String(a.title ?? ''));
+    const sync = () => {
+      const a = comp.getAttributes?.() ?? {};
+      setSrc(String(a.src ?? ''));
+      setTitle(String(a.title ?? ''));
+    };
+    sync();
+    comp.on('change:attributes', sync);
+    return () => {
+      comp.off('change:attributes', sync);
+    };
   }, [comp]);
   return (
     <>
@@ -563,7 +686,21 @@ function IframeContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
             setSrc(v);
             comp.addAttributes({ src: v });
           }}
+          onBlur={() => {
+            const cur = src.trim();
+            if (!cur || !looksLikeGoogleMapsUrl(cur)) return;
+            const next = normalizeGoogleMapsIframeSrc(cur);
+            if (next !== cur) {
+              setSrc(next);
+              comp.addAttributes({ src: next });
+            }
+          }}
         />
+        <p className="website-builder-page__field-hint" style={{ marginTop: '0.35rem' }}>
+          Google Maps: paste any maps link, then tab out of this field — we convert place and search links to an embed
+          URL. For short links (maps.app.goo.gl), open Google Maps → Share → <strong>Embed a map</strong> and paste the{' '}
+          <code>iframe src</code> here.
+        </p>
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-if-title">
@@ -601,10 +738,36 @@ function DivBlockContent() {
 function ButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelected']>> }) {
   const [label, setLabel] = useState('');
   const [href, setHref] = useState('#');
+  const [action, setAction] = useState<ButtonActionChoice>('none');
+  const [sectionTarget, setSectionTarget] = useState('');
   useEffect(() => {
     setLabel(getDirectText(comp));
-    setHref(String(comp.getAttributes?.().href ?? '#'));
+    const attrs = comp.getAttributes?.() ?? {};
+    const nextHref = String(attrs.href ?? '#');
+    setHref(nextHref);
+    setSectionTarget(sanitizeSectionTarget(nextHref.startsWith('#') ? nextHref.slice(1) : ''));
+    setAction(inferLinkButtonAction(comp));
   }, [comp]);
+
+  const applyAction = (nextAction: ButtonActionChoice) => {
+    setAction(nextAction);
+    if (nextAction === 'none') {
+      patchAttributes(comp, { 'data-wb-open': undefined, href: '#' });
+      setHref('#');
+      setSectionTarget('');
+      return;
+    }
+    if (nextAction === 'section') {
+      const target = sanitizeSectionTarget(sectionTarget);
+      const nextHref = target ? `#${target}` : '#';
+      patchAttributes(comp, { 'data-wb-open': undefined, href: nextHref });
+      setHref(nextHref);
+      return;
+    }
+    patchAttributes(comp, { 'data-wb-open': nextAction, href: '#' });
+    setHref('#');
+  };
+
   return (
     <>
       <div className="website-builder-page__panel-group-title">Link</div>
@@ -628,28 +791,44 @@ function ButtonContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
         />
       </div>
       <div className="website-builder-page__form-block">
-        <label className="website-builder-page__field-label" htmlFor="wb-ins-bh">
-          Link
+        <label className="website-builder-page__field-label" htmlFor="wb-ins-ba">
+          Button action
         </label>
-        <div className="website-builder-page__input-with-actions">
+        <select
+          id="wb-ins-ba"
+          className="website-builder-page__field-control"
+          value={action}
+          onChange={(e) => applyAction(e.target.value as ButtonActionChoice)}
+        >
+          <option value="none">None</option>
+          <option value="section">Go to section</option>
+          <option value="join">Open join modal</option>
+          <option value="visit">Open plan visit modal</option>
+          <option value="trial">Open trial modal</option>
+          <option value="enquiry">Open enquiry modal</option>
+        </select>
+      </div>
+      {action === 'section' ?
+        <div className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label" htmlFor="wb-ins-bh">
+            Section link name
+          </label>
           <input
             id="wb-ins-bh"
             className="website-builder-page__field-control"
-            value={href}
+            value={sectionTarget}
             onChange={(e) => {
-              const v = e.target.value;
-              setHref(v);
-              comp.addAttributes({ href: v });
+              const v = sanitizeSectionTarget(e.target.value);
+              setSectionTarget(v);
+              const nextHref = v ? `#${v}` : '#';
+              setHref(nextHref);
+              patchAttributes(comp, { href: nextHref, 'data-wb-open': undefined });
             }}
+            placeholder="pricing"
           />
-          <button type="button" className="website-builder-page__input-action" aria-label="Open link">
-            <OpenInNewOutlinedIcon fontSize="small" />
-          </button>
-          <button type="button" className="website-builder-page__input-action" aria-label="More">
-            <AddOutlinedIcon fontSize="small" />
-          </button>
+          <p className="website-builder-page__field-hint">Opens this page section like `#pricing`.</p>
         </div>
-      </div>
+      : <p className="website-builder-page__field-hint">This button opens a modal on click.</p>}
       <button type="button" className="website-builder-page__save-section-btn">
         Save Section
       </button>
@@ -1050,11 +1229,11 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
 
   return (
     <>
-      <div className="website-builder-page__panel-group-title">Size &amp; opacity</div>
-      <p className="website-builder-page__field-hint">Applies to the selected element. Use px, %, rem, or auto.</p>
+      <div className="website-builder-page__panel-group-title">Size &amp; visibility</div>
+      <p className="website-builder-page__field-hint">Start here. Bigger numbers make it larger. Use px or %.</p>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-w">
-          Width
+          Block width
         </label>
         <input
           id="wb-lay-w"
@@ -1070,7 +1249,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-h">
-          Height
+          Block height
         </label>
         <input
           id="wb-lay-h"
@@ -1086,7 +1265,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-mw">
-          Max width
+          Max width (limit)
         </label>
         <input
           id="wb-lay-mw"
@@ -1102,7 +1281,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-mh">
-          Min height
+          Minimum height
         </label>
         <input
           id="wb-lay-mh"
@@ -1119,7 +1298,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       <div className="website-builder-page__form-block">
         <div className="website-builder-page__label-row">
           <label className="website-builder-page__field-label mb-0" htmlFor="wb-lay-op">
-            Opacity
+            Visibility
           </label>
           <span className="website-builder-page__char-count">{opacityPct}%</span>
         </div>
@@ -1136,6 +1315,72 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
               setOpacityPct(n);
               const o = n >= 100 ? undefined : String(n / 100);
               applyStylePatch(comp, { opacity: o });
+            }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AnimationQuickFields({ comp }: { comp: Component }) {
+  const [anim, setAnim] = useState('');
+  const [delayMs, setDelayMs] = useState(0);
+
+  useEffect(() => {
+    const attrs = comp.getAttributes?.() ?? {};
+    const nextAnim = String(attrs['data-wb-anim'] ?? '').trim();
+    const nextDelay = Number(attrs['data-wb-anim-delay'] ?? 0);
+    setAnim(nextAnim);
+    setDelayMs(Number.isFinite(nextDelay) ? Math.max(0, nextDelay) : 0);
+  }, [comp]);
+
+  return (
+    <>
+      <div className="website-builder-page__panel-group-title">Animation</div>
+      <div className="website-builder-page__form-block">
+        <label className="website-builder-page__field-label" htmlFor="wb-anim-style">
+          Animation style
+        </label>
+        <select
+          id="wb-anim-style"
+          className="website-builder-page__field-control"
+          value={anim}
+          onChange={(e) => {
+            const v = e.target.value;
+            setAnim(v);
+            comp.addAttributes({ 'data-wb-anim': v });
+          }}
+        >
+          <option value="">None</option>
+          <option value="wb-fade-up">Fade up</option>
+          <option value="wb-fade-in">Fade in</option>
+          <option value="wb-slide-left">Slide left</option>
+          <option value="wb-slide-right">Slide right</option>
+          <option value="wb-zoom-in">Zoom in</option>
+          <option value="wb-pulse">Pulse loop</option>
+        </select>
+      </div>
+      <div className="website-builder-page__form-block">
+        <div className="website-builder-page__label-row">
+          <label className="website-builder-page__field-label mb-0" htmlFor="wb-anim-delay">
+            Start delay
+          </label>
+          <span className="website-builder-page__char-count">{delayMs}ms</span>
+        </div>
+        <div className="website-builder-page__range-row">
+          <input
+            id="wb-anim-delay"
+            type="range"
+            min={0}
+            max={2000}
+            step={50}
+            value={delayMs}
+            className="website-builder-page__range"
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              setDelayMs(n);
+              comp.addAttributes({ 'data-wb-anim-delay': String(n) });
             }}
           />
         </div>
@@ -1166,13 +1411,14 @@ function DesignPanel({
     <>
       <FillAndTextFields key={selection.cid} comp={selected} />
       <ElementLayoutFields comp={selected} />
+      <AnimationQuickFields comp={selected} />
       <div className="website-builder-page__gjs-embed">
         <p className="website-builder-page__field-hint website-builder-page__gjs-embed-hint">
           {selection.kind === 'iframe' ?
-            'Iframe: set dimensions above; embed source in Content. Style manager below adds borders and backgrounds.'
+            'Iframe: set URL in Basics. Use these controls for size, color, and animation.'
           : selection.kind === 'pushButton' || selection.kind === 'div' ?
-            'Adjust layout above; use the style manager for colors, borders, and typography.'
-          : 'Fine-tune typography, borders, and backgrounds in the style manager below.'}
+            'Use the simple controls above first. Extra fine tuning is available below.'
+          : 'Start with these simple controls. Extra fine tuning is available below.'}
         </p>
       </div>
     </>
@@ -1497,10 +1743,10 @@ function AdvancedPanelForm({
 
   return (
     <>
-      <div className="website-builder-page__panel-group-title">Advanced</div>
+      <div className="website-builder-page__panel-group-title">More settings</div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-tag">
-          HTML Tag
+          Element type (advanced)
         </label>
         <select id="wb-ins-tag" className="website-builder-page__field-control" value={htmlTag} onChange={(e) => applyTag(e.target.value)}>
           <option value="section">section</option>
@@ -1519,14 +1765,14 @@ function AdvancedPanelForm({
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-id">
-          CSS ID
+          Section link name (optional)
         </label>
         <input id="wb-ins-id" className="website-builder-page__field-control" value={cssId} onChange={(e) => applyId(e.target.value)} placeholder="hero" />
-        <p className="website-builder-page__field-hint">Used for one page navigation or custom CSS.</p>
+        <p className="website-builder-page__field-hint">Use this for menu jump links like #pricing or #contact.</p>
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-cls">
-          CSS Classes
+          Extra style tags (advanced)
         </label>
         <input
           id="wb-ins-cls"
@@ -1537,7 +1783,7 @@ function AdvancedPanelForm({
         />
       </div>
 
-      <div className="website-builder-page__panel-group-title">Responsive</div>
+      <div className="website-builder-page__panel-group-title">Device visibility</div>
       <div className="website-builder-page__form-block">
         <span className="website-builder-page__field-label">Show / Hide</span>
         <div className="website-builder-page__device-row">
@@ -1554,7 +1800,7 @@ function AdvancedPanelForm({
       </div>
       <div className="website-builder-page__form-block">
         <div className="website-builder-page__label-row">
-          <span className="website-builder-page__field-label mb-0">Padding</span>
+            <span className="website-builder-page__field-label mb-0">Inner space</span>
           <button type="button" className="website-builder-page__link-icon-btn" aria-label="Link padding" onClick={() => setPadLock((v) => !v)}>
             <LinkOutlinedIcon fontSize="small" />
           </button>
@@ -1582,7 +1828,7 @@ function AdvancedPanelForm({
       </div>
       <div className="website-builder-page__form-block">
         <div className="website-builder-page__label-row">
-          <span className="website-builder-page__field-label mb-0">Margin</span>
+            <span className="website-builder-page__field-label mb-0">Outer space</span>
           <button type="button" className="website-builder-page__link-icon-btn" aria-label="Link margin" onClick={() => setMarginLock((v) => !v)}>
             <LinkOutlinedIcon fontSize="small" />
           </button>
@@ -1617,7 +1863,7 @@ function AdvancedPanelForm({
 
       <div className="website-builder-page__panel-group-title">Animation</div>
       <div className="website-builder-page__form-block">
-        <label className="website-builder-page__field-label">Entrance Animation</label>
+        <label className="website-builder-page__field-label">Animation style</label>
         <select className="website-builder-page__field-control" value={anim} onChange={(e) => setAnim(e.target.value)}>
           <option>None</option>
           <option>Fade In Up</option>
@@ -1627,14 +1873,14 @@ function AdvancedPanelForm({
       </div>
       <div className="website-builder-page__split-input">
         <div className="website-builder-page__form-block mb-0 website-builder-page__flex-fill">
-          <label className="website-builder-page__field-label">Duration</label>
+          <label className="website-builder-page__field-label">Speed</label>
           <div className="website-builder-page__input-unit">
             <input type="number" className="website-builder-page__field-control" value={animDur} onChange={(e) => setAnimDur(Number(e.target.value))} />
             <span>ms</span>
           </div>
         </div>
         <div className="website-builder-page__form-block mb-0 website-builder-page__flex-fill">
-          <label className="website-builder-page__field-label">Delay</label>
+          <label className="website-builder-page__field-label">Start delay</label>
           <div className="website-builder-page__input-unit">
             <input type="number" className="website-builder-page__field-control" value={animDelay} onChange={(e) => setAnimDelay(Number(e.target.value))} />
             <span>ms</span>
@@ -1642,8 +1888,8 @@ function AdvancedPanelForm({
         </div>
       </div>
 
-      <div className="website-builder-page__panel-group-title">Custom CSS</div>
-      <p className="website-builder-page__field-hint">Add custom CSS for this section only.</p>
+      <div className="website-builder-page__panel-group-title">Custom code (advanced)</div>
+      <p className="website-builder-page__field-hint">Use only if you know CSS. Most users can skip this.</p>
       <textarea
         className="website-builder-page__field-control website-builder-page__code-editor"
         rows={8}

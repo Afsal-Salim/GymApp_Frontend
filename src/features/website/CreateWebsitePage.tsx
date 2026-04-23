@@ -2504,7 +2504,7 @@ export default function CreateWebsitePage() {
                     </Accordion.Body>
                   </Accordion.Item>
 
-                  <Accordion.Item eventKey="brand" className="create-website__accordion-item">
+                  <Accordion.Item eventKey="brand" id="cw-site-brand" className="create-website__accordion-item">
                     <Accordion.Header>Brand colors &amp; logo</Accordion.Header>
                     <Accordion.Body>
                       <Form.Check

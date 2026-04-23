@@ -75,6 +75,12 @@ function isStandaloneTemplatePath(pathname: string): boolean {
   return pathOnly.startsWith('/templates/');
 }
 
+/** Full-screen Grapes builder — hide global marketing navbar/footer chrome. */
+function isWebsiteBuilderPath(pathname: string): boolean {
+  const pathOnly = pathname.split('?')[0];
+  return pathOnly.endsWith('/builder');
+}
+
 function isDedicatedNotFoundPath(pathname: string): boolean {
   const path = pathname.split('?')[0];
   return path === '/404' || path.startsWith('/404/');
@@ -91,7 +97,8 @@ function shouldHideMainLayoutChrome(pathname: string): boolean {
   return (
     isDedicatedNotFoundPath(pathname) ||
     isGymPublicSitePath(pathname) ||
-    isStandaloneTemplatePath(pathname)
+    isStandaloneTemplatePath(pathname) ||
+    isWebsiteBuilderPath(pathname)
   );
 }
 

@@ -151,6 +151,17 @@ export type GymClientVisualBuilderState = {
   grapesProject: Record<string, unknown>;
   htmlSnapshot: string;
   cssSnapshot: string;
+  /**
+   * Public renderer pages extracted from GrapesJS page manager.
+   * `slug` is the route segment for `/:slug/<slug>`.
+   */
+  pageSnapshots?: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    html: string;
+    css: string;
+  }>;
   templateSeedKey: string;
   savedAt: string;
 };

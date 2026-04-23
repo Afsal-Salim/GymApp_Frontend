@@ -37,6 +37,9 @@ type Props = {
   mode: Mode;
 };
 
+/** Selection on the picker: Crystal default, a Pro seed key, or blank-canvas custom. */
+type SelectPageChoice = '' | ProTemplateKey | 'custom';
+
 export default function SelectWebsiteTemplatePage({ mode }: Props) {
   const router = useRouter();
   const params = useParams<{ slug?: string | string[] }>();
@@ -47,7 +50,7 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
     return '';
   })();
   const { showToast } = useToast();
-  const [selectedKey, setSelectedKey] = useState<'' | ProTemplateKey>('');
+  const [selectedKey, setSelectedKey] = useState<SelectPageChoice>('');
   const [editLoading, setEditLoading] = useState(mode === 'edit');
   const [templatePreviewKey, setTemplatePreviewKey] = useState<ProTemplateKey | null>(null);
   const [builderSubscription, setBuilderSubscription] = useState<Awaited<
@@ -97,7 +100,7 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
       .then((d) => {
         if (cancelled) return;
         const form = createWebsiteFormFromBusinessDetail(d, slugNorm);
-        setSelectedKey((form.proTemplateKey || '') as '' | ProTemplateKey);
+        setSelectedKey((form.proTemplateKey || '') as SelectPageChoice);
       })
       .catch(() => {
         showToast('Failed to load gym.');
@@ -114,11 +117,20 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
   const builderBaseHref = mode === 'create' ? '/user/create-website/builder' : `/user/business/${encodeURIComponent(slugNorm)}/builder`;
 
   const handleContinue = useCallback(() => {
-    setPendingProTemplateKey(selectedKey);
     if (mode === 'create') grantCreateTemplateGate();
     else grantEditTemplateGate(slugNorm);
-    router.push(continueHref);
-  }, [continueHref, mode, router, selectedKey, slugNorm]);
+
+    if (selectedKey === '') {
+      setPendingProTemplateKey('');
+      router.push(continueHref);
+      return;
+    }
+    if (selectedKey === 'custom') {
+      router.push(`${builderBaseHref}?template=custom`);
+      return;
+    }
+    router.push(`${builderBaseHref}?template=${encodeURIComponent(selectedKey)}`);
+  }, [builderBaseHref, continueHref, mode, router, selectedKey, slugNorm]);
 
   const lead =
     mode === 'create' ?
@@ -238,21 +250,16 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                           <OpenInNewOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
                           Preview in new tab
                         </Button>
-                        <Link
-                          href={`${builderBaseHref}?template=${encodeURIComponent(template.key)}`}
-                          className="btn btn-primary btn-sm create-website__template-preview-btn create-website__template-preview-btn--builder"
-                        >
-                          <span>Edit in builder</span>
-                          <ArrowForwardOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
-                        </Link>
                       </div>
                     </div>
                   );
                 })}
                 <div className="create-website__template-card-shell">
-                  <Link
-                    href={`${builderBaseHref}?template=custom`}
-                    className="create-website__template-card create-website__template-card--customized text-decoration-none"
+                  <button
+                    type="button"
+                    className={`create-website__template-card create-website__template-card--customized${selectedKey === 'custom' ? ' create-website__template-card--selected' : ''}`}
+                    onClick={() => setSelectedKey('custom')}
+                    aria-pressed={selectedKey === 'custom'}
                   >
                     <span className="create-website__template-card-visual create-website__template-card-visual--customized">
                       Customized
@@ -264,19 +271,13 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                     <span className="create-website__template-card-desc">
                       Start from scratch with the visual builder and compose your own sections and pages.
                     </span>
-                  </Link>
-                  <div className="create-website__template-card-shell-actions">
-                    <Link
-                      href={`${builderBaseHref}?template=custom`}
-                      className="btn btn-outline-primary btn-sm create-website__template-preview-btn create-website__template-preview-btn--custom"
-                    >
-                      Start from scratch
-                    </Link>
-                  </div>
+                  </button>
+                  {/** Spacer aligns with Pro rows (preview buttons only). */}
+                  <div className="create-website__template-card-shell-actions" aria-hidden="true" />
                 </div>
               </div>
 
-              <div className="d-flex flex-wrap gap-2 justify-content-end mt-4 pt-3 border-top">
+              <div className="create-website__select-template-continue-wrap d-flex flex-wrap gap-2 justify-content-end mt-4 pt-3 border-top">
                 <Button
                   type="button"
                   variant="primary"

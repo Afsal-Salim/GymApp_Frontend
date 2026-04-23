@@ -1,3 +1,16 @@
+declare module 'js-beautify' {
+  type BeautifyOpts = Record<string, unknown>;
+  type BeautifyFn = (src: string, opts?: BeautifyOpts) => string;
+  interface Beautify extends BeautifyFn {
+    (src: string, opts?: BeautifyOpts): string;
+    js: BeautifyFn;
+    css: BeautifyFn;
+    html: BeautifyFn;
+  }
+  const beautify: Beautify;
+  export default beautify;
+}
+
 /** Public env vars (inlined by Next.js). See `src/config/env.ts`. */
 declare namespace NodeJS {
   interface ProcessEnv {

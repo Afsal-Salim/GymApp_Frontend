@@ -11,6 +11,7 @@ import {
   type CSSProperties,
 } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button, Container, Row, Col, Card, Form, Modal, Navbar, Nav } from 'react-bootstrap';
 import { PageContainer, WhatsAppLogoIcon } from '../../components';
@@ -40,6 +41,7 @@ import GymClientPlanVisitModal from './GymClientPlanVisitModal';
 import {
   applyPublicWebsiteContentOverlay,
   cloneGymClientSiteDefaults,
+  type GymClientVisualBuilderState,
   parseGymClientWebsiteThemeFromApi,
   resolveGymClientSiteContent,
   getHeroRatingDisplayText,
@@ -52,7 +54,7 @@ import {
   type GymClientWebsiteParsedTheme,
   type ProWebsiteTemplateKey,
 } from './gymClientSiteContent';
-import { crystalMarketingAbsoluteUrl, getPublicGymSlugFromHost } from '../../config/env';
+import { apiBaseUrl, crystalMarketingAbsoluteUrl, getPublicGymSlugFromHost, serviceEnquiryPath } from '../../config/env';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
 import {
   CRYSTAL_WEBSITE_PREVIEW_BROADCAST_CHANNEL,
@@ -71,6 +73,12 @@ import GymClientJoinLeadModal from './GymClientJoinLeadModal';
 import { GymClientMetaRowDisk, GymClientMidCtaIcon } from './GymClientDecorIcons';
 import { normalizeHexColor } from '../../utils/hexColor';
 import { clampPhoneDigitsInput } from '../../utils/phoneDigits';
+import {
+  WEBSITE_BUILDER_ANIMATION_CSS,
+  WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS,
+  WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS,
+  WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
+} from '../website/websiteBuilderConstants';
 import './CrystalBusinessPage.css';
 
 const PRO_TEMPLATE_PUBLIC_PATHS: Record<ProWebsiteTemplateKey, string> = {
@@ -672,6 +680,72 @@ function resolvePreviewGalleryImageUrl(raw: string): string {
   } catch {
     return u;
   }
+}
+
+type VisualBuilderPublicPage = {
+  id: string;
+  name: string;
+  slug: string;
+  html: string;
+  css: string;
+};
+
+function slugifyVisualPage(raw: string, fallback: string): string {
+  const t = raw.trim().toLowerCase();
+  const slug = t
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+  return slug || fallback;
+}
+
+function normalizeVisualBuilderPages(vb: GymClientVisualBuilderState | undefined): VisualBuilderPublicPage[] {
+  if (!vb) return [];
+  const pages = vb.pageSnapshots;
+  if (Array.isArray(pages) && pages.length > 0) {
+    const out: VisualBuilderPublicPage[] = [];
+    for (let i = 0; i < pages.length; i += 1) {
+      const p = pages[i];
+      if (!p || typeof p !== 'object') continue;
+      const id = String(p.id ?? `page-${i + 1}`).trim() || `page-${i + 1}`;
+      const nameRaw = String(p.name ?? '').trim();
+      const name = nameRaw || `Page ${i + 1}`;
+      const html = String(p.html ?? '');
+      const css = String(p.css ?? '');
+      const fallbackSlug = i === 0 ? 'home' : `page-${i + 1}`;
+      out.push({
+        id,
+        name,
+        html,
+        css,
+        slug: slugifyVisualPage(String(p.slug ?? name), fallbackSlug),
+      });
+    }
+    if (out.length > 0) return out;
+  }
+  if (vb.htmlSnapshot?.trim()) {
+    return [
+      {
+        id: 'home',
+        name: 'Home',
+        slug: 'home',
+        html: vb.htmlSnapshot,
+        css: vb.cssSnapshot ?? '',
+      },
+    ];
+  }
+  return [];
+}
+
+function pickVisualBuilderPage(pages: VisualBuilderPublicPage[], requestSlug: string): VisualBuilderPublicPage | null {
+  if (!pages.length) return null;
+  if (!requestSlug) return pages[0];
+  const wanted = requestSlug.trim().toLowerCase();
+  const exact = pages.find((p) => p.slug === wanted);
+  if (exact) return exact;
+  const byName = pages.find((p) => slugifyVisualPage(p.name, p.slug) === wanted);
+  if (byName) return byName;
+  return pages[0];
 }
 
 function GymClientSiteView({
@@ -1712,6 +1786,58 @@ function CrystalOwnerRechargeModal({
   );
 }
 
+function GymClientVisualBuilderView({
+  page,
+  businessSlug,
+  themeCssVars,
+  knownSlugs,
+}: {
+  page: VisualBuilderPublicPage;
+  businessSlug: string;
+  themeCssVars: CSSProperties;
+  knownSlugs: string[];
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const hostSlug = getPublicGymSlugFromHost();
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || hostSlug || !businessSlug || businessSlug === 'preview') return;
+    const prefix = `/${encodeURIComponent(businessSlug)}`;
+    const anchors = root.querySelectorAll<HTMLAnchorElement>('a[href]');
+    const slugSet = new Set(knownSlugs.map((s) => s.trim().toLowerCase()).filter(Boolean));
+    anchors.forEach((a) => {
+      const raw = (a.getAttribute('href') ?? '').trim();
+      if (!raw) return;
+      if (raw.startsWith('#')) return;
+      if (/^(mailto:|tel:|https?:\/\/|\/\/|javascript:)/i.test(raw)) return;
+      if (raw.startsWith(prefix)) return;
+      const normalized =
+        raw.startsWith('/') ? raw.slice(1)
+        : raw.startsWith('./') ? raw.slice(2)
+        : raw;
+      const firstSeg = normalized.split('/')[0]?.trim().toLowerCase() ?? '';
+      if (!firstSeg || (!slugSet.has(firstSeg) && firstSeg !== 'home')) return;
+      if (raw.startsWith('/')) {
+        a.setAttribute('href', `${prefix}${raw}`);
+        return;
+      }
+      const tail = raw.replace(/^\.?\//, '');
+      a.setAttribute('href', `${prefix}/${tail}`);
+    });
+  }, [businessSlug, hostSlug, knownSlugs, page.html, page.slug]);
+
+  return (
+    <>
+      <div className="crystal-client-viewport" style={themeCssVars}>
+        <style>{`${WEBSITE_BUILDER_ANIMATION_CSS}\n${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}\n${page.css}`}</style>
+        <div ref={rootRef} className="wb-page wb-template-root" dangerouslySetInnerHTML={{ __html: page.html }} />
+      </div>
+      <Script src="/wb-component-animations.js" strategy="afterInteractive" />
+    </>
+  );
+}
+
 function CrystalProTemplateFrame({ templateKey }: { templateKey: ProWebsiteTemplateKey }) {
   const src = PRO_TEMPLATE_PUBLIC_PATHS[templateKey];
   return (
@@ -1722,8 +1848,26 @@ function CrystalProTemplateFrame({ templateKey }: { templateKey: ProWebsiteTempl
 }
 
 export default function CrystalBusinessPage() {
-  const params = useParams<{ slug?: string }>();
-  const routeSlug = typeof params.slug === 'string' ? params.slug : undefined;
+  const params = useParams<{ slug?: string | string[]; rest?: string[]; path?: string[] }>();
+  const routeSlug =
+    typeof params.slug === 'string' ? params.slug
+    : Array.isArray(params.slug) && params.slug[0] ?
+      String(params.slug[0])
+    : undefined;
+  const routePathSegments = useMemo(() => {
+    const raw = Array.isArray(params.path) ? params.path : Array.isArray(params.rest) ? params.rest : [];
+    return raw.map((seg) => {
+      try {
+        return decodeURIComponent(String(seg));
+      } catch {
+        return String(seg);
+      }
+    });
+  }, [params.path, params.rest]);
+  const routePageSlug = useMemo(() => {
+    const first = routePathSegments[0]?.trim().toLowerCase() ?? '';
+    return first;
+  }, [routePathSegments]);
   const router = useRouter();
   const hostSlug = getPublicGymSlugFromHost();
   const slug = (hostSlug ?? routeSlug) ?? '';
@@ -1793,6 +1937,25 @@ export default function CrystalBusinessPage() {
     setLoadStartedAt(null);
     setShellRevealReady(false);
     setIntroCrossfade(false);
+  }, [slug]);
+
+  /** Visual-builder HTML blocks: `public/wb-crystal-lead-modals.js` reads these from `<body>`. */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!slug || slug === 'preview') {
+      document.body.removeAttribute('data-wb-public-gym-slug');
+      document.body.removeAttribute('data-wb-api-base');
+      document.body.removeAttribute('data-wb-service-enquiry-path');
+      return;
+    }
+    document.body.setAttribute('data-wb-public-gym-slug', slug);
+    if (apiBaseUrl) document.body.setAttribute('data-wb-api-base', apiBaseUrl);
+    if (serviceEnquiryPath) document.body.setAttribute('data-wb-service-enquiry-path', serviceEnquiryPath);
+    return () => {
+      document.body.removeAttribute('data-wb-public-gym-slug');
+      document.body.removeAttribute('data-wb-api-base');
+      document.body.removeAttribute('data-wb-service-enquiry-path');
+    };
   }, [slug]);
 
   useEffect(() => {
@@ -2196,7 +2359,16 @@ export default function CrystalBusinessPage() {
       ownerIsOnTrialForClientRechargeModal(publicSubscription) &&
       !rechargeModalDismissed
   );
+  const visualBuilderPages = useMemo(
+    () => normalizeVisualBuilderPages(siteContent?.visualBuilder),
+    [siteContent?.visualBuilder],
+  );
+  const activeVisualBuilderPage = useMemo(
+    () => pickVisualBuilderPage(visualBuilderPages, routePageSlug),
+    [visualBuilderPages, routePageSlug],
+  );
   const activeProTemplateKey =
+    !activeVisualBuilderPage &&
     siteContent?.proTemplateKey &&
     (slug === 'preview' || (publicSubscription && resolvePlanTier(publicSubscription) === 'pro')) ?
       siteContent.proTemplateKey
@@ -2233,7 +2405,14 @@ export default function CrystalBusinessPage() {
                       }${introCrossfade ? ' crystal-client-viewport--crossfade-reveal' : ''}`}
                       style={clientThemeCssVars}
                     >
-                      {activeProTemplateKey ? (
+                      {activeVisualBuilderPage ? (
+                        <GymClientVisualBuilderView
+                          page={activeVisualBuilderPage}
+                          businessSlug={slug ?? ''}
+                          themeCssVars={clientThemeCssVars}
+                          knownSlugs={visualBuilderPages.map((p) => p.slug)}
+                        />
+                      ) : activeProTemplateKey ? (
                         <CrystalProTemplateFrame templateKey={activeProTemplateKey} />
                       ) : (
                         <GymClientSiteView
@@ -2333,7 +2512,19 @@ export default function CrystalBusinessPage() {
                 className={`crystal-client-viewport${resolvedGymClientTheme.metaSectionBg ? ' crystal-client-viewport--meta-bg-override' : ''}`}
                 style={clientThemeCssVars}
               >
-                {activeProTemplateKey ? (
+                {activeVisualBuilderPage ? (
+                  <GymClientVisualBuilderView
+                    page={activeVisualBuilderPage}
+                    businessSlug={
+                      slug === 'preview' ?
+                        isMarketingPreview ? 'demo'
+                        : (previewDraft?.slug ?? 'preview')
+                      : (slug ?? '')
+                    }
+                    themeCssVars={clientThemeCssVars}
+                    knownSlugs={visualBuilderPages.map((p) => p.slug)}
+                  />
+                ) : activeProTemplateKey ? (
                   <CrystalProTemplateFrame templateKey={activeProTemplateKey} />
                 ) : (
                   <GymClientSiteView
@@ -2363,6 +2554,12 @@ export default function CrystalBusinessPage() {
           ) : null}
         </div>
       </main>
+      {slug && slug !== 'preview' ?
+        <>
+          <Script src="/wb-component-animations.js" strategy="afterInteractive" />
+          <Script src="/wb-crystal-lead-modals.js" strategy="afterInteractive" />
+        </>
+      : null}
     </PageContainer>
   );
 }

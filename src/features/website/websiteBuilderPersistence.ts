@@ -27,9 +27,12 @@ import {
 import {
   PRO_TEMPLATE_LABELS,
   WEBSITE_BUILDER_ANIMATION_CSS,
+  WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS,
+  WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS,
   WEBSITE_BUILDER_CUSTOM_SCRATCH,
   WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
 } from './websiteBuilderConstants';
+import { WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS } from './websiteBuilderDesignSystems.css';
 
 function defaultTheme(): CrystalWebsiteSetupPayload['theme'] {
   return parseGymClientWebsiteThemeFromApi(
@@ -55,7 +58,7 @@ function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPay
 }
 
 function canvasCssWithBuilderHelpers(css: string): string {
-  return `${WEBSITE_BUILDER_ANIMATION_CSS}\n${css}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}`;
+  return `${WEBSITE_BUILDER_ANIMATION_CSS}\n${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}\n${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}\n${css}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}`;
 }
 
 function isNonEmptyProject(raw: unknown): raw is Record<string, unknown> {
@@ -80,6 +83,46 @@ function firstSeedKey(...vals: (string | undefined | null)[]): string {
   return '';
 }
 
+function slugifyBuilderPageName(raw: string, fallback: string): string {
+  const t = raw.trim().toLowerCase();
+  const slug = t
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+  return slug || fallback;
+}
+
+function collectBuilderPageSnapshots(editor: Editor): GymClientVisualBuilderState['pageSnapshots'] {
+  const pages = editor.Pages.getAll();
+  const selected = editor.Pages.getSelected();
+  const selectedId = selected ? String(selected.get('id') ?? '') : '';
+  const out: NonNullable<GymClientVisualBuilderState['pageSnapshots']> = [];
+
+  for (let i = 0; i < pages.length; i += 1) {
+    const page = pages.at(i);
+    if (!page) continue;
+    editor.Pages.select(page);
+    const id = String(page.get('id') ?? `page-${i + 1}`);
+    const nameRaw = String(page.get('name') ?? '').trim();
+    const name = nameRaw || `Page ${i + 1}`;
+    const isSelected = Boolean(selectedId && id === selectedId);
+    const isFirst = i === 0;
+    const fallbackSlug = isSelected || isFirst ? 'home' : `page-${i + 1}`;
+    out.push({
+      id,
+      name,
+      slug: slugifyBuilderPageName(name, fallbackSlug),
+      html: editor.getHtml() ?? '',
+      css: editor.getCss() ?? '',
+    });
+  }
+
+  if (selected) {
+    editor.Pages.select(selected);
+  }
+  return out;
+}
+
 async function fetchProTemplateHtmlCss(key: string): Promise<{ html: string; css: string }> {
   /** Next-only route (not under `/api/`) so `next.config` rewrites proxying `/api/*` → Django cannot steal this request. */
   const r = await fetch(`/gjs-pro-template/${encodeURIComponent(key)}`);
@@ -87,6 +130,26 @@ async function fetchProTemplateHtmlCss(key: string): Promise<{ html: string; css
     throw new Error(`Could not load template assets (${r.status}).`);
   }
   return r.json() as Promise<{ html: string; css: string }>;
+}
+
+async function resolveTemplateHtmlFromSeed(seed: string): Promise<WebsiteBuilderResolvedLoad> {
+  if (seed === 'custom') {
+    return {
+      kind: 'html',
+      html: WEBSITE_BUILDER_CUSTOM_SCRATCH.html,
+      css: canvasCssWithBuilderHelpers(WEBSITE_BUILDER_CUSTOM_SCRATCH.css),
+      templateSeedKey: 'custom',
+      displayLabel: WEBSITE_BUILDER_CUSTOM_SCRATCH.name,
+    };
+  }
+  const { html, css } = await fetchProTemplateHtmlCss(seed);
+  return {
+    kind: 'html',
+    html,
+    css: canvasCssWithBuilderHelpers(css),
+    templateSeedKey: seed,
+    displayLabel: displayLabelForTemplateSeedKey(seed),
+  };
 }
 
 function mergeSiteContentFromDetail(detail: BusinessDetail): GymClientSiteContent {
@@ -103,6 +166,14 @@ function defaultCreateDraft(): CrystalWebsiteDraftPayload {
     theme: defaultTheme(),
     content: cloneGymClientSiteDefaults(),
   };
+}
+
+/** Ensures the Crystal preview draft uses this slug (create flow before publish redirect). */
+export function mergePreviewDraftWithSlug(slug: string): boolean {
+  const key = slug.trim().toLowerCase();
+  if (!key) return false;
+  const draft = readCrystalWebsitePreviewFromStorage() ?? defaultCreateDraft();
+  return writeCrystalWebsitePreviewToStorage({ ...draft, slug: key });
 }
 
 export type WebsiteBuilderResolvedLoad =
@@ -129,6 +200,15 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
   templateQuery: string | null;
 }): Promise<WebsiteBuilderResolvedLoad> {
   const q = (opts.templateQuery ?? '').trim().toLowerCase();
+  const forcedSeed = q === 'custom' ? 'custom' : parseProWebsiteTemplateKey(q);
+
+  /**
+   * Template picker `Continue` uses `?template=...`; when present, always force-load that seed
+   * instead of restoring an older saved visual-builder snapshot.
+   */
+  if (forcedSeed) {
+    return resolveTemplateHtmlFromSeed(forcedSeed);
+  }
 
   if (opts.mode === 'edit' && opts.routeSlug) {
     const detail = await getBusinessDetail(opts.routeSlug);
@@ -136,7 +216,8 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
     const vb = content.visualBuilder;
 
     if (vb?.grapesProject && isNonEmptyProject(vb.grapesProject)) {
-      const seed = firstSeedKey(vb.templateSeedKey, q, content.proTemplateKey) || 'custom';
+      /** `?template=...` from picker should override previously saved builder seed. */
+      const seed = firstSeedKey(q, vb.templateSeedKey, content.proTemplateKey) || 'custom';
       return {
         kind: 'project',
         project: vb.grapesProject,
@@ -146,7 +227,7 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
     }
 
     if (vb?.htmlSnapshot?.trim() && vb?.cssSnapshot != null) {
-      const seed = firstSeedKey(vb.templateSeedKey, q, content.proTemplateKey) || 'custom';
+      const seed = firstSeedKey(q, vb.templateSeedKey, content.proTemplateKey) || 'custom';
       return {
         kind: 'html',
         html: vb.htmlSnapshot,
@@ -156,24 +237,8 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
       };
     }
 
-    const seed = firstSeedKey(q, content.proTemplateKey) || 'custom';
-    if (seed === 'custom') {
-      return {
-        kind: 'html',
-        html: WEBSITE_BUILDER_CUSTOM_SCRATCH.html,
-        css: canvasCssWithBuilderHelpers(WEBSITE_BUILDER_CUSTOM_SCRATCH.css),
-        templateSeedKey: 'custom',
-        displayLabel: WEBSITE_BUILDER_CUSTOM_SCRATCH.name,
-      };
-    }
-    const { html, css } = await fetchProTemplateHtmlCss(seed);
-    return {
-      kind: 'html',
-      html,
-      css: canvasCssWithBuilderHelpers(css),
-      templateSeedKey: seed,
-      displayLabel: displayLabelForTemplateSeedKey(seed),
-    };
+    const seed = firstSeedKey(content.proTemplateKey) || 'custom';
+    return resolveTemplateHtmlFromSeed(seed);
   }
 
   const preview = readCrystalWebsitePreviewFromStorage();
@@ -181,7 +246,8 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
   const vb = content?.visualBuilder;
 
   if (vb?.grapesProject && isNonEmptyProject(vb.grapesProject)) {
-    const seed = firstSeedKey(vb.templateSeedKey, q, content?.proTemplateKey) || 'custom';
+    /** `?template=...` from picker should override previously saved builder seed. */
+    const seed = firstSeedKey(q, vb.templateSeedKey, content?.proTemplateKey) || 'custom';
     return {
       kind: 'project',
       project: vb.grapesProject,
@@ -191,7 +257,7 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
   }
 
   if (vb?.htmlSnapshot?.trim() && vb?.cssSnapshot != null) {
-    const seed = firstSeedKey(vb.templateSeedKey, q, content?.proTemplateKey) || 'custom';
+    const seed = firstSeedKey(q, vb.templateSeedKey, content?.proTemplateKey) || 'custom';
     return {
       kind: 'html',
       html: vb.htmlSnapshot,
@@ -201,32 +267,17 @@ export async function resolveWebsiteBuilderInitialCanvas(opts: {
     };
   }
 
-  const seed = firstSeedKey(q, content?.proTemplateKey) || 'custom';
-  if (seed === 'custom') {
-    return {
-      kind: 'html',
-      html: WEBSITE_BUILDER_CUSTOM_SCRATCH.html,
-      css: canvasCssWithBuilderHelpers(WEBSITE_BUILDER_CUSTOM_SCRATCH.css),
-      templateSeedKey: 'custom',
-      displayLabel: WEBSITE_BUILDER_CUSTOM_SCRATCH.name,
-    };
-  }
-
-  const { html, css } = await fetchProTemplateHtmlCss(seed);
-  return {
-    kind: 'html',
-    html,
-    css: canvasCssWithBuilderHelpers(css),
-    templateSeedKey: seed,
-    displayLabel: displayLabelForTemplateSeedKey(seed),
-  };
+  const seed = firstSeedKey(content?.proTemplateKey) || 'custom';
+  return resolveTemplateHtmlFromSeed(seed);
 }
 
 export function buildVisualBuilderStateFromEditor(editor: Editor, templateSeedKey: string): GymClientVisualBuilderState {
+  const pageSnapshots = collectBuilderPageSnapshots(editor);
   return {
     grapesProject: editor.getProjectData() as Record<string, unknown>,
     htmlSnapshot: editor.getHtml() ?? '',
     cssSnapshot: editor.getCss() ?? '',
+    pageSnapshots,
     templateSeedKey,
     savedAt: new Date().toISOString(),
   };
