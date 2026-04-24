@@ -50,6 +50,27 @@ export const DS_ICO = {
     'wb-ds-ico wb-ds-ico--cyb-nav',
     `<path d="M12 2.2l7.2 4.2v8.2L12 18.8l-7.2-4.2V6.4L12 2.2z"/><path d="M12 6.5L8.2 8.7v4.6L12 15.5l3.8-2.2V8.7L12 6.5z"/>`,
   ),
+  /** JUNGLE BEAST — compact tiger head */
+  jungleMark: svgFill(
+    20,
+    20,
+    'wb-ds-ico wb-ds-ico--jng-nav',
+    `<path d="M12 3.2c-1.4 0-2.6.6-3.4 1.5-.5-.1-1 .1-1.3.4-.3.3-.4.8-.2 1.2-.6.7-1 1.6-1 2.6 0 2 1.3 3.7 3.2 4.4.1.7.4 1.3.9 1.8s1.1.7 1.8.8h.2c1.7-.1 3.1-1.5 3.5-3.2.8-.2 1.5-.7 2-1.3.4-.6.6-1.3.4-2 .2-.4.1-.9-.2-1.2s-.8-.5-1.3-.4c-.8-.9-2-1.5-3.4-1.5zm-2.2 2.8c.3 0 .6.3.6.6s-.3.6-.6.6-.6-.3-.6-.6.3-.6.6-.6zm4.4 0c.3 0 .6.3.6.6s-.3.6-.6.6-.6-.3-.6-.6.3-.6.6-.6zm-2.2 4.4c-.8 0-1.5-.3-2-.8l.5-.9c.4.3.9.5 1.5.5s1.1-.2 1.5-.5l.5.9c-.5.5-1.2.8-2 .8z"/>`,
+  ),
+  /** LIQUIDFIT — fluid droplet */
+  liquidMark: svg(
+    20,
+    20,
+    'wb-ds-ico wb-ds-ico--liq-nav',
+    `<path d="M12 3.5c2.8 3.4 5.2 6.6 5.2 9.6a5.2 5.2 0 1 1-10.4 0c0-3 2.4-6.2 5.2-9.6z"/>`,
+  ),
+  /** VINTAGE IRON — barbell mark */
+  vintageMark: svg(
+    20,
+    20,
+    'wb-ds-ico wb-ds-ico--vin-nav',
+    `<path d="M5.5 10h9"/><rect x="2.5" y="7.5" width="3" height="5" rx="0.6"/><rect x="14.5" y="7.5" width="3" height="5" rx="0.6"/>`,
+  ),
   fatLoss: svg(
     22,
     22,

@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "check": "npm run lint && npm test && npm run build",
     "analyze": "ANALYZE=true next build",
+    "lh:summarize": "node scripts/summarize-lighthouse.mjs",
+    "perf:transitions": "node scripts/measure-transitions.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -42,6 +45,7 @@
     "globals": "^17.4.0",
     "jsdom": "^26.1.0",
     "lighthouse": "^12.8.2",
+    "playwright": "^1.59.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
     "vitest": "^3.2.4"

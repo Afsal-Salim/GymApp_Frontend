@@ -53,7 +53,9 @@ import {
   stashInitialTemplateForSelectPage,
 } from './websiteTemplateGate';
 import {
+  buildDesignSystemSelectPageTemplateCards,
   buildProTemplateCards,
+  isDesignSystemTemplateKey,
   isProTemplateKey,
   PRO_TEMPLATE_PREVIEW_PATHS,
   type ProTemplateKey,
@@ -1960,9 +1962,14 @@ export default function CreateWebsitePage() {
     );
 
   const proTemplateCards = useMemo(() => buildProTemplateCards(), []);
+  const designSystemTemplateCards = useMemo(() => buildDesignSystemSelectPageTemplateCards(), []);
+  const allTemplatePickerCards = useMemo(
+    () => [...proTemplateCards, ...designSystemTemplateCards],
+    [proTemplateCards, designSystemTemplateCards],
+  );
   const selectedTemplateLabel =
     form.proTemplateKey ?
-      proTemplateCards.find((c) => c.key === form.proTemplateKey)?.label ?? 'Selected Pro template'
+      allTemplatePickerCards.find((c) => c.key === form.proTemplateKey)?.label ?? 'Selected template'
     : 'Crystal default theme';
 
   const wantsProTemplate = useMemo(() => isProTemplateKey(form.proTemplateKey), [form.proTemplateKey]);
@@ -2432,8 +2439,10 @@ export default function CreateWebsitePage() {
                         <div className="create-website__current-template-top">
                           <h4 className="h6 mb-1">Current client page template</h4>
                           {!form.proTemplateKey ? (
-                            <span className="badge text-bg-success">Default</span>
-                          ) : (
+                            <span className="badge text-bg-success">Base</span>
+                          ) : isDesignSystemTemplateKey(form.proTemplateKey) ?
+                            <span className="badge text-bg-dark">Max</span>
+                          : (
                             <span className="badge text-bg-warning">Pro</span>
                           )}
                         </div>
@@ -2442,8 +2451,10 @@ export default function CreateWebsitePage() {
                           {form.proTemplateKey ? ' is selected for your public client page.' : ' is active for your public client page.'}
                         </p>
                         <p className="small text-muted mb-0">
-                          Use <strong>Select template</strong> at the top of this page to change the layout. Pro templates
-                          require an active Pro subscription at save time.
+                          Use <strong>Select template</strong> to change the layout. Tiers: <strong>Base</strong> (Crystal
+                          default) · <strong>Pro</strong> (classic full-page layouts and design-system section blocks) ·{' '}
+                          <strong>Max</strong> (design-system full-page packs). Saving any non-Base template requires an
+                          active <strong>Pro</strong> subscription.
                         </p>
                         {form.proTemplateKey ?
                           <div className="d-flex flex-wrap gap-2 mt-2">
@@ -3512,7 +3523,7 @@ export default function CreateWebsitePage() {
         <Modal.Header closeButton>
           <Modal.Title id="create-website-template-preview-title" as="h2" className="h5 mb-0">
             {templatePreviewKey ?
-              `${proTemplateCards.find((c) => c.key === templatePreviewKey)?.label ?? 'Template'} preview`
+              `${allTemplatePickerCards.find((c) => c.key === templatePreviewKey)?.label ?? 'Template'} preview`
             : 'Template preview'}
           </Modal.Title>
         </Modal.Header>

@@ -109,3 +109,11 @@ html.crystal-public-load-bridge #root {
   background-color: inherit;
 }
 
+/* Bootstrap 5 — align primary + links with Crystal tokens (loaded after bootstrap.min.css in root layout). */
+:root {
+  --bs-primary: var(--crystal-primary);
+  --bs-primary-rgb: var(--crystal-primary-rgb);
+  --bs-link-color: var(--crystal-primary);
+  --bs-link-hover-color: var(--crystal-primary-hover);
+}
+

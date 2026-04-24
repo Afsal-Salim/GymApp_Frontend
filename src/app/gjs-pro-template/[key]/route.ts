@@ -2,6 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { PRO_WEBSITE_TEMPLATE_KEYS } from '@/features/crystal/gymClientSiteContent';
+import {
+  DESIGN_SYSTEM_SETS,
+  getDesignSystemTemplatePayloadForBuilder,
+  type DesignSystemSetId,
+} from '@/features/website/websiteBuilderDesignSystemBlocks';
 
 const TEMPLATES_DIR = path.join(process.cwd(), 'src/assets/templates');
 
@@ -33,6 +38,16 @@ export async function GET(_request: Request, context: { params: Promise<{ key: s
   const key = (raw ?? '').trim().toLowerCase();
   if (!ALLOWED_KEYS.has(key)) {
     return NextResponse.json({ error: 'Unknown template key' }, { status: 400 });
+  }
+
+  if (key.startsWith('ds-')) {
+    const setId = key.slice(3);
+    if (!DESIGN_SYSTEM_SETS.some((s) => s.id === setId)) {
+      return NextResponse.json({ error: 'Unknown design system' }, { status: 404 });
+    }
+    const { html: inner } = getDesignSystemTemplatePayloadForBuilder(setId as DesignSystemSetId);
+    const wrappedHtml = wrapTemplateBodyForBuilder(key, inner);
+    return NextResponse.json({ key, html: wrappedHtml, css: '' });
   }
 
   const htmlPath = path.join(TEMPLATES_DIR, `${key}.html`);

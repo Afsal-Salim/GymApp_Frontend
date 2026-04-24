@@ -13,6 +13,7 @@ import { getActiveSubscription, getBusinessDetail, type ActiveSubscriptionRespon
 import { useToast } from '../../contexts/ToastContext';
 import { createWebsiteFormFromBusinessDetail } from './setup/createWebsiteFormState';
 import {
+  buildDesignSystemSelectPageTemplateCards,
   buildProTemplateCards,
   PRO_TEMPLATE_PREVIEW_PATHS,
   type ProTemplateKey,
@@ -60,6 +61,11 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
   const slugNorm = mode === 'edit' ? routeSlugRaw.toLowerCase() : '';
 
   const proTemplateCards = useMemo(() => buildProTemplateCards(), []);
+  const designSystemTemplateCards = useMemo(() => buildDesignSystemSelectPageTemplateCards(), []);
+  const allSelectableTemplateCards = useMemo(
+    () => [...proTemplateCards, ...designSystemTemplateCards],
+    [proTemplateCards, designSystemTemplateCards],
+  );
   const isProOnBuilder = planTierIsPro(builderSubscription);
 
   useEffect(() => {
@@ -165,7 +171,10 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
               {!isProOnBuilder ?
                 <div className="create-website__templates-tip" role="status" aria-live="polite">
                   <InfoOutlinedIcon className="create-website__templates-tip-icon" fontSize="small" aria-hidden />
-                  <span>Templates are visible for browsing, but saving one requires a Pro subscription.</span>
+                  <span>
+                    Browse every template here. Saving any <strong>Pro</strong> layout or <strong>Max</strong> design-system
+                    page still requires an active <strong>Pro</strong> subscription (tiers: Base → Pro → Max).
+                  </span>
                 </div>
               : null}
               <div className="create-website__head-actions">
@@ -195,7 +204,7 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                     </span>
                     <span className="create-website__template-card-title-row">
                       <span className="create-website__template-card-title">Crystal default theme</span>
-                      <span className="badge text-bg-success">Default</span>
+                      <span className="badge text-bg-success">Base</span>
                     </span>
                     <span className="create-website__template-card-desc">
                       Keep the standard Crystal client page layout and your custom brand/content configuration.
@@ -204,6 +213,9 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                   {/** Spacer matches Pro template preview buttons so columns align */}
                   <div className="create-website__template-card-shell-actions" aria-hidden="true" />
                 </div>
+                <h2 className="create-website__template-section-head h6 text-uppercase text-muted mb-0 mt-1">
+                  Pro layouts
+                </h2>
                 {proTemplateCards.map((template) => {
                   const selected = selectedKey === template.key;
                   return (
@@ -226,6 +238,63 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                         <span className="create-website__template-card-title-row">
                           <span className="create-website__template-card-title">{template.label}</span>
                           <span className="badge text-bg-warning">Pro</span>
+                        </span>
+                        <span className="create-website__template-card-desc">{template.description}</span>
+                      </button>
+                      <div className="create-website__template-card-shell-actions">
+                        <Button
+                          type="button"
+                          variant="outline-secondary"
+                          size="sm"
+                          className="create-website__template-preview-btn"
+                          onClick={() => setTemplatePreviewKey(template.key)}
+                        >
+                          <VisibilityOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
+                          Preview
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="light"
+                          size="sm"
+                          className="create-website__template-preview-btn"
+                          onClick={() => window.open(template.previewPath, '_blank', 'noopener,noreferrer')}
+                        >
+                          <OpenInNewOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
+                          Preview in new tab
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <h2 className="create-website__template-section-head h6 text-uppercase text-muted mb-0 mt-1">
+                  Max · Design system templates
+                </h2>
+                <p className="small text-muted mb-2 mt-1 px-1">
+                  Full-page design packs (navbar → footer). Same save rule as Pro layouts: active <strong>Pro</strong>{' '}
+                  subscription required to publish.
+                </p>
+                {designSystemTemplateCards.map((template) => {
+                  const selected = selectedKey === template.key;
+                  return (
+                    <div key={template.key} className="create-website__template-card-shell">
+                      <button
+                        type="button"
+                        className={`create-website__template-card${selected ? ' create-website__template-card--selected' : ''}`}
+                        onClick={() => setSelectedKey(template.key)}
+                        aria-pressed={selected}
+                      >
+                        <span className="create-website__template-card-visual create-website__template-card-visual--live">
+                          <iframe
+                            src={template.previewPath}
+                            title={`${template.label} card preview`}
+                            loading="lazy"
+                            tabIndex={-1}
+                            className="create-website__template-card-frame"
+                          />
+                        </span>
+                        <span className="create-website__template-card-title-row">
+                          <span className="create-website__template-card-title">{template.label}</span>
+                          <span className="badge text-bg-dark">Max</span>
                         </span>
                         <span className="create-website__template-card-desc">{template.description}</span>
                       </button>
@@ -305,7 +374,7 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
         <Modal.Header closeButton>
           <Modal.Title id="select-template-preview-title" as="h2" className="h5 mb-0">
             {templatePreviewKey ?
-              `${proTemplateCards.find((c) => c.key === templatePreviewKey)?.label ?? 'Template'} preview`
+              `${allSelectableTemplateCards.find((c) => c.key === templatePreviewKey)?.label ?? 'Template'} preview`
             : 'Preview'}
           </Modal.Title>
         </Modal.Header>

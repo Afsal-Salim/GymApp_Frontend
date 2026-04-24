@@ -55,6 +55,7 @@ import {
   WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS,
   WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
 } from './websiteBuilderConstants';
+import { WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT } from './websiteBuilderDesignSystemFonts';
 import { WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS } from './websiteBuilderDesignSystems.css';
 import {
   mergePreviewDraftWithSlug,
@@ -1368,6 +1369,7 @@ ${html}
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Website preview</title>
   <style>
+${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}
 ${WEBSITE_BUILDER_ANIMATION_CSS}
 ${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}
 ${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}

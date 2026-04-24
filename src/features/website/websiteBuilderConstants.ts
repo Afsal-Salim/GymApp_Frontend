@@ -887,6 +887,12 @@ export const WEBSITE_BUILDER_CUSTOM_SCRATCH = {
   css: '',
 };
 
+import { DESIGN_SYSTEM_SETS } from './websiteBuilderDesignSystemBlocks';
+
+const DESIGN_SYSTEM_TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
+  DESIGN_SYSTEM_SETS.map((s) => [`ds-${s.id}`, `${s.label} · design system`]),
+);
+
 export const PRO_TEMPLATE_LABELS: Record<string, string> = {
   autopilot: 'TrainHouse',
   fitcore: 'FitCore',
@@ -897,4 +903,5 @@ export const PRO_TEMPLATE_LABELS: Record<string, string> = {
   'grapes-welcome': 'GrapesJS · Core welcome',
   'grapes-hello': 'GrapesJS · Hello demo',
   'grapes-cli': 'GrapesJS · CLI starter',
+  ...DESIGN_SYSTEM_TEMPLATE_LABELS,
 };

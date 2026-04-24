@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -11,8 +12,20 @@ import { PageContainer } from '../../components';
 import { getBusinessWebsiteAnalyticsCached, peekBusinessWebsiteAnalytics } from '../../api';
 import type { WebsiteAnalytics, AnalyticsRangePreset } from '../../api/businesses';
 import { PLANS_PAGE_PATH } from '../plans/PlansPage';
-import { WebsiteAnalyticsPanel } from './WebsiteAnalyticsPanel';
 import { ManageBusinessLeadsSection } from './ManageBusinessLeadsSection';
+
+const WebsiteAnalyticsPanel = dynamic(
+  () => import('./WebsiteAnalyticsPanel').then((m) => ({ default: m.WebsiteAnalyticsPanel })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="manage-business-page__loading text-center py-5">
+        <Spinner animation="border" className="mb-2" />
+        <p className="text-muted small mb-0">Loading charts…</p>
+      </div>
+    ),
+  },
+);
 import './ManageBusinessPage.css';
 import './WebsiteSettingsPage.css';
 

@@ -1,5 +1,6 @@
 'use client';
 
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
@@ -15,6 +16,7 @@ import {
   applyDesignSystemSectionPreviewFit,
   applyLibraryPreviewFit,
   buildDesignSystemTemplatePreviewSrcDoc,
+  WB_LIB_DS_SECTION_PREVIEW_WIDTH,
   buildComponentPreviewSrcDoc,
   buildScrollableComponentPreviewSrcDoc,
   COMPONENT_LIBRARY_FILTERS,
@@ -229,6 +231,62 @@ function DesignSystemTemplatePreview({
   );
 }
 
+type DesignSystemSetId = (typeof DESIGN_SYSTEM_SETS)[number]['id'];
+
+/** Full artboard preview (fixed width inside iframe, no scale-to-fit) — “actual page” library mode. */
+function DesignSystemArtboardFullPreview({
+  editor,
+  setId,
+  label,
+  artboardWidthPx,
+}: {
+  editor: Editor | null;
+  setId: DesignSystemSetId;
+  label: string;
+  artboardWidthPx: number;
+}) {
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const srcDoc = useMemo(() => {
+    if (!editor) return '';
+    return buildDesignSystemTemplatePreviewSrcDoc(editor, setId, { artboardWidthPx });
+  }, [editor, setId, artboardWidthPx]);
+
+  const fitHeight = useCallback(() => {
+    const el = frameRef.current;
+    const doc = el?.contentDocument;
+    if (!doc) return;
+    const h = Math.max(
+      doc.documentElement?.scrollHeight ?? 0,
+      doc.body?.scrollHeight ?? 0,
+    );
+    if (h > 0) el.style.height = `${Math.ceil(h + 8)}px`;
+  }, []);
+
+  useEffect(() => {
+    fitHeight();
+  }, [srcDoc, fitHeight]);
+
+  if (!srcDoc) {
+    return (
+      <div className="wb-comp-lib__full-preview-fallback" role="status">
+        {label}
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      ref={frameRef}
+      title={`${label} — full page preview`}
+      className="wb-comp-lib__full-preview-iframe"
+      style={{ width: `${artboardWidthPx}px` }}
+      srcDoc={srcDoc}
+      onLoad={fitHeight}
+      tabIndex={0}
+    />
+  );
+}
+
 export function WebsiteBuilderComponentsLibrary({
   editor,
   isOpen,
@@ -245,11 +303,15 @@ export function WebsiteBuilderComponentsLibrary({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [iconSubgroup, setIconSubgroup] = useState<'all' | IconLibrarySubgroup>('all');
+  const [fullPreview, setFullPreview] = useState<{ id: DesignSystemSetId; label: string } | null>(null);
+  /** Design systems library: full-page packs (Max) vs single sections (Pro). */
+  const [dsLibraryTab, setDsLibraryTab] = useState<'templates' | 'components'>('templates');
 
   useEffect(() => {
     if (!isOpen) return;
     if (initialScope === 'design-systems') {
       setLibraryScope('design-systems');
+      setDsLibraryTab('templates');
     } else {
       setLibraryScope('blocks');
       if (initialFilter) setActiveFilter(initialFilter);
@@ -350,11 +412,32 @@ export function WebsiteBuilderComponentsLibrary({
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (fullPreview) {
+        e.preventDefault();
+        setFullPreview(null);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, fullPreview]);
+
+  useEffect(() => {
+    if (!isOpen) setFullPreview(null);
+  }, [isOpen]);
+
+  const designSystemSetsFiltered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return DESIGN_SYSTEM_SETS;
+    return DESIGN_SYSTEM_SETS.filter(
+      (s) =>
+        s.label.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q),
+    );
+  }, [search]);
 
   if (!isOpen) return null;
 
@@ -368,14 +451,41 @@ export function WebsiteBuilderComponentsLibrary({
       aria-labelledby="wb-comp-lib-title"
     >
       <button type="button" className="wb-comp-lib__backdrop" aria-label="Close library" onClick={onClose} />
-      <div className="wb-comp-lib__panel" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`wb-comp-lib__panel${fullPreview ? ' wb-comp-lib__panel--full-preview' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {fullPreview ?
+          <div className="wb-comp-lib__full-preview-wrap">
+            <nav className="wb-comp-lib__full-preview-nav" aria-label="Template preview">
+              <button type="button" className="wb-comp-lib__full-preview-back" onClick={() => setFullPreview(null)}>
+                <ArrowBackOutlinedIcon fontSize="small" aria-hidden />
+                Library
+              </button>
+              <span className="wb-comp-lib__full-preview-title">{fullPreview.label}</span>
+              <span className="wb-comp-lib__full-preview-chip">
+                {WB_LIB_DS_SECTION_PREVIEW_WIDTH}px artboard
+              </span>
+            </nav>
+            <div className="wb-comp-lib__full-preview-viewport">
+              <DesignSystemArtboardFullPreview
+                editor={editor}
+                setId={fullPreview.id}
+                label={fullPreview.label}
+                artboardWidthPx={WB_LIB_DS_SECTION_PREVIEW_WIDTH}
+              />
+            </div>
+          </div>
+        : <>
         <header className="wb-comp-lib__header">
           <div>
             <h2 id="wb-comp-lib-title" className="wb-comp-lib__title">
               Components library
             </h2>
             <p className="wb-comp-lib__subtitle">
-              See live previews, then add blocks or copy HTML. Use the left <strong>Components</strong> tab—live iframe previews at the bottom—or <strong>Library</strong> in the toolbar for the full catalog.
+              See live previews, then add blocks or copy HTML. Under <strong>Design systems</strong>, use{' '}
+              <strong>Complete templates</strong> (Max) or <strong>Section components</strong> (Pro). Full-page{' '}
+              <strong>Preview</strong> opens at real desktop width.
             </p>
           </div>
           <div className="wb-comp-lib__header-actions">
@@ -407,41 +517,55 @@ export function WebsiteBuilderComponentsLibrary({
           </div>
         </header>
 
+        <div className="wb-comp-lib__subnav" aria-label="Library mode">
+          <div className="wb-comp-lib__scope wb-comp-lib__scope--subnav" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={libraryScope === 'blocks'}
+              className={`wb-comp-lib__scope-btn${libraryScope === 'blocks' ? ' is-active' : ''}`}
+              onClick={() => {
+                setLibraryScope('blocks');
+                setActiveFilter('all');
+                setDsLibraryTab('templates');
+              }}
+            >
+              Blocks
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={libraryScope === 'design-systems'}
+              className={`wb-comp-lib__scope-btn${libraryScope === 'design-systems' ? ' is-active' : ''}`}
+              onClick={() => {
+                setLibraryScope('design-systems');
+                setDsLibraryTab('templates');
+              }}
+            >
+              <span className="wb-comp-lib__scope-inner">
+                <span>Design systems</span>
+                <span className="wb-ds-max-tag" aria-hidden>
+                  Max
+                </span>
+                <WorkspacePremiumOutlinedIcon
+                  className="wb-ds-max-crown wb-comp-lib__scope-crown"
+                  fontSize="inherit"
+                  aria-hidden
+                />
+              </span>
+            </button>
+          </div>
+          <div className="wb-comp-lib__premium-strip">
+            <WorkspacePremiumOutlinedIcon className="wb-comp-lib__premium-ico" fontSize="small" aria-hidden />
+            <span>
+              <strong>Tiers</strong> — Base (default site) · Pro (classic layouts + section blocks) · Max (full design-system
+              page packs). Saving any paid template still requires an active Pro subscription.
+            </span>
+          </div>
+        </div>
+
         <div className="wb-comp-lib__body">
           <aside className="wb-comp-lib__sidebar">
-            <div className="wb-comp-lib__scope" role="tablist" aria-label="Library scope">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={libraryScope === 'blocks'}
-                className={`wb-comp-lib__scope-btn${libraryScope === 'blocks' ? ' is-active' : ''}`}
-                onClick={() => {
-                  setLibraryScope('blocks');
-                  setActiveFilter('all');
-                }}
-              >
-                Blocks
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={libraryScope === 'design-systems'}
-                className={`wb-comp-lib__scope-btn${libraryScope === 'design-systems' ? ' is-active' : ''}`}
-                onClick={() => setLibraryScope('design-systems')}
-              >
-                <span className="wb-comp-lib__scope-inner">
-                  <span>Design systems</span>
-                  <span className="wb-ds-max-tag" aria-hidden>
-                    Max
-                  </span>
-                  <WorkspacePremiumOutlinedIcon
-                    className="wb-ds-max-crown wb-comp-lib__scope-crown"
-                    fontSize="inherit"
-                    aria-hidden
-                  />
-                </span>
-              </button>
-            </div>
             {libraryScope === 'blocks' && activeFilter !== 'icons' ?
               <input
                 type="search"
@@ -468,7 +592,9 @@ export function WebsiteBuilderComponentsLibrary({
               <p className="wb-comp-lib__saved-hint">Reusable blocks you save from the page will appear here in a future update.</p>
             </div>
             {libraryScope === 'design-systems' ?
-              <p className="wb-comp-lib__side-hint">Six full visual systems (nav → footer). Mix only if you mean to.</p>
+              <p className="wb-comp-lib__side-hint">
+                Complete templates vs single sections — pick a full set for a coherent page, or mix sections on purpose.
+              </p>
             : null}
           </aside>
 
@@ -594,9 +720,62 @@ export function WebsiteBuilderComponentsLibrary({
                 ))}
               </div>
             :
-              <p className="wb-comp-lib__filter-hint">
-                <strong>Design systems</strong> · {visible.length} section blocks below · full templates listed as a section
-              </p>
+              <>
+                <div className="wb-comp-lib__ds-toolbar">
+                  <div className="wb-comp-lib__ds-toolbar-search">
+                    <SearchOutlinedIcon className="wb-comp-lib__ds-toolbar-search-ico" fontSize="small" aria-hidden />
+                    <input
+                      type="search"
+                      className="wb-comp-lib__ds-toolbar-input"
+                      placeholder="Search design systems…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      aria-label="Search design systems"
+                    />
+                  </div>
+                  <label className="wb-comp-lib__ds-sort">
+                    <span className="wb-comp-lib__ds-sort-label">Sort by</span>
+                    <select className="wb-comp-lib__ds-sort-select" defaultValue="popular" aria-label="Sort design systems">
+                      <option value="popular">Popular</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="wb-comp-lib__ds-subtabs" role="tablist" aria-label="Design systems library mode">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={dsLibraryTab === 'templates'}
+                    className={`wb-comp-lib__ds-subtab${dsLibraryTab === 'templates' ? ' is-active' : ''}`}
+                    onClick={() => setDsLibraryTab('templates')}
+                  >
+                    <span className="wb-comp-lib__ds-subtab-label">Complete templates</span>
+                    <span className="wb-comp-lib__tier-pill wb-comp-lib__tier-pill--max" aria-hidden>
+                      Max
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={dsLibraryTab === 'components'}
+                    className={`wb-comp-lib__ds-subtab${dsLibraryTab === 'components' ? ' is-active' : ''}`}
+                    onClick={() => setDsLibraryTab('components')}
+                  >
+                    <span className="wb-comp-lib__ds-subtab-label">Section components</span>
+                    <span className="wb-comp-lib__tier-pill wb-comp-lib__tier-pill--pro" aria-hidden>
+                      Pro
+                    </span>
+                  </button>
+                </div>
+                {dsLibraryTab === 'templates' ?
+                  <p className="wb-comp-lib__filter-hint">
+                    <strong>Max</strong> — one click adds all nine sections (navbar → footer) in a single design set. Use{' '}
+                    <strong>Section components</strong> to add layers individually.
+                  </p>
+                : <p className="wb-comp-lib__filter-hint">
+                    <strong>Pro</strong> — {visible.length} individual blocks (nav, hero, pricing, …). Drag or use{' '}
+                    <strong>Add to page</strong>.
+                  </p>}
+              </>
             }
 
             {!isIconsLibraryView && libraryScope === 'blocks' && activeFilter !== 'all' ?
@@ -607,82 +786,161 @@ export function WebsiteBuilderComponentsLibrary({
 
             {!isIconsLibraryView ?
               <ul className={viewMode === 'grid' ? 'wb-comp-lib__grid' : 'wb-comp-lib__grid wb-comp-lib__grid--list'}>
-              {libraryScope === 'design-systems' ?
-                <li className="wb-comp-lib__card wb-comp-lib__card--template-section">
-                  <div className="wb-comp-lib__template-sets" aria-label="Insert full template sets">
-                    <p className="wb-comp-lib__template-sets-label">Insert a complete landing page</p>
-                    <p className="wb-comp-lib__template-sets-desc">
-                      Adds all nine blocks in order (Navbar → Footer) for one visual system. Use the cards below for individual
-                      sections.
+              {libraryScope === 'design-systems' && dsLibraryTab === 'templates' ?
+                <>
+                  <li className="wb-comp-lib__ds-section-head" key="__ds-head-templates__">
+                    <h3 className="wb-comp-lib__ds-section-title">Complete templates · Max</h3>
+                    <p className="wb-comp-lib__template-sets-desc mb-0">
+                      Navbar through footer in one style. <strong>Preview</strong> uses a {WB_LIB_DS_SECTION_PREVIEW_WIDTH}px
+                      frame; <strong>Add</strong> drops all nine sections onto the canvas.
                     </p>
-                    <div className="wb-comp-lib__template-sets-grid">
-                      {DESIGN_SYSTEM_SETS.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          className="wb-comp-lib__template-set-btn"
-                          disabled={disabled}
-                          onClick={() => onInsertFullTemplate(s.id)}
-                        >
-                          <span className="wb-comp-lib__template-set-preview">
-                            <DesignSystemTemplatePreview editor={editor} setId={s.id} label={s.label} />
-                          </span>
-                          <span className="wb-comp-lib__template-set-name">{s.label}</span>
-                          <span className="wb-comp-lib__template-set-meta">9 sections</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </li>
-              : null}
-              {visible.length === 0 ?
-                <li className="wb-comp-lib__empty">No components match your search. Try another word or clear filters.</li>
-              : visible.map((it) => (
-                  <li
-                    key={it.blockId}
-                    className={`wb-comp-lib__card${it.filter === 'design-systems' ? ' wb-comp-lib__card--design-system' : ''}`}
-                    draggable={!disabled}
-                    onDragStart={(e) => {
-                      if (disabled) {
-                        e.preventDefault();
-                        return;
-                      }
-                      setBlockDragTransferData(e.dataTransfer, it.blockId);
-                    }}
-                  >
-                    <div className="wb-comp-lib__card-visual">
-                      <BlockPreview editor={editor} blockId={it.blockId} kind={it.preview} />
-                    </div>
-                    <div className="wb-comp-lib__card-body">
-                      <h3 className="wb-comp-lib__card-title">{it.title}</h3>
-                      <p className="wb-comp-lib__card-desc">{it.description}</p>
-                      <div className="wb-comp-lib__card-actions">
-                        <button
-                          type="button"
-                          className="wb-comp-lib__btn wb-comp-lib__btn--primary"
-                          disabled={disabled}
-                          onClick={() => onInsert(it.blockId)}
-                        >
-                          Add to page
-                        </button>
-                        <button
-                          type="button"
-                          className="wb-comp-lib__btn wb-comp-lib__btn--ghost"
-                          disabled={disabled || copyingId === it.blockId}
-                          onClick={() => void onCopy(it.blockId)}
-                        >
-                          <ContentCopyOutlinedIcon className="wb-comp-lib__copy-ico" fontSize="small" />
-                          {copyingId === it.blockId ? 'Copying…' : 'Copy HTML'}
-                        </button>
-                      </div>
-                    </div>
                   </li>
-                ))
-              }
+                  {designSystemSetsFiltered.length === 0 ?
+                    <li className="wb-comp-lib__empty">No design systems match your search.</li>
+                  : designSystemSetsFiltered.map((s) => (
+                      <li key={s.id} className="wb-comp-lib__card wb-comp-lib__card--ds-template">
+                        <div className="wb-comp-lib__card-visual wb-comp-lib__card-visual--ds">
+                          <div className="wb-comp-lib__ds-max-badge" aria-hidden>
+                            <span className="wb-ds-max-tag">Max</span>
+                            <WorkspacePremiumOutlinedIcon className="wb-ds-max-crown" fontSize="inherit" />
+                          </div>
+                          <DesignSystemTemplatePreview editor={editor} setId={s.id} label={s.label} />
+                        </div>
+                        <div className="wb-comp-lib__card-body wb-comp-lib__card-body--ds">
+                          <div className="wb-comp-lib__ds-card-head">
+                            <span className="wb-comp-lib__ds-card-ico" aria-hidden />
+                            <h3 className="wb-comp-lib__card-title">{s.label}</h3>
+                          </div>
+                          <p className="wb-comp-lib__card-meta">9 sections</p>
+                          <div className="wb-comp-lib__ds-card-actions">
+                            <button
+                              type="button"
+                              className="wb-comp-lib__ds-preview-link"
+                              onClick={() => setFullPreview({ id: s.id, label: s.label })}
+                            >
+                              Preview
+                            </button>
+                            <button
+                              type="button"
+                              className="wb-comp-lib__btn wb-comp-lib__btn--primary wb-comp-lib__btn--ds-add"
+                              disabled={disabled}
+                              onClick={() => onInsertFullTemplate(s.id)}
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    ))
+                  }
+                </>
+              : libraryScope === 'design-systems' && dsLibraryTab === 'components' ?
+                <>
+                  <li className="wb-comp-lib__ds-section-head" key="__ds-head-sections__">
+                    <h3 className="wb-comp-lib__ds-section-title">Section components · Pro</h3>
+                    <p className="wb-comp-lib__template-sets-desc mb-0">
+                      Add one layer at a time (nav, hero, pricing, …). Match the Max template set above for a consistent page.
+                    </p>
+                  </li>
+                  {visible.length === 0 ?
+                    <li className="wb-comp-lib__empty">No components match your search. Try another word or clear filters.</li>
+                  : visible.map((it) => (
+                      <li
+                        key={it.blockId}
+                        className={`wb-comp-lib__card${it.filter === 'design-systems' ? ' wb-comp-lib__card--design-system' : ''}`}
+                        draggable={!disabled}
+                        onDragStart={(e) => {
+                          if (disabled) {
+                            e.preventDefault();
+                            return;
+                          }
+                          setBlockDragTransferData(e.dataTransfer, it.blockId);
+                        }}
+                      >
+                        <div className="wb-comp-lib__card-visual">
+                          <span className="wb-comp-lib__card-tier-ribbon" aria-hidden>
+                            Pro
+                          </span>
+                          <BlockPreview editor={editor} blockId={it.blockId} kind={it.preview} />
+                        </div>
+                        <div className="wb-comp-lib__card-body">
+                          <h3 className="wb-comp-lib__card-title">{it.title}</h3>
+                          <p className="wb-comp-lib__card-desc">{it.description}</p>
+                          <div className="wb-comp-lib__card-actions">
+                            <button
+                              type="button"
+                              className="wb-comp-lib__btn wb-comp-lib__btn--primary"
+                              disabled={disabled}
+                              onClick={() => onInsert(it.blockId)}
+                            >
+                              Add to page
+                            </button>
+                            <button
+                              type="button"
+                              className="wb-comp-lib__btn wb-comp-lib__btn--ghost"
+                              disabled={disabled || copyingId === it.blockId}
+                              onClick={() => void onCopy(it.blockId)}
+                            >
+                              <ContentCopyOutlinedIcon className="wb-comp-lib__copy-ico" fontSize="small" />
+                              {copyingId === it.blockId ? 'Copying…' : 'Copy HTML'}
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    ))
+                  }
+                </>
+              : libraryScope === 'blocks' ?
+                visible.length === 0 ?
+                  <li className="wb-comp-lib__empty">No components match your search. Try another word or clear filters.</li>
+                : visible.map((it) => (
+                    <li
+                      key={it.blockId}
+                      className={`wb-comp-lib__card${it.filter === 'design-systems' ? ' wb-comp-lib__card--design-system' : ''}`}
+                      draggable={!disabled}
+                      onDragStart={(e) => {
+                        if (disabled) {
+                          e.preventDefault();
+                          return;
+                        }
+                        setBlockDragTransferData(e.dataTransfer, it.blockId);
+                      }}
+                    >
+                      <div className="wb-comp-lib__card-visual">
+                        <BlockPreview editor={editor} blockId={it.blockId} kind={it.preview} />
+                      </div>
+                      <div className="wb-comp-lib__card-body">
+                        <h3 className="wb-comp-lib__card-title">{it.title}</h3>
+                        <p className="wb-comp-lib__card-desc">{it.description}</p>
+                        <div className="wb-comp-lib__card-actions">
+                          <button
+                            type="button"
+                            className="wb-comp-lib__btn wb-comp-lib__btn--primary"
+                            disabled={disabled}
+                            onClick={() => onInsert(it.blockId)}
+                          >
+                            Add to page
+                          </button>
+                          <button
+                            type="button"
+                            className="wb-comp-lib__btn wb-comp-lib__btn--ghost"
+                            disabled={disabled || copyingId === it.blockId}
+                            onClick={() => void onCopy(it.blockId)}
+                          >
+                            <ContentCopyOutlinedIcon className="wb-comp-lib__copy-ico" fontSize="small" />
+                            {copyingId === it.blockId ? 'Copying…' : 'Copy HTML'}
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))
+              : null}
               </ul>
             : null}
           </div>
         </div>
+        </>
+        }
       </div>
     </div>
   );

@@ -11,7 +11,10 @@ export type DesignSystemSetId =
   | 'prime'
   | 'sporty'
   | 'cyberfit'
-  | 'glassmorph';
+  | 'glassmorph'
+  | 'junglebeast'
+  | 'liquidfit'
+  | 'vintageiron';
 
 type DesignSetId = DesignSystemSetId;
 
@@ -24,7 +27,41 @@ export const DESIGN_SYSTEM_SETS: { id: DesignSetId; category: string; label: str
   { id: 'sporty', category: 'Design · SPORTY', label: 'SPORTY' },
   { id: 'cyberfit', category: 'Design · CYBERFIT', label: 'CYBERFIT' },
   { id: 'glassmorph', category: 'Design · GLASSMORPH', label: 'GLASSMORPH' },
+  { id: 'junglebeast', category: 'Design · JUNGLE BEAST', label: 'JUNGLE BEAST' },
+  { id: 'liquidfit', category: 'Design · LIQUIDFIT', label: 'LIQUIDFIT' },
+  { id: 'vintageiron', category: 'Design · VINTAGE IRON', label: 'VINTAGE IRON' },
 ];
+
+/** Extracted from template stack (public/wb-ds/vintage-iron). */
+const WB_VIN_PUB = '/wb-ds/vintage-iron';
+const IMG_VIN_HERO = `${WB_VIN_PUB}/slice-hero.jpg`;
+const IMG_VIN_ABOUT = `${WB_VIN_PUB}/slice-about.jpg`;
+const IMG_VIN_MAP = `${WB_VIN_PUB}/slice-map.jpg`;
+const IMG_VIN_FOOT = `${WB_VIN_PUB}/slice-footer.jpg`;
+const IMG_VIN_GAL1 = `${WB_VIN_PUB}/gallery-tile-1.jpg`;
+const IMG_VIN_GAL2 = `${WB_VIN_PUB}/gallery-tile-2.jpg`;
+const IMG_VIN_GAL3 = `${WB_VIN_PUB}/gallery-tile-3.jpg`;
+
+/** Photo slices from `template-ref.jpg` (clean asset sheet — no baked-in UI text). */
+const WB_JNG_PUB = '/wb-ds/jungle-beast';
+const IMG_JNG_HERO = `${WB_JNG_PUB}/slice-hero.jpg`;
+const IMG_JNG_ABOUT = `${WB_JNG_PUB}/slice-about.jpg`;
+const IMG_JNG_PROGRAMS = `${WB_JNG_PUB}/slice-programs.jpg`;
+const IMG_JNG_PRICING = `${WB_JNG_PUB}/slice-pricing.jpg`;
+const IMG_JNG_GALLERY = `${WB_JNG_PUB}/slice-gallery.jpg`;
+
+/** LIQUIDFIT — fluid gradient template (reference + hi-res photos). */
+const WB_LIQ_PUB = '/wb-ds/liquidfit';
+const IMG_LIQ_HERO =
+  'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1600&q=88';
+const IMG_LIQ_ABOUT =
+  'https://images.unsplash.com/photo-1583454110551-21f2fa2cfe61?auto=format&fit=crop&w=1200&q=86';
+const IMG_LIQ_G1 =
+  'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=960&q=86';
+const IMG_LIQ_G2 =
+  'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=960&q=86';
+const IMG_LIQ_G3 =
+  'https://images.unsplash.com/photo-1593079831263-1a2839b31bfb?auto=format&fit=crop&w=960&q=86';
 
 /** Max tier strip next to nav brand (gradient pill + crown) — all design-system navs. */
 const DS_MAX_BADGE_ROW = `<span class="wb-sys-ds-badges" aria-hidden="true"><span class="wb-sys-tag wb-sys-tag--max">Max</span><span class="wb-sys-tag-crown">${DS_ICO.crownNav}</span></span>`;
@@ -284,35 +321,82 @@ function navHtml(set: DesignSetId): string {
       </nav>`,
     );
   }
-  if (set === 'glassmorph') {
+  if (set === 'vintageiron') {
     return dsSection(
-      'Hero',
-      `<header class="wb-sys wb-sys-hero wb-sys--glassmorph wb-sys-gls-hero">
-        <div class="wb-sys-gls-themebar">
-          <span class="wb-sys-gls-themebar__id">08. GLASSMORPH</span>
-          <span class="wb-sys-gls-themebar__meta">Modern · transparent · blue</span>
-          <span class="wb-sys-gls-themebar__swatches" aria-hidden="true">
-            <i style="--gls-swatch:#dfe9ff"></i><i style="--gls-swatch:#6f8cff"></i><i style="--gls-swatch:#7dc8ff"></i><i style="--gls-swatch:#ffffff"></i>
-          </span>
-        </div>
-        <div class="wb-sys-gls-hero__shell">
-          <div class="wb-sys-gls-hero__copyCol">
-            <span class="wb-sys-eyebrow wb-ds-reveal wb-ds-reveal--d1">Modern transparency</span>
-            <div class="wb-sys-gls-hero__badges wb-ds-reveal wb-ds-reveal--d1">
-              <span class="wb-sys-tag wb-sys-tag--premium">Premium</span>
-            </div>
-            <h1 class="wb-sys-h1 wb-sys-h1--gls-display wb-ds-reveal wb-ds-reveal--d2">Elevate your every move</h1>
-            <p class="wb-sys-lead wb-sys-lead--gls wb-ds-reveal wb-ds-reveal--d3">A premium glass-style fitness experience with structured coaching, clear progress tracking, and calm energy built into every session.</p>
-            <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">View Programs</a>
-            </div>
+      'Nav',
+      `<nav class="wb-sys wb-sys-nav wb-sys--vintageiron wb-sys-vin-nav">
+        <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
+          <a href="#" class="wb-sys-brand wb-sys-brand--vintageiron" aria-label="Vintage Iron home">
+            <span class="wb-sys-brand__mark wb-sys-brand__mark--vin">${DS_ICO.vintageMark}</span><span class="wb-sys-brand__vin">VINTAGE</span><span class="wb-sys-brand__iron">IRON</span>
+          </a>
+          ${DS_MAX_BADGE_ROW}
           </div>
-          <div class="wb-sys-gls-hero__imgCol wb-sys-gls-imgfx" aria-hidden="true">
-            <img src="${IMG_HERO_GLASS}" alt="" width="960" height="640" loading="lazy" decoding="async" />
+          <div class="wb-sys-nav__links">
+            <a href="#">Home</a>
+            <a href="#about">About</a>
+            <a href="#programs">Programs</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#gallery">Gallery</a>
+            <a href="#contact">Contact</a>
+          </div>
+          <div class="wb-sys-nav__cta">
+            <button type="button" class="wb-sys-btn wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
           </div>
         </div>
-      </header>`,
+      </nav>`,
+    );
+  }
+  if (set === 'liquidfit') {
+    return dsSection(
+      'Nav',
+      `<nav class="wb-sys wb-sys-nav wb-sys--liquidfit wb-sys-liq-nav">
+        <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
+          <a href="#" class="wb-sys-brand wb-sys-brand--liquidfit" aria-label="Liquidfit home">
+            <span class="wb-sys-brand__mark wb-sys-brand__mark--liq">${DS_ICO.liquidMark}</span><span class="wb-sys-brand__liq">LIQUID</span><span class="wb-sys-brand__fit">FIT</span>
+          </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
+          <div class="wb-sys-nav__links">
+            <a href="#">Home</a>
+            <a href="#about">About</a>
+            <a href="#programs">Programs</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#gallery">Gallery</a>
+            <a href="#contact">Contact</a>
+          </div>
+          <div class="wb-sys-nav__cta">
+            <button type="button" class="wb-sys-btn wb-sys-btn--liq-pill" data-wb-open="join">Join now</button>
+          </div>
+        </div>
+      </nav>`,
+    );
+  }
+  if (set === 'junglebeast') {
+    return dsSection(
+      'Nav',
+      `<nav class="wb-sys wb-sys-nav wb-sys--junglebeast wb-sys-jng-nav">
+        <div class="wb-sys-nav__inner wb-sys-nav__inner--bar">
+          <div class="wb-sys-nav__brandcell">
+          <a href="#" class="wb-sys-brand wb-sys-brand--junglebeast" aria-label="Jungle Beast home">
+            <span class="wb-sys-brand__mark wb-sys-brand__mark--jng">${DS_ICO.jungleMark}</span><span class="wb-sys-brand__jng">JUNGLE</span><span class="wb-sys-brand__beast">BEAST</span>
+          </a>
+          ${DS_MAX_BADGE_ROW}
+          </div>
+          <div class="wb-sys-nav__links">
+            <a href="#">Home</a>
+            <a href="#about">About</a>
+            <a href="#programs">Programs</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#gallery">Gallery</a>
+            <a href="#contact">Contact</a>
+          </div>
+          <div class="wb-sys-nav__cta">
+            <button type="button" class="wb-sys-btn wb-sys-btn--jng-pill" data-wb-open="join">Join now</button>
+          </div>
+        </div>
+      </nav>`,
     );
   }
   return dsSection(
@@ -494,6 +578,145 @@ function heroHtml(set: DesignSetId): string {
       </header>`,
     );
   }
+  if (set === 'vintageiron') {
+    return dsSection(
+      'Hero',
+      `<header class="wb-sys wb-sys-hero wb-sys--vintageiron wb-sys-vin-hero">
+        <div class="wb-sys-vin-hero__frame">
+          <div class="wb-sys-vin-hero__media" aria-hidden="true">
+            <img src="${IMG_VIN_HERO}" alt="" width="1200" height="700" loading="eager" decoding="async" />
+          </div>
+          <div class="wb-sys-vin-hero__veil" aria-hidden="true"></div>
+          <div class="wb-sys-vin-hero__copy">
+            <span class="wb-sys-vin-hero__ico" aria-hidden="true">${DS_ICO.vintageMark}</span>
+            <h1 class="wb-sys-h1 wb-sys-h1--vin">Old school iron. <span class="wb-sys-h1__vin-accent">Real results.</span></h1>
+            <p class="wb-sys-lead wb-sys-lead--vin">Build on discipline. Backed by legacy.</p>
+            <div class="wb-sys-actions">
+              <button type="button" class="wb-sys-btn wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--vin-outline">Our programs</a>
+            </div>
+          </div>
+        </div>
+      </header>`,
+    );
+  }
+  if (set === 'liquidfit') {
+    return dsSection(
+      'Hero',
+      `<header class="wb-sys wb-sys-hero wb-sys--liquidfit wb-sys-liq-hero">
+        <div class="wb-sys-liq-hero__bg" aria-hidden="true"></div>
+        <div class="wb-sys-liq-themebar">
+          <span class="wb-sys-liq-themebar__id">2. LIQUID FLOW</span>
+          <span class="wb-sys-liq-themebar__meta">Fluid · gradient · dynamic</span>
+          <span class="wb-sys-liq-themebar__swatches" aria-hidden="true">
+            <i style="--liq-swatch:#38bdf8"></i><i style="--liq-swatch:#6366f1"></i><i style="--liq-swatch:#a855f7"></i><i style="--liq-swatch:#f0f9ff"></i>
+          </span>
+        </div>
+        <div class="wb-sys-liq-hero__wave wb-sys-liq-hero__wave--top" aria-hidden="true"></div>
+        <div class="wb-sys-liq-hero__shell">
+          <div class="wb-sys-liq-hero__copy">
+            <span class="wb-sys-eyebrow wb-ds-reveal wb-ds-reveal--d1">Fluid · gradient · dynamic</span>
+            <h1 class="wb-sys-h1 wb-sys-h1--liq wb-ds-reveal wb-ds-reveal--d2">Flow into strength.</h1>
+            <p class="wb-sys-lead wb-sys-lead--liq wb-ds-reveal wb-ds-reveal--d3">Move better. Feel stronger. Live healthier.</p>
+            <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
+              <button type="button" class="wb-sys-btn wb-sys-btn--liq-solid" data-wb-open="join">Join now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--liq-outline">Explore programs</a>
+            </div>
+          </div>
+          <div class="wb-sys-liq-hero__visual" aria-hidden="true">
+            <div class="wb-sys-liq-blob wb-sys-liq-blob--hero">
+              <img src="${IMG_LIQ_HERO}" alt="" width="720" height="900" loading="eager" decoding="async" referrerpolicy="no-referrer" />
+            </div>
+          </div>
+        </div>
+        <div class="wb-sys-liq-hero__wave wb-sys-liq-hero__wave--bottom" aria-hidden="true"></div>
+      </header>`,
+    );
+  }
+  if (set === 'junglebeast') {
+    return dsSection(
+      'Hero',
+      `<header class="wb-sys wb-sys-hero wb-sys--junglebeast wb-sys-jng-hero">
+        <div class="wb-sys-jng-hero__veil" aria-hidden="true"></div>
+        <div class="wb-sys-jng-hero__stage">
+          <div class="wb-sys-jng-hero__content">
+            <span class="wb-sys-eyebrow wb-ds-reveal wb-ds-reveal--d1">Train wild · live bold</span>
+            <h1 class="wb-sys-h1 wb-sys-h1--jng wb-ds-reveal wb-ds-reveal--d2">
+              Unleash your <span class="wb-sys-h1__lime">inner beast.</span>
+            </h1>
+            <p class="wb-sys-lead wb-sys-lead--jng wb-ds-reveal wb-ds-reveal--d3">Train wild. Live bold. Stay untamed.</p>
+            <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
+              <button type="button" class="wb-sys-btn" data-wb-open="join">Join the pack</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Our programs</a>
+            </div>
+            <div class="wb-sys-jng-hero__stats" aria-label="Club stats">
+              <div class="wb-sys-jng-hero__stat"><span class="wb-sys-jng-hero__stat-num">8+</span><span class="wb-sys-jng-hero__stat-lbl">Years</span></div>
+              <div class="wb-sys-jng-hero__stat"><span class="wb-sys-jng-hero__stat-num">20+</span><span class="wb-sys-jng-hero__stat-lbl">Coaches</span></div>
+              <div class="wb-sys-jng-hero__stat"><span class="wb-sys-jng-hero__stat-num">4500+</span><span class="wb-sys-jng-hero__stat-lbl">Beasts</span></div>
+            </div>
+          </div>
+          <div class="wb-sys-jng-hero__figure" aria-hidden="true">
+            <img src="${IMG_JNG_HERO}" alt="" width="485" height="300" loading="eager" decoding="async" />
+          </div>
+        </div>
+      </header>`,
+    );
+  }
+  if (set === 'glassmorph') {
+    return dsSection(
+      'Hero',
+      `<header class="wb-sys wb-sys-hero wb-sys--glassmorph wb-sys-gls-hero">
+        <div class="wb-sys-gls-themebar">
+          <span class="wb-sys-gls-themebar__id">08. GLASSMORPH</span>
+          <span class="wb-sys-gls-themebar__meta">Modern · transparent · blue</span>
+          <span class="wb-sys-gls-themebar__swatches" aria-hidden="true">
+            <i style="--gls-swatch:#dfe9ff"></i><i style="--gls-swatch:#6f8cff"></i><i style="--gls-swatch:#7dc8ff"></i><i style="--gls-swatch:#ffffff"></i>
+          </span>
+        </div>
+        <div class="wb-sys-gls-hero__shell">
+          <div class="wb-sys-gls-hero__copyCol">
+            <span class="wb-sys-eyebrow wb-ds-reveal wb-ds-reveal--d1">Modern transparency</span>
+            <div class="wb-sys-gls-hero__badges wb-ds-reveal wb-ds-reveal--d1">
+              <span class="wb-sys-tag wb-sys-tag--premium">Premium</span>
+            </div>
+            <h1 class="wb-sys-h1 wb-sys-h1--gls-display wb-ds-reveal wb-ds-reveal--d2">Elevate your every move</h1>
+            <p class="wb-sys-lead wb-sys-lead--gls wb-ds-reveal wb-ds-reveal--d3">A premium glass-style fitness experience with structured coaching, clear progress tracking, and calm energy built into every session.</p>
+            <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
+              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">View Programs</a>
+            </div>
+          </div>
+          <div class="wb-sys-gls-hero__imgCol wb-sys-gls-imgfx" aria-hidden="true">
+            <img src="${IMG_HERO_GLASS}" alt="" width="960" height="640" loading="lazy" decoding="async" />
+          </div>
+        </div>
+      </header>`,
+    );
+  }
+  return dsSection(
+    'Hero',
+    `<header class="wb-sys wb-sys-hero wb-sys--${set}">
+        <div class="wb-sys-hero__grid">
+          <div class="wb-sys-hero__copy">
+            <span class="wb-sys-eyebrow">Train with purpose</span>
+            <h1 class="wb-sys-h1 wb-sys-h1--impact">Build strength that lasts</h1>
+            <p class="wb-sys-lead">Premium equipment, expert coaches, and programming built for real results—whether you are new to the floor or chasing your next PR.</p>
+            <div class="wb-sys-actions">
+              <button type="button" class="wb-sys-btn" data-wb-open="join">Join now</button>
+              <a href="#pricing" class="wb-sys-btn wb-sys-btn--ghost">View plans</a>
+            </div>
+          </div>
+          <div class="wb-sys-hero__media">
+            <div class="wb-sys-hero__figure">
+              <img src="${IMG_HERO}" alt="Athletes training in a modern gym" width="640" height="420" loading="lazy" decoding="async" />
+            </div>
+          </div>
+        </div>
+      </header>`,
+  );
+}
+
+function aboutHtml(set: DesignSetId): string {
   if (set === 'glassmorph') {
     return dsSection(
       'About',
@@ -525,30 +748,6 @@ function heroHtml(set: DesignSetId): string {
       </section>`,
     );
   }
-  return dsSection(
-    'Hero',
-    `<header class="wb-sys wb-sys-hero wb-sys--${set}">
-        <div class="wb-sys-hero__grid">
-          <div class="wb-sys-hero__copy">
-            <span class="wb-sys-eyebrow">Train with purpose</span>
-            <h1 class="wb-sys-h1 wb-sys-h1--impact">Build strength that lasts</h1>
-            <p class="wb-sys-lead">Premium equipment, expert coaches, and programming built for real results—whether you are new to the floor or chasing your next PR.</p>
-            <div class="wb-sys-actions">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join now</button>
-              <a href="#pricing" class="wb-sys-btn wb-sys-btn--ghost">View plans</a>
-            </div>
-          </div>
-          <div class="wb-sys-hero__media">
-            <div class="wb-sys-hero__figure">
-              <img src="${IMG_HERO}" alt="Athletes training in a modern gym" width="640" height="420" loading="lazy" decoding="async" />
-            </div>
-          </div>
-        </div>
-      </header>`,
-  );
-}
-
-function aboutHtml(set: DesignSetId): string {
   if (set === 'power') {
     return dsSection(
       'About',
@@ -784,6 +983,111 @@ function aboutHtml(set: DesignSetId): string {
       </section>`,
     );
   }
+  if (set === 'vintageiron') {
+    return dsSection(
+      'About',
+      `<section id="about" class="wb-sys wb-sys-section wb-sys--vintageiron wb-sys-vin-about">
+        <div class="wb-sys-vin-panel wb-sys-vin-panel--parchment">
+          <div class="wb-sys-vin-about__grid">
+            <div class="wb-sys-vin-about__copy">
+              <span class="wb-sys-eyebrow">Legacy</span>
+              <h2 class="wb-sys-h2 wb-sys-h2--vin">Built on legacy. <span class="wb-sys-h2__vin-line">Focused on you.</span></h2>
+              <p class="wb-sys-sub wb-sys-sub--vin">Vintage floors, iron that feels honest, and coaches who still believe in reps over hype—this is training for people who want the work to speak.</p>
+              <div class="wb-sys-stats wb-sys-stats--metrics wb-sys-stats--vin">
+                <div class="wb-sys-stat-block">
+                  <span class="wb-sys-stat-num">25+</span>
+                  <span class="wb-sys-stat-lbl">Years</span>
+                </div>
+                <div class="wb-sys-stat-block">
+                  <span class="wb-sys-stat-num">30+</span>
+                  <span class="wb-sys-stat-lbl">Experts</span>
+                </div>
+                <div class="wb-sys-stat-block">
+                  <span class="wb-sys-stat-num">4000+</span>
+                  <span class="wb-sys-stat-lbl">Members</span>
+                </div>
+              </div>
+            </div>
+            <div class="wb-sys-vin-about__photo" aria-hidden="true">
+              <img src="${IMG_VIN_ABOUT}" alt="" width="640" height="520" loading="lazy" decoding="async" />
+            </div>
+          </div>
+        </div>
+      </section>`,
+    );
+  }
+  if (set === 'liquidfit') {
+    return dsSection(
+      'About',
+      `<section id="about" class="wb-sys wb-sys-section wb-sys--liquidfit wb-sys-liq-about">
+        <div class="wb-sys-liq-about__wave" aria-hidden="true"></div>
+        <div class="wb-sys-liq-about__grid">
+          <div class="wb-sys-liq-about__copy">
+            <span class="wb-sys-eyebrow">About</span>
+            <h2 class="wb-sys-h2 wb-sys-h2--liq">Fitness that adapts to you</h2>
+            <p class="wb-sys-sub wb-sys-sub--liq">Liquid programming, coaches who read your recovery, and a floor that bends with your goals—built for members who want flow, not friction.</p>
+            <div class="wb-sys-stats wb-sys-stats--metrics wb-sys-stats--liq">
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">12+</span>
+                <span class="wb-sys-stat-lbl">Plans</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">30+</span>
+                <span class="wb-sys-stat-lbl">Coaches</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">7000+</span>
+                <span class="wb-sys-stat-lbl">Happy members</span>
+              </div>
+            </div>
+          </div>
+          <div class="wb-sys-liq-about__visual" aria-hidden="true">
+            <div class="wb-sys-liq-blob wb-sys-liq-blob--about">
+              <img src="${IMG_LIQ_ABOUT}" alt="" width="640" height="800" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+            </div>
+          </div>
+        </div>
+      </section>`,
+    );
+  }
+  if (set === 'junglebeast') {
+    return dsSection(
+      'About',
+      `<section id="about" class="wb-sys wb-sys-section wb-sys--junglebeast wb-sys-jng-about">
+        <div class="wb-sys-jng-about__grid">
+          <div class="wb-sys-jng-about__copy">
+            <span class="wb-sys-eyebrow">No excuses</span>
+            <h2 class="wb-sys-h2 wb-sys-h2--jng">We don't build bodies. <span class="wb-sys-h2__lime">We build beasts.</span></h2>
+            <p class="wb-sys-sub wb-sys-sub--jng">Jungle-grade intensity, coaches who track every rep, and a floor tuned for members who want the edge—without the fluff.</p>
+            <div class="wb-sys-jng-iconrow" aria-hidden="true">
+              <span class="wb-sys-jng-iconrow__ico">${DS_ICO.coaching}</span>
+              <span class="wb-sys-jng-iconrow__ico">${DS_ICO.strengthTraining}</span>
+              <span class="wb-sys-jng-iconrow__ico">${DS_ICO.healthTracking}</span>
+              <span class="wb-sys-jng-iconrow__ico">${DS_ICO.enduranceFlame}</span>
+            </div>
+            <p class="wb-sys-jng-claw-tag" aria-hidden="true">No excuses. Only results.</p>
+            <div class="wb-sys-stats wb-sys-stats--metrics wb-sys-stats--jng">
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">8+</span>
+                <span class="wb-sys-stat-lbl">Years</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">20+</span>
+                <span class="wb-sys-stat-lbl">Coaches</span>
+              </div>
+              <div class="wb-sys-stat-block">
+                <span class="wb-sys-stat-num">4500+</span>
+                <span class="wb-sys-stat-lbl">Beasts</span>
+              </div>
+            </div>
+          </div>
+          <div class="wb-sys-jng-about__visual" aria-hidden="true">
+            <img src="${IMG_JNG_ABOUT}" alt="" width="485" height="297" loading="lazy" decoding="async" />
+          </div>
+        </div>
+      </section>`,
+    );
+  }
   return dsSection(
     'About',
     `<section id="about" class="wb-sys wb-sys-section wb-sys--${set}">
@@ -819,6 +1123,119 @@ function aboutHtml(set: DesignSetId): string {
 }
 
 function featuresHtml(set: DesignSetId): string {
+  if (set === 'vintageiron') {
+    const inner = `
+      <section id="programs" class="wb-sys wb-sys-section wb-sys-section--features wb-sys--vintageiron wb-sys-vin-features">
+        <div class="wb-sys-vin-panel wb-sys-vin-panel--dark">
+          <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-vin-features__head">
+            <span class="wb-sys-eyebrow">Programs</span>
+            <h2 class="wb-sys-h2 wb-sys-h2--vin">Forged on the floor</h2>
+            <p class="wb-sys-sub wb-sys-sub--vin-dark">Four pillars that match the Vintage Iron stack—swap copy to match how you coach.</p>
+          </div>
+          <div class="wb-sys-vin-icon-grid">
+            <article class="wb-sys-vin-icon-card fade-up hover-scale">
+              <div class="wb-sys-vin-icon-ring" aria-hidden="true">${DS_ICO.crossTraining}</div>
+              <h3 class="wb-sys-vin-icon-card__title">Circuit training</h3>
+              <p class="wb-sys-vin-icon-card__desc">Stations, carries, and grit rounds that build work capacity without losing form.</p>
+            </article>
+            <article class="wb-sys-vin-icon-card fade-up hover-scale">
+              <div class="wb-sys-vin-icon-ring" aria-hidden="true">${DS_ICO.muscleGain}</div>
+              <h3 class="wb-sys-vin-icon-card__title">Strength</h3>
+              <p class="wb-sys-vin-icon-card__desc">Progressive overload on racks and platforms—track numbers, earn the next plate.</p>
+            </article>
+            <article class="wb-sys-vin-icon-card fade-up hover-scale">
+              <div class="wb-sys-vin-icon-ring" aria-hidden="true">${DS_ICO.eliteShield}</div>
+              <h3 class="wb-sys-vin-icon-card__title">HIIT class</h3>
+              <p class="wb-sys-vin-icon-card__desc">Short rounds, loud plates, pacing that keeps you honest rep after rep.</p>
+            </article>
+            <article class="wb-sys-vin-icon-card fade-up hover-scale">
+              <div class="wb-sys-vin-icon-ring" aria-hidden="true">${DS_ICO.focusMark}</div>
+              <h3 class="wb-sys-vin-icon-card__title">Mindset</h3>
+              <p class="wb-sys-vin-icon-card__desc">Accountability, standards, and a culture that shows up when it is heavy.</p>
+            </article>
+          </div>
+        </div>
+      </section>`;
+    return dsSection('Programs', inner);
+  }
+  if (set === 'liquidfit') {
+    const inner = `
+      <section id="programs" class="wb-sys wb-sys-section wb-sys-section--features wb-sys--liquidfit wb-sys-liq-features">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-liq-features__head">
+          <span class="wb-sys-eyebrow">Programs</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--liq">Everything in one flow</h2>
+          <p class="wb-sys-sub wb-sys-sub--liq">Four pillars that match the Liquidfit stack—rename or reorder to fit your club.</p>
+        </div>
+        <div class="wb-sys-liq-icon-grid">
+          <article class="wb-sys-liq-icon-card fade-up hover-scale">
+            <div class="wb-sys-liq-icon-ring" aria-hidden="true">${DS_ICO.healthTracking}</div>
+            <h3 class="wb-sys-liq-icon-card__title">Smart workouts</h3>
+            <p class="wb-sys-liq-icon-card__desc">Adaptive blocks that scale load, tempo, and rest to how you show up each day.</p>
+          </article>
+          <article class="wb-sys-liq-icon-card fade-up hover-scale">
+            <div class="wb-sys-liq-icon-ring" aria-hidden="true">${DS_ICO.coaching}</div>
+            <h3 class="wb-sys-liq-icon-card__title">Personal training</h3>
+            <p class="wb-sys-liq-icon-card__desc">1:1 sessions with clear targets, video review, and weekly progression notes.</p>
+          </article>
+          <article class="wb-sys-liq-icon-card fade-up hover-scale">
+            <div class="wb-sys-liq-icon-ring" aria-hidden="true">${DS_ICO.wellnessCalm}</div>
+            <h3 class="wb-sys-liq-icon-card__title">Nutrition plans</h3>
+            <p class="wb-sys-liq-icon-card__desc">Simple fueling guides that sync with your training phase—not crash diets.</p>
+          </article>
+          <article class="wb-sys-liq-icon-card fade-up hover-scale">
+            <div class="wb-sys-liq-icon-ring" aria-hidden="true">${DS_ICO.flexibility}</div>
+            <h3 class="wb-sys-liq-icon-card__title">Wellness support</h3>
+            <p class="wb-sys-liq-icon-card__desc">Sleep, stress, and mobility touchpoints so hard weeks still feel sustainable.</p>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Programs', inner);
+  }
+  if (set === 'junglebeast') {
+    const inner = `
+      <section id="programs" class="wb-sys wb-sys-section wb-sys-section--features wb-sys--junglebeast wb-sys-jng-features">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-jng-features__head">
+          <span class="wb-sys-eyebrow">Beast mode</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--jng">Programs built for the wild</h2>
+          <p class="wb-sys-sub wb-sys-sub--jng">Four tracks—rename or swap copy to match your floor. Visuals pulled from your reference template.</p>
+        </div>
+        <div class="wb-sys-jng-pro-grid">
+          <article class="wb-sys-jng-pro-card fade-up hover-scale">
+            <div class="wb-sys-jng-pro-card__media" style="--jng-pro-bg:url(${IMG_JNG_PROGRAMS});--jng-pro-pos:20% 22%;"></div>
+            <div class="wb-sys-jng-pro-card__body">
+              <h3 class="wb-sys-jng-pro-card__title">Strength training</h3>
+              <p class="wb-sys-jng-pro-card__desc">Heavy compounds, tracked progression, and form-first coaching.</p>
+              <span class="wb-sys-jng-pro-card__ico" aria-hidden="true">${DS_ICO.strengthTraining}</span>
+            </div>
+          </article>
+          <article class="wb-sys-jng-pro-card fade-up hover-scale">
+            <div class="wb-sys-jng-pro-card__media" style="--jng-pro-bg:url(${IMG_JNG_PROGRAMS});--jng-pro-pos:55% 35%;"></div>
+            <div class="wb-sys-jng-pro-card__body">
+              <h3 class="wb-sys-jng-pro-card__title">Combat conditioning</h3>
+              <p class="wb-sys-jng-pro-card__desc">Intervals, bags, and engine work that hits like a stampede.</p>
+              <span class="wb-sys-jng-pro-card__ico" aria-hidden="true">${DS_ICO.crossTraining}</span>
+            </div>
+          </article>
+          <article class="wb-sys-jng-pro-card fade-up hover-scale">
+            <div class="wb-sys-jng-pro-card__media" style="--jng-pro-bg:url(${IMG_JNG_PROGRAMS});--jng-pro-pos:40% 62%;"></div>
+            <div class="wb-sys-jng-pro-card__body">
+              <h3 class="wb-sys-jng-pro-card__title">Instinct HIIT</h3>
+              <p class="wb-sys-jng-pro-card__desc">Short rounds, loud energy, pacing that keeps you honest.</p>
+              <span class="wb-sys-jng-pro-card__ico" aria-hidden="true">${DS_ICO.enduranceFlame}</span>
+            </div>
+          </article>
+          <article class="wb-sys-jng-pro-card fade-up hover-scale">
+            <div class="wb-sys-jng-pro-card__media" style="--jng-pro-bg:url(${IMG_JNG_PROGRAMS});--jng-pro-pos:78% 48%;"></div>
+            <div class="wb-sys-jng-pro-card__body">
+              <h3 class="wb-sys-jng-pro-card__title">Recover &amp; reset</h3>
+              <p class="wb-sys-jng-pro-card__desc">Mobility, breath work, and low-impact resets between hard weeks.</p>
+              <span class="wb-sys-jng-pro-card__ico" aria-hidden="true">${DS_ICO.flexibility}</span>
+            </div>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Programs', inner);
+  }
   if (set === 'cyberfit') {
     const inner = `
       <section id="programs" class="wb-sys wb-sys-section wb-sys-section--features wb-sys--cyberfit">
@@ -1110,6 +1527,151 @@ function pricingHtml(set: DesignSetId): string {
       </section>`;
     return dsSection('Pricing', inner);
   }
+  if (set === 'vintageiron') {
+    const inner = `
+      <section id="pricing" class="wb-sys wb-sys-section wb-sys--vintageiron">
+        <div class="wb-sys-vin-panel wb-sys-vin-panel--dark">
+          <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-vin-pricing__head">
+            <span class="wb-sys-eyebrow">Membership</span>
+            <h2 class="wb-sys-h2 wb-sys-h2--vin">Membership plans</h2>
+            <p class="wb-sys-sub wb-sys-sub--vin-dark">Basic, Standard, and Premium—Standard is the best seller for members training most days.</p>
+          </div>
+          <div class="wb-sys-price wb-sys-vin-price">
+            <article class="wb-sys-price__tier wb-sys-vin-price__tier fade-up hover-scale">
+              <span class="wb-sys-eyebrow">Basic</span>
+              <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Floor access</h3>
+              <p class="wb-sys-price__amt wb-sys-vin-price__amt">$29<span class="wb-sys-price__per">/mo</span></p>
+              <ul class="wb-sys-price__list">
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Open gym hours</li>
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Locker access</li>
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Starter programs</li>
+              </ul>
+              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+            </article>
+            <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-vin-price__tier wb-sys-vin-price__tier--hit fade-up hover-scale">
+              <span class="wb-sys-price__badge wb-sys-price__badge--vin">Best seller</span>
+              <span class="wb-sys-eyebrow">Standard</span>
+              <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Classes included</h3>
+              <p class="wb-sys-price__amt wb-sys-vin-price__amt">$59<span class="wb-sys-price__per">/mo</span></p>
+              <ul class="wb-sys-price__list">
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>All group formats</li>
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Priority booking</li>
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Monthly check-in</li>
+              </ul>
+              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+            </article>
+            <article class="wb-sys-price__tier wb-sys-vin-price__tier fade-up hover-scale">
+              <span class="wb-sys-eyebrow">Premium</span>
+              <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Coaching plus</h3>
+              <p class="wb-sys-price__amt wb-sys-vin-price__amt">$99<span class="wb-sys-price__per">/mo</span></p>
+              <ul class="wb-sys-price__list">
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>1:1 programming</li>
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Nutrition support</li>
+                <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Concierge scheduling</li>
+              </ul>
+              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+            </article>
+          </div>
+        </div>
+      </section>`;
+    return dsSection('Pricing', inner);
+  }
+  if (set === 'liquidfit') {
+    const inner = `
+      <section id="pricing" class="wb-sys wb-sys-section wb-sys--liquidfit">
+        <div class="wb-sys-liq-pricing__wave" aria-hidden="true"></div>
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-liq-pricing__head">
+          <span class="wb-sys-eyebrow">Memberships</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--liq">Choose your flow</h2>
+          <p class="wb-sys-sub wb-sys-sub--liq">Classic, Advanced, and Elite—glass panels with cyan‑violet glow. Advanced is the member favorite.</p>
+        </div>
+        <div class="wb-sys-price wb-sys-liq-price">
+          <article class="wb-sys-price__tier wb-sys-liq-price__tier fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Classic</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Floor access</h3>
+            <p class="wb-sys-price__amt wb-sys-liq-price__amt">$29<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Open gym hours</li>
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Locker + app</li>
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Starter programs</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-ghost" data-wb-open="join">Get started</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-liq-price__tier wb-sys-liq-price__tier--hit fade-up hover-scale">
+            <span class="wb-sys-price__badge wb-sys-price__badge--liq">Most popular</span>
+            <span class="wb-sys-eyebrow">Advanced</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Classes included</h3>
+            <p class="wb-sys-price__amt wb-sys-liq-price__amt">$59<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>All group formats</li>
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Priority booking</li>
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Monthly review</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-gradient" data-wb-open="join">Get started</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-liq-price__tier fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Elite</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Coaching plus</h3>
+            <p class="wb-sys-price__amt wb-sys-liq-price__amt">$99<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>1:1 programming</li>
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Nutrition sync</li>
+              <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Concierge scheduling</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-ghost" data-wb-open="join">Get started</button>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Pricing', inner);
+  }
+  if (set === 'junglebeast') {
+    const inner = `
+      <section id="pricing" class="wb-sys wb-sys-section wb-sys--junglebeast">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-jng-pricing__head">
+          <span class="wb-sys-eyebrow">Choose your plan</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--jng">Choose your paw</h2>
+          <p class="wb-sys-sub wb-sys-sub--jng">Cub, Warrior, Alpha—wood-stone frames and neon checks. Warrior is the pack favorite.</p>
+        </div>
+        <div class="wb-sys-jng-pricing__bg" aria-hidden="true" style="background-image:url(${IMG_JNG_PRICING})"></div>
+        <div class="wb-sys-price wb-sys-jng-price">
+          <article class="wb-sys-price__tier wb-sys-jng-price__tier fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Cub</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Floor access</h3>
+            <p class="wb-sys-price__amt wb-sys-jng-price__amt">$29<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Open gym hours</li>
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Locker + scan-in</li>
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>App access</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--ghost" data-wb-open="join">Join now</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-jng-price__tier wb-sys-jng-price__tier--hit fade-up hover-scale">
+            <span class="wb-sys-price__badge wb-sys-price__badge--jng">Most popular</span>
+            <span class="wb-sys-eyebrow">Warrior</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Classes included</h3>
+            <p class="wb-sys-price__amt wb-sys-jng-price__amt">$59<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>All group formats</li>
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Priority booking</li>
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Monthly check-in</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Join now</button>
+          </article>
+          <article class="wb-sys-price__tier wb-sys-jng-price__tier fade-up hover-scale">
+            <span class="wb-sys-eyebrow">Alpha</span>
+            <h3 class="wb-sys-card__title" style="margin:0.35rem 0 0;">Coaching plus</h3>
+            <p class="wb-sys-price__amt wb-sys-jng-price__amt">$99<span class="wb-sys-price__per">/mo</span></p>
+            <ul class="wb-sys-price__list">
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>1:1 programming</li>
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Nutrition sync</li>
+              <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Concierge scheduling</li>
+            </ul>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--ghost" data-wb-open="join">Upgrade</button>
+          </article>
+        </div>
+      </section>`;
+    return dsSection('Pricing', inner);
+  }
   if (set === 'glassmorph') {
     const inner = `
       <section id="pricing" class="wb-sys wb-sys-section wb-sys--glassmorph">
@@ -1263,6 +1825,56 @@ function galleryCarouselDots(count: number): string {
 }
 
 function galleryHtml(set: DesignSetId): string {
+  if (set === 'vintageiron') {
+    const inner = `
+      <section id="gallery" class="wb-sys wb-sys-section wb-sys--vintageiron">
+        <div class="wb-sys-vin-panel wb-sys-vin-panel--dark">
+          <div class="wb-sys-section__head wb-sys-section__head--center">
+            <span class="wb-sys-eyebrow">Gallery</span>
+            <h2 class="wb-sys-h2 wb-sys-h2--vin">The iron floor</h2>
+            <p class="wb-sys-sub wb-sys-sub--vin-dark">Frames pulled from your reference template—replace with your own facility shots.</p>
+          </div>
+          <div class="wb-sys-vin-gallery">
+            <figure class="wb-sys-vin-gallery__cell"><img src="${IMG_VIN_GAL1}" alt="Gym interior" width="400" height="220" loading="lazy" decoding="async" /></figure>
+            <figure class="wb-sys-vin-gallery__cell"><img src="${IMG_VIN_GAL2}" alt="Training floor" width="400" height="220" loading="lazy" decoding="async" /></figure>
+            <figure class="wb-sys-vin-gallery__cell"><img src="${IMG_VIN_GAL3}" alt="Vintage iron" width="400" height="220" loading="lazy" decoding="async" /></figure>
+          </div>
+        </div>
+      </section>`;
+    return dsSection('Gallery', inner);
+  }
+  if (set === 'liquidfit') {
+    const inner = `
+      <section id="gallery" class="wb-sys wb-sys-section wb-sys--liquidfit">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-liq-gallery__head">
+          <span class="wb-sys-eyebrow">Gallery</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--liq">Flow state on the floor</h2>
+          <p class="wb-sys-sub wb-sys-sub--liq">Liquid frames—swap photos to match your facility energy.</p>
+        </div>
+        <div class="wb-sys-liq-gallery">
+          <figure class="wb-sys-liq-gallery__cell wb-sys-liq-gallery__cell--a"><img src="${IMG_LIQ_G1}" alt="Training" width="520" height="320" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></figure>
+          <figure class="wb-sys-liq-gallery__cell wb-sys-liq-gallery__cell--b"><img src="${IMG_LIQ_G2}" alt="Members" width="520" height="320" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></figure>
+          <figure class="wb-sys-liq-gallery__cell wb-sys-liq-gallery__cell--c"><img src="${IMG_LIQ_G3}" alt="Gym floor" width="520" height="320" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></figure>
+        </div>
+      </section>`;
+    return dsSection('Gallery', inner);
+  }
+  if (set === 'junglebeast') {
+    const inner = `
+      <section id="gallery" class="wb-sys wb-sys-section wb-sys--junglebeast">
+        <div class="wb-sys-section__head wb-sys-section__head--center wb-sys-jng-gallery__head">
+          <span class="wb-sys-eyebrow">Gallery</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--jng">The beast in action</h2>
+          <p class="wb-sys-sub wb-sys-sub--jng">Frames from your reference scroll—swap for your own facility shots anytime.</p>
+        </div>
+        <div class="wb-sys-jng-gallery">
+          <figure class="wb-sys-jng-gallery__cell"><img src="${IMG_JNG_GALLERY}" alt="Training floor" width="400" height="240" loading="lazy" decoding="async" style="object-position:12% center" /></figure>
+          <figure class="wb-sys-jng-gallery__cell"><img src="${IMG_JNG_GALLERY}" alt="Members training" width="400" height="240" loading="lazy" decoding="async" style="object-position:50% center" /></figure>
+          <figure class="wb-sys-jng-gallery__cell"><img src="${IMG_JNG_GALLERY}" alt="Gym energy" width="400" height="240" loading="lazy" decoding="async" style="object-position:88% center" /></figure>
+        </div>
+      </section>`;
+    return dsSection('Gallery', inner);
+  }
   if (set === 'cyberfit') {
     const inner = `
       <section id="gallery" class="wb-sys wb-sys-section wb-sys--cyberfit">
@@ -1335,6 +1947,52 @@ function galleryHtml(set: DesignSetId): string {
 }
 
 function mapHtml(set: DesignSetId): string {
+  if (set === 'vintageiron') {
+    const inner = `
+      <section class="wb-sys wb-sys-section wb-sys--vintageiron wb-sys-vin-map-section">
+        <div class="wb-sys-section__head wb-sys-section__head--center">
+          <span class="wb-sys-eyebrow">Visit</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--vin">Find the yard</h2>
+          <p class="wb-sys-sub wb-sys-sub--vin-map">Vintage Iron HQ, Detroit MI 48201 · Mon–Sun 5:00–22:00</p>
+        </div>
+        <div class="wb-sys-vin-map">
+          <div class="wb-sys-vin-map__texture" style="background-image:url(${IMG_VIN_MAP})" aria-hidden="true"></div>
+          <div class="wb-sys-vin-map__pin" aria-hidden="true"></div>
+          <iframe title="Gym location map" src="https://maps.google.com/maps?q=Detroit+MI&amp;z=12&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </section>`;
+    return dsSection('Maps', inner);
+  }
+  if (set === 'liquidfit') {
+    const inner = `
+      <section class="wb-sys wb-sys-section wb-sys--liquidfit wb-sys-liq-map-section">
+        <div class="wb-sys-liq-map__wave" aria-hidden="true"></div>
+        <div class="wb-sys-section__head wb-sys-section__head--center">
+          <span class="wb-sys-eyebrow">Visit</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--liq">Find the flow</h2>
+          <p class="wb-sys-sub wb-sys-sub--liq">Liquidfit Studio, Los Angeles CA 90028 · Mon–Sun 5:00–23:00</p>
+        </div>
+        <div class="wb-sys-map wb-sys-map--liq">
+          <div class="wb-sys-map--liq__pin" aria-hidden="true"></div>
+          <iframe title="Gym location map" src="https://maps.google.com/maps?q=Los+Angeles+CA&amp;z=12&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </section>`;
+    return dsSection('Maps', inner);
+  }
+  if (set === 'junglebeast') {
+    const inner = `
+      <section class="wb-sys wb-sys-section wb-sys--junglebeast">
+        <div class="wb-sys-section__head wb-sys-section__head--center">
+          <span class="wb-sys-eyebrow">Visit</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--jng">Find us in the wild</h2>
+          <p class="wb-sys-sub wb-sys-sub--jng">Jungle Beast HQ · Mon–Sun 05:00–23:00</p>
+        </div>
+        <div class="wb-sys-map wb-sys-map--jng">
+          <iframe title="Gym location map" src="https://maps.google.com/maps?q=Miami+FL&amp;z=12&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      </section>`;
+    return dsSection('Maps', inner);
+  }
   if (set === 'cyberfit') {
     const inner = `
       <section class="wb-sys wb-sys-section wb-sys--cyberfit">
@@ -1406,6 +2064,114 @@ function mapHtml(set: DesignSetId): string {
 }
 
 function contactHtml(set: DesignSetId): string {
+  if (set === 'vintageiron') {
+    const mail = 'hello@vintageiron.gym';
+    const head = `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-vin-contact__head">
+          <span class="wb-sys-eyebrow">Contact</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--vin">Get in touch</h2>
+          <p class="wb-sys-sub wb-sys-sub--vin">Memberships, guest passes, or a tour of the floor—reach us any time.</p>
+        </div>`;
+    const inner = `
+      <section id="contact" class="wb-sys wb-sys-section wb-sys--vintageiron wb-sys-vin-contact">
+        <div class="wb-sys-vin-panel wb-sys-vin-panel--parchment">
+          ${head}
+          <div class="wb-sys-contact-split wb-sys-vin-contact-split">
+            <div class="wb-sys-contact__info">
+              <div class="wb-sys-contact__line">
+                <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.phone}</span>
+                <div><strong>Phone</strong><br /><a href="tel:+13135550177">+1 (313) 555-0177</a></div>
+              </div>
+              <div class="wb-sys-contact__line">
+                <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mail}</span>
+                <div><strong>Email</strong><br /><a href="mailto:${mail}">${mail}</a></div>
+              </div>
+              <div class="wb-sys-contact__line">
+                <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mapPin}</span>
+                <div><strong>Address</strong><br />Ironworks Ave, Detroit MI 48201</div>
+              </div>
+            </div>
+            <form class="wb-sys-contact__form wb-sys-vin-contact__form">
+              <input type="text" name="name" placeholder="Name" autocomplete="name" />
+              <input type="email" name="email" placeholder="Email" autocomplete="email" />
+              <textarea name="message" rows="4" placeholder="Message"></textarea>
+              <button type="submit" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze">Send message</button>
+            </form>
+          </div>
+        </div>
+      </section>`;
+    return dsSection('Contacts', inner);
+  }
+  if (set === 'liquidfit') {
+    const mail = 'hello@liquidfit.studio';
+    const head = `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-liq-contact__head">
+          <span class="wb-sys-eyebrow">Contact</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--liq">We're here to help you flow</h2>
+          <p class="wb-sys-sub wb-sys-sub--liq">Memberships, schedules, or your first session—reach us by phone, email, or the form.</p>
+        </div>`;
+    const inner = `
+      <section id="contact" class="wb-sys wb-sys-section wb-sys--liquidfit wb-sys-liq-contact">
+        ${head}
+        <div class="wb-sys-contact-split wb-sys-liq-contact-split">
+          <div class="wb-sys-contact__info">
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.phone}</span>
+              <div><strong>Phone</strong><br /><a href="tel:+13235550188">+1 (323) 555-0188</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mail}</span>
+              <div><strong>Email</strong><br /><a href="mailto:${mail}">${mail}</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mapPin}</span>
+              <div><strong>Address</strong><br />Flow District, Los Angeles CA 90028</div>
+            </div>
+          </div>
+          <form class="wb-sys-contact__form wb-sys-liq-contact__form">
+            <input type="text" name="name" placeholder="Name" autocomplete="name" />
+            <input type="email" name="email" placeholder="Email" autocomplete="email" />
+            <textarea name="message" rows="4" placeholder="Message"></textarea>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-gradient">Send message</button>
+          </form>
+        </div>
+      </section>`;
+    return dsSection('Contacts', inner);
+  }
+  if (set === 'junglebeast') {
+    const mail = 'hello@junglebeast.fit';
+    const head = `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-jng-contact__head">
+          <span class="wb-sys-eyebrow">Contact</span>
+          <h2 class="wb-sys-h2 wb-sys-h2--jng">Let's build your beast mode</h2>
+          <p class="wb-sys-sub wb-sys-sub--jng">Call the den, email the pack, or send a message—we answer within one business day.</p>
+        </div>`;
+    const inner = `
+      <section id="contact" class="wb-sys wb-sys-section wb-sys--junglebeast wb-sys-jng-contact">
+        ${head}
+        <div class="wb-sys-contact-split wb-sys-jng-contact-split">
+          <div class="wb-sys-contact__info">
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.phone}</span>
+              <div><strong>Phone</strong><br /><a href="tel:+13055550199">+1 (305) 555-0199</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mail}</span>
+              <div><strong>Email</strong><br /><a href="mailto:${mail}">${mail}</a></div>
+            </div>
+            <div class="wb-sys-contact__line">
+              <span class="wb-sys-contact__ico wb-sys-contact__ico--svg" aria-hidden="true">${DS_ICO.mapPin}</span>
+              <div><strong>Address</strong><br />Canopy District, Miami FL 33101</div>
+            </div>
+          </div>
+          <form class="wb-sys-contact__form wb-sys-jng-contact__form">
+            <input type="text" name="name" placeholder="Name" autocomplete="name" />
+            <input type="email" name="email" placeholder="Email" autocomplete="email" />
+            <input type="tel" name="phone" placeholder="Phone" inputmode="tel" autocomplete="tel" />
+            <textarea name="message" rows="4" placeholder="Message"></textarea>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
+          </form>
+        </div>
+      </section>`;
+    return dsSection('Contacts', inner);
+  }
   if (set === 'cyberfit') {
     const mail = 'hello@neondistrict.fit';
     const head = `<div class="wb-sys-section__head wb-sys-section__head--center wb-sys-cyb-contact__head">
@@ -1636,6 +2402,33 @@ function footerHtml(set: DesignSetId): string {
             </p>
             <p class="wb-sys-footer__tag wb-sys-footer__tag--gls">Modern transparency. Intelligent training. Measurable progress.</p>
           </div>`
+    : set === 'junglebeast' ?
+      `<div class="wb-sys-footer__brand">
+            <p class="wb-sys-footer__logo wb-sys-footer__logo--junglebeast">
+              <span class="wb-sys-footer__logo-mark wb-sys-footer__logo-mark--jng">${DS_ICO.jungleMark}</span>
+              <span class="wb-sys-footer__jng-wordmark">JUNGLE BEAST</span>
+            </p>
+            <p class="wb-sys-footer__tag wb-sys-footer__tag--jng">Train wild. Live bold. Stay untamed—neon discipline, jungle grit, zero excuses.</p>
+          </div>`
+    : set === 'liquidfit' ?
+      `<div class="wb-sys-footer__brand">
+            <p class="wb-sys-footer__logo wb-sys-footer__logo--liquidfit">
+              <span class="wb-sys-footer__logo-mark wb-sys-footer__logo-mark--liq">${DS_ICO.liquidMark}</span>
+              <span class="wb-sys-footer__liq-word">LIQUID<span class="wb-sys-footer__liq-fit">FIT</span></span>
+            </p>
+            <p class="wb-sys-footer__tag wb-sys-footer__tag--liq">New. You. Transform.</p>
+          </div>`
+    : set === 'vintageiron' ?
+      `<div class="wb-sys-footer__brand wb-sys-footer__brand--vintageiron">
+            <div class="wb-sys-footer__vin-barbell" aria-hidden="true">
+              <img src="${IMG_VIN_FOOT}" alt="" width="800" height="180" loading="lazy" decoding="async" />
+            </div>
+            <p class="wb-sys-footer__logo wb-sys-footer__logo--vintageiron">
+              <span class="wb-sys-footer__logo-mark wb-sys-footer__logo-mark--vin">${DS_ICO.vintageMark}</span>
+              <span class="wb-sys-footer__vin-word">VINTAGE<span class="wb-sys-footer__vin-iron">IRON</span></span>
+            </p>
+            <p class="wb-sys-footer__tag wb-sys-footer__tag--vin">Old school iron. Real community. No shortcuts.</p>
+          </div>`
     : `<div class="wb-sys-footer__brand">
             <p class="wb-sys-footer__logo">APEX GYM</p>
             <p class="wb-sys-footer__tag">Strength, community, and measurable outcomes—built for members who show up.</p>
@@ -1681,6 +2474,21 @@ function footerHtml(set: DesignSetId): string {
               <a href="#" aria-label="X" class="wb-sys-footer__social-link wb-sys-footer__social-link--gls">${DS_ICO.socialX}</a>
               <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link wb-sys-footer__social-link--gls">${DS_ICO.socialIg}</a>
               <a href="#" aria-label="LinkedIn" class="wb-sys-footer__social-link wb-sys-footer__social-link--gls">${DS_ICO.socialLi}</a>`
+    : set === 'junglebeast' ?
+      `<a href="#" aria-label="Facebook" class="wb-sys-footer__social-link wb-sys-footer__social-link--jng">${DS_ICO.socialFb}</a>
+              <a href="#" aria-label="X" class="wb-sys-footer__social-link wb-sys-footer__social-link--jng">${DS_ICO.socialX}</a>
+              <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link wb-sys-footer__social-link--jng">${DS_ICO.socialIg}</a>
+              <a href="#" aria-label="LinkedIn" class="wb-sys-footer__social-link wb-sys-footer__social-link--jng">${DS_ICO.socialLi}</a>`
+    : set === 'liquidfit' ?
+      `<a href="#" aria-label="Facebook" class="wb-sys-footer__social-link wb-sys-footer__social-link--liq">${DS_ICO.socialFb}</a>
+              <a href="#" aria-label="X" class="wb-sys-footer__social-link wb-sys-footer__social-link--liq">${DS_ICO.socialX}</a>
+              <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link wb-sys-footer__social-link--liq">${DS_ICO.socialIg}</a>
+              <a href="#" aria-label="LinkedIn" class="wb-sys-footer__social-link wb-sys-footer__social-link--liq">${DS_ICO.socialLi}</a>`
+    : set === 'vintageiron' ?
+      `<a href="#" aria-label="Facebook" class="wb-sys-footer__social-link wb-sys-footer__social-link--vin">${DS_ICO.socialFb}</a>
+              <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link wb-sys-footer__social-link--vin">${DS_ICO.socialIg}</a>
+              <a href="#" aria-label="X" class="wb-sys-footer__social-link wb-sys-footer__social-link--vin">${DS_ICO.socialX}</a>
+              <a href="#" aria-label="LinkedIn" class="wb-sys-footer__social-link wb-sys-footer__social-link--vin">${DS_ICO.socialLi}</a>`
     : `<a href="#" aria-label="Facebook" class="wb-sys-footer__social-link">${DS_ICO.socialFb}</a>
               <a href="#" aria-label="Twitter" class="wb-sys-footer__social-link">${DS_ICO.socialTw}</a>
               <a href="#" aria-label="Instagram" class="wb-sys-footer__social-link">${DS_ICO.socialIg}</a>`;
@@ -1701,9 +2509,16 @@ function footerHtml(set: DesignSetId): string {
       `© ${new Date().getFullYear()} Neon District. All rights reserved.`
     : set === 'glassmorph' ?
       `© ${new Date().getFullYear()} GLASSMORPH. All rights reserved.`
+    : set === 'junglebeast' ?
+      `© ${new Date().getFullYear()} Jungle Beast. All rights reserved.`
+    : set === 'liquidfit' ?
+      `© ${new Date().getFullYear()} Liquidfit. All rights reserved.`
+    : set === 'vintageiron' ?
+      `© ${new Date().getFullYear()} Vintage Iron. All rights reserved.`
     : `© ${new Date().getFullYear()} Apex Gym. All rights reserved.`;
   const quickLinks =
-    set === 'elite' || set === 'cyberfit' || set === 'glassmorph' ?
+    set === 'elite' || set === 'cyberfit' || set === 'glassmorph' || set === 'junglebeast' || set === 'liquidfit' ||
+    set === 'vintageiron' ?
       `<li><a href="#">Home</a></li>
               <li><a href="#about">About</a></li>
               <li><a href="#programs">Programs</a></li>
@@ -1721,6 +2536,9 @@ function footerHtml(set: DesignSetId): string {
     : set === 'sporty' ? ' wb-sys-footer--spo'
     : set === 'cyberfit' ? ' wb-sys-footer--cyb'
     : set === 'glassmorph' ? ' wb-sys-footer--gls'
+    : set === 'junglebeast' ? ' wb-sys-footer--jng'
+    : set === 'liquidfit' ? ' wb-sys-footer--liq'
+    : set === 'vintageiron' ? ' wb-sys-footer--vin'
     : '';
   const inner = `
       <footer class="wb-sys wb-sys-footer wb-sys--${set}${footerSkin}">
@@ -1768,6 +2586,12 @@ export const DESIGN_SYSTEM_SECTION_ORDER = [
   'contact',
   'footer',
 ] as const satisfies readonly (keyof typeof SECTION_BUILDERS)[];
+
+/** Section HTML only — `gjs-pro-template` wraps with `wb-template-root` like other Pro seeds. */
+export function getDesignSystemTemplatePayloadForBuilder(setId: DesignSystemSetId): { html: string; css: string } {
+  const inner = DESIGN_SYSTEM_SECTION_ORDER.map((key) => SECTION_BUILDERS[key](setId)).join('\n');
+  return { html: inner, css: '' };
+}
 
 const SECTION_LABELS: Record<string, string> = {
   nav: 'Navbar',

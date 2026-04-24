@@ -17,6 +17,7 @@ import {
   normalizeLocationMapUrl,
   parseGymClientWebsiteThemeFromApi,
   parseLegacyRatingToMemberRating,
+  parseProWebsiteTemplateKey,
   withLegacyHeroBackgroundMigrated,
   type CrystalWebsiteSetupPayload,
   type GymClientAboutFeature,
@@ -698,16 +699,9 @@ export function mapFormToWebsiteDraft(form: CreateWebsiteFormState): CrystalWebs
     };
   }
 
-  const tpl = form.proTemplateKey.trim().toLowerCase();
-  if (
-    tpl === 'autopilot' ||
-    tpl === 'fitcore' ||
-    tpl === 'sonicflow' ||
-    tpl === 'vital' ||
-    tpl === 'sole' ||
-    tpl === 'zen'
-  ) {
-    base.proTemplateKey = tpl;
+  const parsedTpl = parseProWebsiteTemplateKey(form.proTemplateKey);
+  if (parsedTpl) {
+    base.proTemplateKey = parsedTpl;
   } else {
     delete base.proTemplateKey;
   }
@@ -884,20 +878,9 @@ export function draftPayloadToFormState(draft: CrystalWebsiteDraftPayload): Crea
         .filter((u): u is string => typeof u === 'string' && u.trim() !== '')
         .map((u) => u.trim());
     })(),
-    proTemplateKey: (() => {
-      const raw = c.proTemplateKey;
-      const s = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
-      return (
-        s === 'autopilot' ||
-        s === 'fitcore' ||
-        s === 'sonicflow' ||
-        s === 'vital' ||
-        s === 'sole' ||
-        s === 'zen'
-      ) ?
-          s
-        : '';
-    })(),
+    proTemplateKey: parseProWebsiteTemplateKey(
+      typeof c.proTemplateKey === 'string' ? c.proTemplateKey : '',
+    ) ?? '',
   };
 }
 

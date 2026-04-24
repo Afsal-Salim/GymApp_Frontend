@@ -1,4 +1,5 @@
 import type { Component, Editor } from 'grapesjs';
+import { nextBaseUrl } from '../../config/env';
 import { isWbLayerGroup, siblingIndex, WB_LAYER_GROUP_ATTR } from './websiteBuilderLayerGroup';
 import { nameLastAddedLayer } from './websiteBuilderInspector';
 import {
@@ -7,6 +8,10 @@ import {
   WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS,
   WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
 } from './websiteBuilderConstants';
+import {
+  WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT,
+  WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_STYLESHEET_HREF,
+} from './websiteBuilderDesignSystemFonts';
 import { WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS } from './websiteBuilderDesignSystems.css';
 import {
   buildDesignSystemCatalogEntries,
@@ -17,6 +22,27 @@ import {
   ICON_COMPONENT_CATALOG_ENTRIES,
   ICON_GRID_KIT_CATALOG_ENTRY,
 } from './websiteBuilderIconBlocks';
+
+/**
+ * Iframe `srcdoc` documents have an opaque URL (`about:srcdoc`). Root-relative
+ * `/public/...` assets and scripts would otherwise fail to load — match the app origin + Next base path.
+ */
+export function getPreviewSrcDocBaseHref(): string {
+  if (typeof window === 'undefined') return '';
+  const b = nextBaseUrl.endsWith('/') ? nextBaseUrl.slice(0, -1) : nextBaseUrl;
+  const prefix = b && b !== '/' ? b : '';
+  return `${window.location.origin}${prefix}/`;
+}
+
+function escapeAttrForBaseHref(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function previewBaseTag(): string {
+  const href = getPreviewSrcDocBaseHref();
+  if (!href) return '';
+  return `<base href="${escapeAttrForBaseHref(href)}" />`;
+}
 
 export type ComponentLibraryFilter =
   | 'all'
@@ -380,7 +406,9 @@ export function buildComponentPreviewSrcDoc(editor: Editor, blockId: string): st
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    ${previewBaseTag()}
     <style>
+      ${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}
       html, body {
         margin: 0;
         padding: 0;
@@ -500,7 +528,9 @@ export function buildScrollableComponentPreviewSrcDoc(editor: Editor, blockId: s
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    ${previewBaseTag()}
     <style>
+      ${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}
       html, body {
         margin: 0;
         padding: 0;
@@ -558,18 +588,47 @@ export function buildScrollableComponentPreviewSrcDoc(editor: Editor, blockId: s
 </html>`;
 }
 
+export type DesignSystemTemplatePreviewDocOpts = {
+  /** Fixed desktop artboard width (px) inside the iframe — no scale-to-fit; use for full “actual page” library preview. */
+  artboardWidthPx?: number;
+};
+
 /** Full-page preview for a design system set (Navbar → Footer), for library template cards. */
-export function buildDesignSystemTemplatePreviewSrcDoc(editor: Editor, setId: DesignSystemSetId): string {
+export function buildDesignSystemTemplatePreviewSrcDoc(
+  editor: Editor,
+  setId: DesignSystemSetId,
+  opts?: DesignSystemTemplatePreviewDocOpts,
+): string {
   const html = DESIGN_SYSTEM_SECTION_ORDER.map((key) => getBlockHtmlString(editor, `wb-ds-${setId}-${key}`))
     .filter((s) => s.trim().length > 0)
     .join('\n');
   if (!html) return '';
+
+  const aw = opts?.artboardWidthPx;
+  const isArtboard = aw != null;
+  const rootCss = isArtboard ?
+      `
+      .wb-lib-template-preview-root {
+        width: ${aw}px;
+        max-width: none;
+        margin: 0 auto;
+        box-sizing: border-box;
+        min-height: min-content;
+      }`
+    : `
+      .wb-lib-template-preview-root {
+        min-height: 100%;
+      }`;
 
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    ${previewBaseTag()}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_STYLESHEET_HREF}" />
     <style>
       html, body {
         margin: 0;
@@ -577,18 +636,19 @@ export function buildDesignSystemTemplatePreviewSrcDoc(editor: Editor, setId: De
         width: 100%;
         min-height: 100%;
         background: #f8fafc;
-        overflow: auto;
-        scrollbar-width: none;
+        overflow-x: hidden;
+        /* Artboard full-preview: grow with content — scroll only on the library viewport, not inside the iframe. */
+        overflow-y: ${isArtboard ? 'visible' : 'auto'};
         font-family: Inter, system-ui, -apple-system, sans-serif;
+        scrollbar-width: none;
       }
       html::-webkit-scrollbar,
       body::-webkit-scrollbar {
         width: 0;
         height: 0;
+        background: transparent;
       }
-      .wb-lib-template-preview-root {
-        min-height: 100%;
-      }
+      ${rootCss}
       ${WEBSITE_BUILDER_ANIMATION_CSS}
       ${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}
       ${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}

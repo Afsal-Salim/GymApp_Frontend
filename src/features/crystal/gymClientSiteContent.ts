@@ -4,6 +4,7 @@ import clientDefaultHeroBackground from '../../assets/clientbg.png';
 import { publicGymSiteHostLabel, publicGymSiteUrl } from '../../config/env';
 import { normalizeHexColor } from '../../utils/hexColor';
 import { GYM_CLIENT_BRAND_LOGO_SRC } from './gymClientBrandLogo';
+import { DESIGN_SYSTEM_SETS } from '../website/websiteBuilderDesignSystemBlocks';
 
 export type GymClientNavItem = {
   id: string;
@@ -105,6 +106,13 @@ export type GymClientAboutFeature = {
   icon: 'coaches' | 'facility' | 'results';
 };
 
+/** Visual builder: full-page design system (navbar → footer). Stored as `ds-<setId>` in `website_content`. */
+export type DesignSystemWebsiteTemplateKey = `ds-${(typeof DESIGN_SYSTEM_SETS)[number]['id']}`;
+
+export const DESIGN_SYSTEM_WEBSITE_TEMPLATE_KEYS = DESIGN_SYSTEM_SETS.map(
+  (s) => `ds-${s.id}`,
+) as unknown as readonly DesignSystemWebsiteTemplateKey[];
+
 /** Pro subscription: optional full-page HTML template for the public site (builder stores key in `website_content`). */
 export type ProWebsiteTemplateKey =
   | 'autopilot'
@@ -115,7 +123,8 @@ export type ProWebsiteTemplateKey =
   | 'zen'
   | 'grapes-welcome'
   | 'grapes-hello'
-  | 'grapes-cli';
+  | 'grapes-cli'
+  | DesignSystemWebsiteTemplateKey;
 export const PRO_WEBSITE_TEMPLATE_KEYS = [
   'autopilot',
   'fitcore',
@@ -126,12 +135,13 @@ export const PRO_WEBSITE_TEMPLATE_KEYS = [
   'grapes-welcome',
   'grapes-hello',
   'grapes-cli',
+  ...DESIGN_SYSTEM_WEBSITE_TEMPLATE_KEYS,
 ] as const satisfies readonly ProWebsiteTemplateKey[];
 
 /** Parse unknown template input into a supported Pro template key. */
 export function parseProWebsiteTemplateKey(raw: string | null | undefined): ProWebsiteTemplateKey | undefined {
   const key = (raw ?? '').trim().toLowerCase();
-  return (
+  if (
     key === 'autopilot' ||
     key === 'fitcore' ||
     key === 'sonicflow' ||
@@ -141,9 +151,13 @@ export function parseProWebsiteTemplateKey(raw: string | null | undefined): ProW
     key === 'grapes-welcome' ||
     key === 'grapes-hello' ||
     key === 'grapes-cli'
-  ) ?
-      key
-    : undefined;
+  ) {
+    return key;
+  }
+  if (DESIGN_SYSTEM_WEBSITE_TEMPLATE_KEYS.includes(key as DesignSystemWebsiteTemplateKey)) {
+    return key as DesignSystemWebsiteTemplateKey;
+  }
+  return undefined;
 }
 
 /** GrapesJS website builder snapshot (Pro / visual editor). */

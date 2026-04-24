@@ -32,6 +32,7 @@ import {
   WEBSITE_BUILDER_CUSTOM_SCRATCH,
   WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
 } from './websiteBuilderConstants';
+import { WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT } from './websiteBuilderDesignSystemFonts';
 import { WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS } from './websiteBuilderDesignSystems.css';
 
 function defaultTheme(): CrystalWebsiteSetupPayload['theme'] {
@@ -58,7 +59,7 @@ function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPay
 }
 
 function canvasCssWithBuilderHelpers(css: string): string {
-  return `${WEBSITE_BUILDER_ANIMATION_CSS}\n${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}\n${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}\n${css}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}`;
+  return `${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}\n${WEBSITE_BUILDER_ANIMATION_CSS}\n${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}\n${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}\n${css}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}`;
 }
 
 function isNonEmptyProject(raw: unknown): raw is Record<string, unknown> {
