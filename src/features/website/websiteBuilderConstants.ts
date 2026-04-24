@@ -132,6 +132,37 @@ export const WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS = `
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * Palette blocks are wrapped in .wb-canvas-layer-group for Grapes layers. These rules must live in
+ * the shared library (not canvas-only) so preview / export match the builder iframe.
+ */
+.wb-canvas-layer-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-height: 0;
+  box-sizing: border-box;
+  backface-visibility: hidden;
+}
+.wb-canvas-layer-group:has(> .component-card) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.wb-canvas-layer-group > .component-card {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  width: min(100%, 36rem) !important;
+  max-width: 36rem !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+.wb-canvas-layer-group > .wb-enquiry-slide {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .component-eyebrow {
   display: block;
   font-size: 0.65rem;
@@ -539,10 +570,10 @@ export const WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS = `
 
 .wb-wa-float {
   position: fixed;
-  bottom: 1.35rem;
-  right: 1.35rem;
-  width: 3.5rem;
-  height: 3.5rem;
+  bottom: 4%;
+  right: 4%;
+  width: min(3.75rem, 14vw);
+  height: min(3.75rem, 14vw);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -567,11 +598,11 @@ export const WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS = `
 /* Fixed “back to top” — library block; sits bottom-left so it does not cover the WhatsApp float (right). */
 .wb-scroll-top {
   position: fixed;
-  left: 1.1rem;
-  bottom: 1.1rem;
+  left: 3%;
+  bottom: 3%;
   z-index: 12500;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: min(2.75rem, 12vw);
+  height: min(2.75rem, 12vw);
   padding: 0;
   margin: 0;
   display: inline-flex;
@@ -707,6 +738,17 @@ export const WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS = `
   background: #fff;
   border-color: rgba(124, 58, 237, 0.45);
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.wb-custom-dialog-panel {
+  margin: 0.75rem 0 0;
+  border: 0;
+  border-radius: var(--radius-card);
+  padding: 0;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.32);
+}
+.wb-custom-dialog-panel::backdrop {
+  background: rgba(15, 23, 42, 0.45);
 }
 
 .wb-tcarousel {

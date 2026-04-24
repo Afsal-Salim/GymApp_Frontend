@@ -58,8 +58,25 @@ function themeFromBusinessDetail(detail: BusinessDetail): CrystalWebsiteSetupPay
   });
 }
 
-function canvasCssWithBuilderHelpers(css: string): string {
-  return `${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}\n${WEBSITE_BUILDER_ANIMATION_CSS}\n${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}\n${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}\n${css}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}`;
+/** Marker so reload/save round-trips do not stack duplicate baseline CSS in the composer. */
+export const WB_CANVAS_CSS_BASELINE_TOKEN = '__WB_CANVAS_BASELINE_BUNDLE__';
+
+export function canvasCssWithBuilderHelpers(css: string): string {
+  const raw = typeof css === 'string' ? css : '';
+  if (raw.includes(WB_CANVAS_CSS_BASELINE_TOKEN)) return raw;
+  const banner = `/* ${WB_CANVAS_CSS_BASELINE_TOKEN} */\n`;
+  return `${banner}${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}\n${WEBSITE_BUILDER_ANIMATION_CSS}\n${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}\n${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}\n${raw}\n${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}`;
+}
+
+/** Ensures Grapes CssComposer includes library blocks (fixes washed-out CTAs after grapesProject load). */
+export function ensureCanvasCssBaselineInComposer(editor: Editor): void {
+  try {
+    const css = editor.getCss() ?? '';
+    if (css.includes(WB_CANVAS_CSS_BASELINE_TOKEN)) return;
+    editor.setStyle(canvasCssWithBuilderHelpers(css));
+  } catch {
+    /* ignore */
+  }
 }
 
 function isNonEmptyProject(raw: unknown): raw is Record<string, unknown> {

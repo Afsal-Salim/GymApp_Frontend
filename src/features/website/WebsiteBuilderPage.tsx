@@ -58,6 +58,7 @@ import {
 import { WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT } from './websiteBuilderDesignSystemFonts';
 import { WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS } from './websiteBuilderDesignSystems.css';
 import {
+  ensureCanvasCssBaselineInComposer,
   mergePreviewDraftWithSlug,
   persistVisualBuilderToCreate,
   persistVisualBuilderToEdit,
@@ -65,6 +66,7 @@ import {
   syncVisualBuilderDraftForPreviewTab,
   type WebsiteBuilderResolvedLoad,
 } from './websiteBuilderPersistence';
+import { attachCanvasInjectedComponentLibraryCss } from './websiteBuilderCanvasInjectedLibraryCss';
 import {
   blockPaletteDragMimePresent,
   insertBlockById,
@@ -75,7 +77,8 @@ import {
 import { attachCanvasBlockPaletteDrop } from './websiteBuilderCanvasBlockPaletteDrop';
 import { WebsiteBuilderComponentsLibrary } from './WebsiteBuilderComponentsLibrary';
 import { attachCanvasClipboardPaste } from './websiteBuilderCanvasClipboardPaste';
-import { attachCanvasLayerOrderContextMenu } from './websiteBuilderCanvasContextMenu';
+import { attachCanvasLayerOrderContextMenu, resolveComponentFromPointer } from './websiteBuilderCanvasContextMenu';
+import { attachCanvasMarqueeSelect } from './websiteBuilderCanvasMarqueeSelect';
 import { filterCssUsedByPageHtml } from './websiteBuilderPageUsedCss';
 import {
   attachCanvasSelectionFocus,
@@ -256,11 +259,22 @@ function enableCanvasResizeHandles(comp: Component | null | undefined) {
 
 const WB_CANVAS_LEAD_SCRIPT_ID = 'wb-crystal-lead-modals-canvas';
 
+function shouldSkipCanvasDocMutations(doc: Document | null | undefined): boolean {
+  if (!doc) return true;
+  const href = String(doc.defaultView?.location?.href ?? '');
+  if (!href) return false;
+  // Grapes canvas docs are typically about:blank/srcdoc. If the frame is navigated to an app route
+  // (eg /page-2), do not inject builder scripts/attrs that break hydration on that page.
+  if (/^https?:\/\//i.test(href)) return true;
+  return false;
+}
+
 function attachCanvasLeadModalsBridge(editor: Editor, opts: { mode: 'create' | 'edit'; routeSlug: string }): () => void {
   const apply = () => {
     try {
       const doc = editor.Canvas?.getDocument?.();
       if (!doc?.body) return;
+      if (shouldSkipCanvasDocMutations(doc)) return;
 
       let slug = opts.mode === 'edit' ? opts.routeSlug.trim().toLowerCase() : '';
       if (!slug && opts.mode === 'create') {
@@ -300,6 +314,276 @@ function attachCanvasLeadModalsBridge(editor: Editor, opts: { mode: 'create' | '
   };
 }
 
+type PageFrameLike = {
+  view?: {
+    getDoc?: () => Document | null | undefined;
+  };
+};
+
+function collectCanvasFrameDocs(editor: Editor): Document[] {
+  const byRef = new Map<Document, Document>();
+  const add = (d: Document | null | undefined) => {
+    if (d) byRef.set(d, d);
+  };
+  add(editor.Canvas.getDocument());
+  try {
+    const frames = (editor.Canvas as unknown as { getFrames?: () => PageFrameLike[] }).getFrames?.();
+    if (Array.isArray(frames)) {
+      for (const fr of frames) add(fr?.view?.getDoc?.() ?? undefined);
+    }
+  } catch {
+    /* ignore */
+  }
+  return [...byRef.keys()];
+}
+
+/** Run page/custom button navigation from the host window (outside iframe sandbox) to avoid about:blank#blocked. */
+function attachCanvasTopNavigationBridge(editor: Editor): () => void {
+  const offs: Array<() => void> = [];
+  const docOpts: AddEventListenerOptions = { capture: true, passive: false };
+  const dbg = (msg: string, extra?: Record<string, unknown>) => {
+    try {
+      // Temporary diagnostics for iframe navigation issues (about:blank#blocked).
+      // eslint-disable-next-line no-console
+      console.log('[wb-top-nav]', msg, extra ?? {});
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const resolveNavigateUrl = (el: Element): string => {
+    const explicit = (el.getAttribute('data-wb-nav-href') ?? '').trim();
+    if (explicit) return explicit;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'a') {
+      const a = el as HTMLAnchorElement;
+      const attrHref = (a.getAttribute('href') ?? '').trim();
+      if (attrHref) return attrHref;
+      const propHref = (a.href ?? '').trim();
+      if (!propHref) return '';
+      try {
+        const u = new URL(propHref, window.location.origin);
+        if (u.protocol === 'http:' || u.protocol === 'https:') {
+          if (u.origin === window.location.origin) return `${u.pathname}${u.search}${u.hash}`;
+          return u.toString();
+        }
+      } catch {
+        /* ignore */
+      }
+      return '';
+    }
+    const onclick = (el.getAttribute('onclick') ?? '').trim();
+    if (!onclick) return '';
+    const m = onclick.match(/location\.href\s*=\s*['"]([^'"]+)['"]/i);
+    return (m?.[1] ?? '').trim();
+  };
+
+  const bypassReason = (url: string, el: Element): string | null => {
+    if (!url) return 'empty-url';
+    if (url === '#') return 'hash-empty';
+    if (url.startsWith('#')) return 'hash-only';
+    if (/^javascript:/i.test(url)) return 'javascript-url';
+    const wbOpen = (el.getAttribute('data-wb-open') ?? '').trim().toLowerCase();
+    if (wbOpen) return 'wb-modal-action';
+    return null;
+  };
+
+  const isHashReason = (reason: string | null): boolean => reason === 'hash-empty' || reason === 'hash-only';
+
+  const scrollToHashInFrame = (targetDoc: Document, url: string) => {
+    if (!url.startsWith('#') || url === '#') return;
+    const id = url.slice(1).trim();
+    if (!id) return;
+    let node: Element | null = null;
+    try {
+      node = targetDoc.getElementById(id);
+      if (!node) node = targetDoc.querySelector(`[name="${CSS.escape(id)}"]`);
+    } catch {
+      node = null;
+    }
+    if (!node) return;
+    try {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {
+      try {
+        node.scrollIntoView();
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  const toFrameNavigationUrl = (raw: string): string => {
+    try {
+      return new URL(raw, window.location.origin).toString();
+    } catch {
+      return raw;
+    }
+  };
+
+  const navigateInCanvasFrame = (ev: MouseEvent, url: string): boolean => {
+    try {
+      const frameEl = editor.Canvas.getFrameEl();
+      if (frameEl) {
+        // Grapes uses `srcdoc`; when present it can keep editor-mutated DOM context.
+        // Force real document navigation by removing `srcdoc` before assigning `src`.
+        if (frameEl.hasAttribute('srcdoc')) frameEl.removeAttribute('srcdoc');
+        frameEl.setAttribute('src', url);
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    const ct = ev.currentTarget;
+    const fw =
+      ct instanceof Window ? ct
+      : ct instanceof Document ? ct.defaultView
+      : null;
+    if (fw) {
+      try {
+        fw.location.assign(url);
+        return true;
+      } catch {
+        /* ignore */
+      }
+    }
+    return false;
+  };
+
+  const findNavTarget = (target: EventTarget | null): { el: Element; url: string; reason: string | null } | null => {
+    if (!(target instanceof Element)) return null;
+    const el = target.closest('a, button[onclick], [onclick]');
+    if (!el) return null;
+    const url = resolveNavigateUrl(el);
+    return { el, url, reason: bypassReason(url, el) };
+  };
+
+  const isHitWithinCurrentSelection = (hit: Component | undefined): boolean => {
+    if (!hit || hit.is('wrapper')) return false;
+    const all = editor.getSelectedAll();
+    if (!all.length) return false;
+    const set = new Set(all);
+    let cur: Component | undefined = hit;
+    while (cur && !cur.is('wrapper')) {
+      if (set.has(cur)) return true;
+      cur = cur.parent() ?? undefined;
+    }
+    return false;
+  };
+
+  const onClick = (e: MouseEvent) => {
+    if (e.button !== 0) {
+      dbg('skip: non-left-click', { button: e.button });
+      return;
+    }
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      dbg('skip: modifier key', {
+        metaKey: e.metaKey,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+      });
+      return;
+    }
+    const t = e.target;
+    if (!(t instanceof Element)) {
+      dbg('skip: non-element target');
+      return;
+    }
+    const hit = resolveComponentFromPointer(editor, t);
+    if (hit && !hit.is('wrapper') && !isHitWithinCurrentSelection(hit)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      try {
+        editor.select(hit, { event: e });
+      } catch {
+        /* ignore */
+      }
+      dbg('select-only: suppressed action for unselected component', {
+        tag: t.tagName,
+      });
+      return;
+    }
+    const nav = findNavTarget(t);
+    if (!nav) {
+      dbg('skip: no clickable nav element', { target: t.tagName });
+      return;
+    }
+    if (nav.reason) {
+      if (isHashReason(nav.reason)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const doc =
+          e.currentTarget instanceof Document ? e.currentTarget
+          : e.currentTarget instanceof Window ? e.currentTarget.document
+          : null;
+        if (doc) scrollToHashInFrame(doc, nav.url);
+      }
+      dbg('skip: bypassed url', {
+        target: t.tagName,
+        tag: nav.el.tagName,
+        href: nav.el.getAttribute('href'),
+        onclick: nav.el.getAttribute('onclick'),
+        resolvedUrl: nav.url,
+        reason: nav.reason,
+      });
+      return;
+    }
+    const el = nav.el;
+    const url = nav.url;
+    const wbOpen = (el.getAttribute('data-wb-open') ?? '').trim().toLowerCase();
+    dbg('intercept: navigating from host', {
+      tag: el.tagName,
+      href: el.getAttribute('href'),
+      onclick: el.getAttribute('onclick'),
+      wbOpen,
+      resolvedUrl: url,
+    });
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    const navUrl = toFrameNavigationUrl(url);
+    const ok = navigateInCanvasFrame(e, navUrl);
+    dbg(ok ? 'navigate: loaded url in canvas iframe' : 'navigate: failed to load in canvas iframe', {
+      resolvedUrl: url,
+      frameUrl: navUrl,
+    });
+  };
+
+  const bind = () => {
+    for (const off of offs) off();
+    offs.length = 0;
+    const docs = collectCanvasFrameDocs(editor);
+    dbg('bind: attaching listeners', { docs: docs.length });
+    for (const doc of docs) {
+      doc.addEventListener('click', onClick, docOpts);
+      offs.push(() => doc.removeEventListener('click', onClick, docOpts));
+      const fw = doc.defaultView;
+      if (fw) {
+        fw.addEventListener('click', onClick, docOpts);
+        offs.push(() => fw.removeEventListener('click', onClick, docOpts));
+      }
+    }
+  };
+
+  editor.on('canvas:frame:load', bind);
+  editor.on('canvas:frame:load:body', bind);
+  editor.on('load', bind);
+  queueMicrotask(bind);
+  const t = window.setTimeout(bind, 400);
+
+  return () => {
+    dbg('unbind: removing listeners', { count: offs.length });
+    window.clearTimeout(t);
+    editor.off('canvas:frame:load', bind);
+    editor.off('canvas:frame:load:body', bind);
+    editor.off('load', bind);
+    for (const off of offs) off();
+  };
+}
+
 const WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID = 'wb-component-animations-canvas';
 const WB_CANVAS_COMPONENT_ANIM_EDITOR_STYLE_ID = 'wb-component-animations-editor-visibility';
 
@@ -308,6 +592,7 @@ function attachCanvasComponentAnimations(editor: Editor): () => void {
     try {
       const doc = editor.Canvas?.getDocument?.();
       if (!doc?.body) return;
+      if (shouldSkipCanvasDocMutations(doc)) return;
       const nodes = doc.querySelectorAll('.fade-up, .wb-fade-up, .wb-ds-root.wb-fade-in');
       for (let i = 0; i < nodes.length; i++) {
         const el = nodes[i] as HTMLElement;
@@ -335,6 +620,7 @@ function attachCanvasComponentAnimations(editor: Editor): () => void {
     try {
       const doc = editor.Canvas?.getDocument?.();
       if (!doc?.head) return;
+      if (shouldSkipCanvasDocMutations(doc)) return;
       if (!doc.getElementById(WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID)) {
         const s = doc.createElement('script');
         s.id = WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID;
@@ -968,6 +1254,8 @@ export default function WebsiteBuilderPage() {
       container: editorHostRef.current,
       fromElement: false,
       storageManager: false,
+      /** Ctrl/Cmd+click adds to selection; Shift+click extends among siblings (GrapesJS default). */
+      multipleSelection: true,
       /** Canva-style: move handle drags with transform, not only flow / CSS position. */
       dragMode: 'translate',
       selectorManager: { componentFirst: true },
@@ -1022,6 +1310,7 @@ export default function WebsiteBuilderPage() {
 
     const detachInspector = attachSelectionListener(editor, setInspectorSelection);
     const detachCanvasSelectionFocus = attachCanvasSelectionFocus(editor);
+    const detachCanvasMarquee = attachCanvasMarqueeSelect(editor);
     const detachCanvasLayerCtx = attachCanvasLayerOrderContextMenu(editor, {
       onOpenInspect: (ed, comp) => {
         openInspectFromCanvasRef.current(ed, comp);
@@ -1030,7 +1319,13 @@ export default function WebsiteBuilderPage() {
     const detachCanvasClipboardPaste = attachCanvasClipboardPaste(editor);
     const detachCanvasBlockPaletteDrop = attachCanvasBlockPaletteDrop(editor);
     const detachCanvasLeadBridge = attachCanvasLeadModalsBridge(editor, { mode, routeSlug });
+    const detachCanvasTopNavBridge = attachCanvasTopNavigationBridge(editor);
     const detachCanvasComponentAnimations = attachCanvasComponentAnimations(editor);
+    const detachInjectedLibraryCss = attachCanvasInjectedComponentLibraryCss(editor);
+    const onEditorLoadCssBaseline = () => {
+      if (resolved.kind === 'project') ensureCanvasCssBaselineInComposer(editor);
+    };
+    editor.on('load', onEditorLoadCssBaseline);
     if (resolved.kind === 'project') {
       editor.loadProjectData(resolved.project);
     } else {
@@ -1146,12 +1441,20 @@ export default function WebsiteBuilderPage() {
       editor.off('load', expandCats);
       detachInspector();
       detachCanvasSelectionFocus();
+      detachCanvasMarquee();
       detachCanvasLayerCtx();
       detachCanvasClipboardPaste();
       detachCanvasBlockPaletteDrop();
       detachLayerGroup();
       detachCanvasLeadBridge();
+      detachCanvasTopNavBridge();
       detachCanvasComponentAnimations();
+      detachInjectedLibraryCss();
+      try {
+        editor.off('load', onEditorLoadCssBaseline);
+      } catch {
+        /* ignore */
+      }
       setInspectorSelection(null);
       setEditorInstance(null);
       setBooting(false);
@@ -1611,25 +1914,28 @@ ${html}
 
     const frame = ed.Canvas.getFrameEl() as HTMLIFrameElement | null | undefined;
     const fdoc = ed.Canvas.getDocument();
+    let inserted: ReturnType<typeof insertBlockById> | undefined;
     if (frame && fdoc) {
       const fr = frame.getBoundingClientRect();
       const x = e.clientX - fr.left;
       const y = e.clientY - fr.top;
       const inside = x >= 0 && y >= 0 && x <= fr.width && y <= fr.height;
       if (inside) {
-        if (!insertBlockByIdAtFrameClientPoint(ed, id, fdoc, x, y) && !insertBlockById(ed, id)) return;
-      } else if (!insertBlockById(ed, id)) {
-        return;
+        inserted = insertBlockByIdAtFrameClientPoint(ed, id, fdoc, x, y) ?? insertBlockById(ed, id);
+      } else {
+        inserted = insertBlockById(ed, id);
       }
-    } else if (!insertBlockById(ed, id)) {
-      return;
+    } else {
+      inserted = insertBlockById(ed, id);
     }
-
-    try {
-      ed.refresh();
-    } catch {
-      /* ignore */
-    }
+    if (!inserted) return;
+    queueMicrotask(() => {
+      try {
+        ed.select(inserted);
+      } catch {
+        /* ignore */
+      }
+    });
   }, []);
 
   const pinchCollapseLeft = useCallback(() => {

@@ -19,6 +19,7 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import MapOutlinedIcon from '@mui/icons-material/MapOutlined';
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import RateReviewOutlinedIcon from '@mui/icons-material/RateReviewOutlined';
 import TextFieldsOutlinedIcon from '@mui/icons-material/TextFieldsOutlined';
@@ -43,6 +44,7 @@ import {
   type ComponentsLibraryOpenTarget,
 } from './websiteBuilderComponentCatalog';
 import type { DesignSystemSetId } from './websiteBuilderDesignSystemBlocks';
+import { isWbLayerGroup } from './websiteBuilderLayerGroup';
 
 export type LeftPanelTab = 'pages' | 'structure' | 'components';
 
@@ -359,6 +361,45 @@ function ComponentsPalette({
             blockId: 'wb-brochure-download',
             accent: 'pink',
             icon: <FileDownloadOutlinedIcon fontSize="inherit" />,
+          },
+        ],
+      },
+      {
+        id: 'modals',
+        title: 'Modals & overlays',
+        libraryTarget: { scope: 'blocks', filter: 'modals' },
+        items: [
+          {
+            id: 'mo-custom',
+            title: 'Custom modal',
+            desc: 'Native dialog you edit yourself',
+            blockId: 'wb-modal-custom-dialog',
+            accent: 'purple',
+            icon: <OpenInNewOutlinedIcon fontSize="inherit" />,
+          },
+          {
+            id: 'mo-enquiry',
+            title: 'Quick enquiry',
+            desc: 'Opens Crystal service enquiry',
+            blockId: 'wb-enquiry-card',
+            accent: 'amber',
+            icon: <ChatOutlinedIcon fontSize="inherit" />,
+          },
+          {
+            id: 'mo-slide',
+            title: 'Slide panel',
+            desc: 'Drawer + enquiry flow',
+            blockId: 'wb-enquiry-slide-anim',
+            accent: 'blue',
+            icon: <TuneOutlinedIcon fontSize="inherit" />,
+          },
+          {
+            id: 'mo-strip',
+            title: 'Lead buttons row',
+            desc: 'Join · visit · trial · enquiry',
+            blockId: 'wb-modals-lead-strip',
+            accent: 'green',
+            icon: <BoltOutlinedIcon fontSize="inherit" />,
           },
         ],
       },
@@ -822,12 +863,15 @@ function StructureRow({
   const [draft, setDraft] = useState('');
   const id = String(comp.getId?.() ?? '');
   const tag = String(comp.get('tagName') || 'div').toLowerCase();
-  const display = friendlyLabel(comp);
-  const selected = String(editor.getSelected()?.getId?.() ?? '') === id;
+  const isLayerGroup = isWbLayerGroup(comp);
   const kids = comp.components();
   const nKids = typeof kids.length === 'number' ? kids.length : 0;
   const hasKids = nKids > 0;
+  const display =
+    isLayerGroup ? (nKids > 0 ? `Layer group (${nKids})` : 'Layer group') : friendlyLabel(comp);
+  const selected = String(editor.getSelected()?.getId?.() ?? '') === id;
   const isOpen = expanded[id] !== false;
+  const showNestedInTree = hasKids && isOpen && !isLayerGroup;
   const hidden = isHidden(comp);
   const locked = isLayerLocked(comp);
 
@@ -875,14 +919,14 @@ function StructureRow({
             className="website-builder-page__struct-chevron"
             aria-expanded={isOpen}
             aria-label={isOpen ? 'Collapse' : 'Expand'}
-            disabled={!hasKids}
+            disabled={!hasKids || isLayerGroup}
             onClick={(e) => {
               e.stopPropagation();
-              if (!hasKids) return;
+              if (!hasKids || isLayerGroup) return;
               onToggleExpand(id);
             }}
           >
-            {hasKids ?
+            {hasKids && !isLayerGroup ?
               <ChevronRightIcon
                 fontSize="inherit"
                 className={`website-builder-page__struct-chevron-ic${isOpen ? ' is-open' : ''}`}
@@ -893,7 +937,9 @@ function StructureRow({
             <DragIndicatorIcon fontSize="inherit" />
           </span>
           <span className="website-builder-page__struct-type-ic" aria-hidden>
-            {typeIcon(tag)}
+            {isLayerGroup ?
+              <LayersOutlinedIcon className="website-builder-page__struct-icon" fontSize="inherit" />
+            : typeIcon(tag)}
           </span>
           {editing ?
             <input
@@ -1043,7 +1089,7 @@ function StructureRow({
             </div>
           </div>
       </div>
-      {hasKids && isOpen ?
+      {showNestedInTree ?
         Array.from({ length: nKids }, (_, i) => {
           const ch = kids.at(i);
           if (!ch || !childVisible(ch)) return null;

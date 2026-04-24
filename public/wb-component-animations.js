@@ -1,7 +1,7 @@
 /**
  * Visual-builder helpers: scroll reveal (.fade-up.show), testimonial carousel
  * ([data-wb-tcarousel]), design-system gallery ([data-wb-ds-gallery]),
- * slide enquiry drawer ([data-wb-enquiry-slide]).
+ * slide enquiry drawer ([data-wb-enquiry-slide]), custom native dialogs ([data-wb-dialog-root]).
  * Uses IntersectionObserver so .fade-up works when the parent scrolls (GrapesJS
  * canvas) — iframe window scroll events often never fire.
  */
@@ -373,6 +373,39 @@
     }
   }
 
+  function initCustomNativeDialogs() {
+    var roots = document.querySelectorAll('[data-wb-dialog-root]');
+    for (var i = 0; i < roots.length; i++) {
+      var root = roots[i];
+      if (root.getAttribute('data-wb-dlg-init')) continue;
+      root.setAttribute('data-wb-dlg-init', '1');
+      var dlg = root.querySelector('dialog[data-wb-dialog-panel]');
+      var opens = root.querySelectorAll('[data-wb-dialog-open]');
+      function openFromBtn(ev) {
+        var r = ev.currentTarget && ev.currentTarget.closest('[data-wb-dialog-root]');
+        if (!r) return;
+        var d = r.querySelector('dialog[data-wb-dialog-panel]');
+        if (d && typeof d.showModal === 'function') {
+          try {
+            d.showModal();
+          } catch (e) {
+            /* ignore */
+          }
+        }
+      }
+      for (var j = 0; j < opens.length; j++) {
+        opens[j].addEventListener('click', openFromBtn);
+      }
+      if (dlg) {
+        (function (panel) {
+          panel.addEventListener('click', function (ev) {
+            if (ev.target === panel && typeof panel.close === 'function') panel.close();
+          });
+        })(dlg);
+      }
+    }
+  }
+
   function initEnquirySlides() {
     var roots = document.querySelectorAll('[data-wb-enquiry-slide]');
     for (var r = 0; r < roots.length; r++) {
@@ -400,6 +433,7 @@
     wireFadeObservers();
     initTestimonialCarousels();
     initDesignSystemGalleries();
+    initCustomNativeDialogs();
     initEnquirySlides();
     initScrollTopButtons();
   }

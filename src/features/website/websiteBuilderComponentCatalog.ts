@@ -175,6 +175,13 @@ const catalog: ComponentCatalogEntry[] = [
     preview: 'modal',
   },
   {
+    blockId: 'wb-modal-custom-dialog',
+    title: 'Custom modal (dialog)',
+    description: 'Native dialog element you fully customise; open/close is wired by the page animation script.',
+    filter: 'modals',
+    preview: 'modal',
+  },
+  {
     blockId: 'wb-form-contact',
     title: 'Contact form',
     description: 'Card layout with name, phone, and message; Send opens the enquiry modal when published.',
@@ -845,11 +852,11 @@ export function insertBlockByIdAtFrameClientPoint(
   frameDoc: Document,
   clientX: number,
   clientY: number,
-): boolean {
+): Component | undefined {
   const html = getBlockHtmlString(editor, blockId);
-  if (!html) return false;
+  if (!html) return undefined;
   const w = editor.getWrapper();
-  if (!w) return false;
+  if (!w) return undefined;
 
   if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
     return insertBlockById(editor, blockId);
@@ -859,15 +866,23 @@ export function insertBlockByIdAtFrameClientPoint(
   const coll = w.components();
   const total = typeof coll.length === 'number' ? coll.length : 0;
 
-  const finishAppend = () => {
+  const finishAppend = (): Component | undefined => {
     w.append(wrapped);
     nameLastAddedLayer(w);
     const c2 = w.components();
     const n = typeof c2.length === 'number' ? c2.length : 0;
     if (n > 0) {
-      const last = c2.at?.(n - 1);
-      if (last) editor.select(last);
+      const last = typeof c2.at === 'function' ? c2.at(n - 1) : undefined;
+      if (last) {
+        try {
+          editor.select(last);
+        } catch {
+          /* ignore */
+        }
+        return last;
+      }
     }
+    return undefined;
   };
 
   let hitEl: Element | null = null;
@@ -878,14 +893,12 @@ export function insertBlockByIdAtFrameClientPoint(
   }
 
   if (!hitEl) {
-    finishAppend();
-    return true;
+    return finishAppend();
   }
 
   const anchor = findDirectChildOfWrapper(editor, hitEl);
   if (!anchor) {
-    finishAppend();
-    return true;
+    return finishAppend();
   }
 
   const idx = Math.max(0, siblingIndex(anchor));
@@ -897,8 +910,7 @@ export function insertBlockByIdAtFrameClientPoint(
   try {
     coll.add(wrapped, { at, action: 'add-component' } as { at: number; action: string });
   } catch {
-    finishAppend();
-    return true;
+    return finishAppend();
   }
 
   const inserted = typeof coll.at === 'function' ? coll.at(at) : undefined;
@@ -911,8 +923,9 @@ export function insertBlockByIdAtFrameClientPoint(
     } catch {
       /* ignore */
     }
+    return inserted;
   }
-  return true;
+  return finishAppend();
 }
 
 /**
@@ -930,11 +943,11 @@ function resolvePaletteInsertTarget(editor: Editor): Component | undefined {
 }
 
 /** Add the block’s HTML to the current selection (or the page) without leaving the editor. */
-export function insertBlockById(editor: Editor, blockId: string): boolean {
+export function insertBlockById(editor: Editor, blockId: string): Component | undefined {
   const html = getBlockHtmlString(editor, blockId);
-  if (!html) return false;
+  if (!html) return undefined;
   const target = resolvePaletteInsertTarget(editor);
-  if (!target) return false;
+  if (!target) return undefined;
   const wrapped = `<div class="wb-canvas-layer-group" ${WB_LAYER_GROUP_ATTR}="1">${html}</div>`;
   target.append(wrapped);
   nameLastAddedLayer(target);
@@ -942,9 +955,16 @@ export function insertBlockById(editor: Editor, blockId: string): boolean {
   const len = typeof coll.length === 'number' ? coll.length : 0;
   if (len > 0) {
     const last = typeof coll.at === 'function' ? coll.at(len - 1) : undefined;
-    if (last) editor.select(last);
+    if (last) {
+      try {
+        editor.select(last);
+      } catch {
+        /* ignore */
+      }
+      return last;
+    }
   }
-  return true;
+  return undefined;
 }
 
 /** Append every section for one design set (Navbar → Footer) in order. */

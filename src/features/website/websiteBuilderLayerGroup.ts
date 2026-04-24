@@ -46,13 +46,13 @@ function patchDefaultToolbarItemTitles(comp: Component) {
       hint = 'Lift out — parent no longer moves this block with it';
       shortLabel = 'Lift out';
     } else if (cmd === WB_TLB_FRONT) {
-      hint = 'Bring to front — paint above sibling layers';
+      hint = 'Bring to front — raise z-index when layers overlap (does not reorder page flow)';
       shortLabel = 'To front';
     } else if (cmd === WB_TLB_BACK) {
-      hint = 'Send to back — paint below sibling layers';
+      hint = 'Send to back — lower z-index when layers overlap (does not reorder page flow)';
       shortLabel = 'To back';
     } else if (cmd === WB_TLB_GROUP) {
-      hint = 'Group — wrap multi-selected layers (Ctrl/Cmd+click first)';
+      hint = 'Group — multi-select with Ctrl/Cmd+click, or drag on empty / unselected area to box-select';
       shortLabel = 'Group';
     } else if (cmd === WB_TLB_UNGROUP) {
       hint = 'Ungroup — lift children out of this group';
@@ -70,7 +70,24 @@ function patchDefaultToolbarItemTitles(comp: Component) {
 
 export function siblingIndex(comp: Component): number {
   const fn = (comp as unknown as { index?: () => number }).index;
-  return typeof fn === 'function' ? fn() : 0;
+  if (typeof fn === 'function') {
+    try {
+      const n = fn();
+      if (Number.isFinite(n)) return n;
+    } catch {
+      /* Detached/partial models can throw (e.g. missing backbone collection). Fall back below. */
+    }
+  }
+
+  const parent = comp.parent();
+  if (!parent) return 0;
+  const coll = parent.components();
+  const len = typeof coll.length === 'number' ? coll.length : 0;
+  for (let i = 0; i < len; i += 1) {
+    const cur = typeof coll.at === 'function' ? coll.at(i) : null;
+    if (cur === comp) return i;
+  }
+  return 0;
 }
 
 export function parentChildCount(parent: Component): number {
@@ -107,6 +124,93 @@ export function moveToSiblingAt(comp: Component, at: number) {
   }
 }
 
+/** Parsed stacking z-index from the rendered element (handles Grapes translate-drag, etc.). */
+export function computedStackingZ(comp: Component): number {
+  try {
+    const el = comp.getEl?.();
+    if (!el) return 0;
+    const z = getComputedStyle(el).zIndex;
+    if (!z || z === 'auto') return 0;
+    const n = Number(z);
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function eachDirectSibling(comp: Component, fn: (s: Component) => void) {
+  const p = comp.parent();
+  if (!p) return;
+  const coll = p.components();
+  const len = typeof coll.length === 'number' ? coll.length : 0;
+  for (let i = 0; i < len; i += 1) {
+    const s = typeof coll.at === 'function' ? coll.at(i) : null;
+    if (s && !s.is('wrapper') && s !== comp) fn(s);
+  }
+}
+
+export function maxSiblingPaintZ(comp: Component): number {
+  let m = -Infinity;
+  eachDirectSibling(comp, (s) => {
+    m = Math.max(m, computedStackingZ(s));
+  });
+  if (!Number.isFinite(m)) return 0;
+  return m;
+}
+
+export function minSiblingPaintZ(comp: Component): number {
+  let m = Infinity;
+  eachDirectSibling(comp, (s) => {
+    m = Math.min(m, computedStackingZ(s));
+  });
+  if (!Number.isFinite(m)) return 0;
+  return m;
+}
+
+export function isPaintFrontmost(comp: Component): boolean {
+  return computedStackingZ(comp) > maxSiblingPaintZ(comp);
+}
+
+export function isPaintBackmost(comp: Component): boolean {
+  return computedStackingZ(comp) < minSiblingPaintZ(comp);
+}
+
+/** `z-index` only affects stacking when the element participates in a stacking context (e.g. positioned or transformed). */
+function ensureStackingParticipation(comp: Component): void {
+  try {
+    const el = comp.getEl?.();
+    if (!el) return;
+    const cs = getComputedStyle(el);
+    if (cs.position === 'static' && (cs.transform === 'none' || cs.transform === '')) {
+      comp.addStyle({ position: 'relative' });
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Raise paint order without changing DOM sibling order (no XY layout shift in normal flow). */
+export function bringComponentPaintToFront(comp: Component): void {
+  if (!comp || comp.is('wrapper')) return;
+  const p = comp.parent();
+  if (!p || p.is('wrapper')) return;
+  if (parentChildCount(p) <= 1) return;
+  const next = maxSiblingPaintZ(comp) + 1;
+  ensureStackingParticipation(comp);
+  comp.addStyle({ zIndex: String(next) });
+}
+
+/** Lower paint order without changing DOM sibling order. */
+export function sendComponentPaintToBack(comp: Component): void {
+  if (!comp || comp.is('wrapper')) return;
+  const p = comp.parent();
+  if (!p || p.is('wrapper')) return;
+  if (parentChildCount(p) <= 1) return;
+  const next = minSiblingPaintZ(comp) - 1;
+  ensureStackingParticipation(comp);
+  comp.addStyle({ zIndex: String(next) });
+}
+
 export function isWbLayerGroup(comp: Component): boolean {
   if (comp.is('wrapper')) return false;
   const attrs = (comp.getAttributes?.() ?? {}) as Record<string, string>;
@@ -122,11 +226,28 @@ export function canGroupSelection(editor: Editor): boolean {
   return true;
 }
 
+/** True if this component is a user layer group that still has children to lift out. */
+export function canUngroupLayerGroup(group: Component | null | undefined): boolean {
+  return Boolean(group && !group.is('wrapper') && isWbLayerGroup(group) && parentChildCount(group) >= 1);
+}
+
 export function canUngroupSelection(editor: Editor): boolean {
-  const c = editor.getSelected();
-  if (!c || c.is('wrapper')) return false;
-  if (!isWbLayerGroup(c)) return false;
-  return parentChildCount(c) >= 1;
+  return canUngroupLayerGroup(editor.getSelected());
+}
+
+/** Nearest `data-wb-layer-group` wrapper walking up from `comp` (including `comp` itself). */
+export function findEnclosingWbLayerGroup(comp: Component | null | undefined): Component | undefined {
+  let cur: Component | null | undefined = comp;
+  while (cur && !cur.is('wrapper')) {
+    if (isWbLayerGroup(cur)) return cur;
+    cur = cur.parent();
+  }
+  return undefined;
+}
+
+/** Ungroup is available if the selection is a layer group, or the right-clicked layer sits inside one. */
+export function canUngroupFromContextHit(editor: Editor, hit: Component): boolean {
+  return canUngroupLayerGroup(editor.getSelected()) || canUngroupLayerGroup(findEnclosingWbLayerGroup(hit));
 }
 
 export function groupSelected(editor: Editor): void {
@@ -152,6 +273,12 @@ export function groupSelected(editor: Editor): void {
   ) as Component | undefined;
   if (!wrapper) return;
 
+  try {
+    wrapper.set('name', 'Layer group');
+  } catch {
+    /* ignore */
+  }
+
   for (const c of sorted) {
     c.move(wrapper, { at: parentChildCount(wrapper) });
   }
@@ -159,8 +286,8 @@ export function groupSelected(editor: Editor): void {
   editor.select(wrapper);
 }
 
-export function ungroupSelected(editor: Editor): void {
-  const c = editor.getSelected();
+export function ungroupLayerGroup(editor: Editor, group: Component | null | undefined): void {
+  const c = group;
   if (!c || !isWbLayerGroup(c)) return;
   const parent = c.parent();
   if (!parent) return;
@@ -178,6 +305,21 @@ export function ungroupSelected(editor: Editor): void {
   c.remove();
   syncZIndexAmongSiblings(parent);
   if (kids[0]) editor.select(kids[0]);
+}
+
+export function ungroupSelected(editor: Editor): void {
+  ungroupLayerGroup(editor, editor.getSelected());
+}
+
+/** Prefer ungrouping the current selection if it is a layer group; otherwise the group wrapping `hit`. */
+export function ungroupFromCanvasContext(editor: Editor, hit: Component): void {
+  const sel = editor.getSelected();
+  if (canUngroupLayerGroup(sel)) {
+    ungroupLayerGroup(editor, sel);
+    return;
+  }
+  const g = findEnclosingWbLayerGroup(hit);
+  if (canUngroupLayerGroup(g)) ungroupLayerGroup(editor, g);
 }
 
 /** Whether `comp` can be lifted out of its immediate parent (not already a direct child of the page). */
@@ -202,9 +344,47 @@ export function detachComponentFromParent(editor: Editor, comp: Component): void
   if (!p || p.is('wrapper')) return;
   const gp = p.parent();
   if (!gp) return;
+
+  /** Keep the block visually anchored when reparenting by compensating viewport delta via transform. */
+  const beforeRect = (() => {
+    try {
+      return comp.getEl?.()?.getBoundingClientRect() ?? null;
+    } catch {
+      return null;
+    }
+  })();
+
   const insertAt = Math.min(parentChildCount(gp), siblingIndex(p) + 1);
   comp.move(gp, { at: insertAt });
   syncZIndexAmongSiblings(gp);
+
+  const applyLiftTransform = () => {
+    if (!beforeRect) return;
+    try {
+      const afterRect = comp.getEl?.()?.getBoundingClientRect() ?? null;
+      if (!afterRect) return;
+      const dx = beforeRect.left - afterRect.left;
+      const dy = beforeRect.top - afterRect.top;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        const style = (comp.getStyle?.() ?? {}) as Record<string, unknown>;
+        const prevTf = typeof style.transform === 'string' ? style.transform.trim() : '';
+        const keepTf = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;
+        comp.addStyle({ transform: prevTf ? `${prevTf} ${keepTf}` : keepTf });
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  /** Grapes translate-drag + layout settle after reparent; one frame is often not enough. */
+  applyLiftTransform();
+  queueMicrotask(() => {
+    requestAnimationFrame(() => {
+      applyLiftTransform();
+      requestAnimationFrame(applyLiftTransform);
+    });
+  });
+
   editor.select(comp);
 }
 
@@ -266,7 +446,7 @@ function augmentToolbar(editor: Editor, comp: Component) {
       label: '⧉',
       command: WB_TLB_GROUP,
       attributes: {
-        title: 'Group — wrap multi-selected layers (Ctrl/Cmd+click first)',
+        title: 'Group — Ctrl/Cmd+click, or drag on empty / unselected canvas to box-select; then group',
         'data-wb-toolbar-label': 'Group',
       },
     },
@@ -290,21 +470,10 @@ function augmentToolbar(editor: Editor, comp: Component) {
 function injectLayerGroupCanvasCss(editor: Editor) {
   const doc = editor.Canvas.getDocument();
   if (!doc?.head) return;
-  if (!doc.getElementById(CANVAS_GROUP_CSS_ID)) {
-    const s = doc.createElement('style');
-    s.id = CANVAS_GROUP_CSS_ID;
-    s.textContent = `
-    .wb-canvas-layer-group {
-      margin: 0;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      min-height: 0;
-      box-sizing: border-box;
-    }
-    /* Smoother translate-drag (GPU layer, no transition during drag) */
-    [data-gjs-highlightable='true'],
-    .wb-canvas-layer-group {
+  const css = `
+    /* Layout for .wb-canvas-layer-group lives in WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS (preview parity). */
+    /* Smoother translate-drag (GPU layer) for Grapes-highlightable nodes */
+    [data-gjs-highlightable='true'] {
       backface-visibility: hidden;
     }
     .wb-canvas-position-ref {
@@ -323,8 +492,13 @@ function injectLayerGroupCanvasCss(editor: Editor) {
       contain: strict;
     }
   `;
+  let s = doc.getElementById(CANVAS_GROUP_CSS_ID) as HTMLStyleElement | null;
+  if (!s) {
+    s = doc.createElement('style');
+    s.id = CANVAS_GROUP_CSS_ID;
     doc.head.appendChild(s);
   }
+  s.textContent = css;
   injectCanvasPositionReferenceEl(doc);
 }
 
@@ -336,9 +510,7 @@ export function registerWebsiteBuilderLayerGroup(editor: Editor): () => void {
     run(ed) {
       const c = ed.getSelected();
       if (!c || c.is('wrapper')) return;
-      const p = c.parent();
-      if (!p) return;
-      moveToSiblingAt(c, parentChildCount(p) - 1);
+      bringComponentPaintToFront(c);
       ed.select(c);
     },
   });
@@ -347,7 +519,7 @@ export function registerWebsiteBuilderLayerGroup(editor: Editor): () => void {
     run(ed) {
       const c = ed.getSelected();
       if (!c || c.is('wrapper')) return;
-      moveToSiblingAt(c, 0);
+      sendComponentPaintToBack(c);
       ed.select(c);
     },
   });

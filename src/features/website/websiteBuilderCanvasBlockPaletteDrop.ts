@@ -62,18 +62,19 @@ export function attachCanvasBlockPaletteDrop(editor: Editor): () => void {
     const id = readBlockIdFromPaletteDrag(dt);
     if (!id) return;
     const frameDoc = e.currentTarget as Document;
-    if (frameDoc?.nodeType === 9) {
-      if (!insertBlockByIdAtFrameClientPoint(editor, id, frameDoc, e.clientX, e.clientY)) {
-        if (!insertBlockById(editor, id)) return;
+    let inserted =
+      frameDoc?.nodeType === 9 ?
+        insertBlockByIdAtFrameClientPoint(editor, id, frameDoc, e.clientX, e.clientY)
+      : undefined;
+    if (!inserted) inserted = insertBlockById(editor, id);
+    if (!inserted) return;
+    queueMicrotask(() => {
+      try {
+        editor.select(inserted);
+      } catch {
+        /* ignore */
       }
-    } else if (!insertBlockById(editor, id)) {
-      return;
-    }
-    try {
-      editor.refresh();
-    } catch {
-      /* ignore */
-    }
+    });
   };
 
   const attachToFrame = () => {

@@ -358,14 +358,16 @@ export function WebsiteBuilderComponentsLibrary({
         showToast('Open a page in the builder first.', 'warning');
         return;
       }
-      const ok = insertBlockById(editor, blockId);
-      if (ok) {
+      const inserted = insertBlockById(editor, blockId);
+      if (inserted) {
         showToast('Block added to the page.', 'success');
-        try {
-          editor.refresh();
-        } catch {
-          /* ignore */
-        }
+        queueMicrotask(() => {
+          try {
+            editor.select(inserted);
+          } catch {
+            /* ignore */
+          }
+        });
       } else {
         showToast('Could not add this block. Try again.', 'danger');
       }

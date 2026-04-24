@@ -1057,6 +1057,28 @@ export function registerSectionBlocks(editor: Editor) {
     `,
   });
 
+  bm.add('wb-modal-custom-dialog', {
+    label: 'Modal · custom (native dialog)',
+    category: 'Modals',
+    content: `
+      <div class="wb-add-el component-card" data-wb-dialog-root>
+        <span class="component-eyebrow">Custom</span>
+        <div class="component-title">Modal you edit in place</div>
+        <div class="component-desc">Change the headline, body, and buttons inside the dialog. Open uses the browser dialog API (no Crystal lead script required).</div>
+        <button type="button" class="component-btn" data-wb-dialog-open>Open modal</button>
+        <dialog class="wb-custom-dialog-panel" data-wb-dialog-panel>
+          <div style="padding:1.35rem 1.45rem 1.25rem;">
+            <h3 class="component-title" style="margin:0 0 0.45rem;">Headline</h3>
+            <p class="component-desc" style="margin-bottom:1rem;">Replace this copy, add images, or extra buttons—everything here is normal layout.</p>
+            <form method="dialog" style="margin:0;display:flex;gap:0.5rem;flex-wrap:wrap;">
+              <button type="submit" class="component-btn">Close</button>
+            </form>
+          </div>
+        </dialog>
+      </div>
+    `,
+  });
+
   bm.add('wb-offers-gradient-anim', {
     label: 'Offers · gradient banner (animated)',
     category: 'Sections',

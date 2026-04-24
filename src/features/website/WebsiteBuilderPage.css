@@ -2344,6 +2344,65 @@
   color: #64748b !important;
 }
 
+/* Improve readability in Grapes style/traits inspector (labels, fields, placeholders, disabled states). */
+#wb-styles .gjs-sm-label,
+#wb-styles .gjs-sm-property label,
+#wb-styles .gjs-field .gjs-label,
+#wb-styles .gjs-field-wrp .gjs-label,
+#wb-traits .gjs-label,
+#wb-traits .gjs-field .gjs-label,
+#wb-traits .gjs-field-wrp .gjs-label {
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+#wb-styles .gjs-field input,
+#wb-styles .gjs-field select,
+#wb-styles .gjs-field textarea,
+#wb-styles .gjs-sm-integer,
+#wb-styles .gjs-sm-select,
+#wb-traits input,
+#wb-traits select,
+#wb-traits textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #b8c7da !important;
+}
+
+#wb-styles .gjs-field input:focus,
+#wb-styles .gjs-field select:focus,
+#wb-styles .gjs-field textarea:focus,
+#wb-traits input:focus,
+#wb-traits select:focus,
+#wb-traits textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14) !important;
+  outline: none !important;
+}
+
+#wb-styles .gjs-field input::placeholder,
+#wb-styles .gjs-field textarea::placeholder,
+#wb-traits input::placeholder,
+#wb-traits textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+#wb-styles .gjs-field input:disabled,
+#wb-styles .gjs-field select:disabled,
+#wb-styles .gjs-field textarea:disabled,
+#wb-styles .gjs-sm-property.gjs-sm-disabled .gjs-field input,
+#wb-styles .gjs-sm-property.gjs-sm-disabled .gjs-field select,
+#wb-styles .gjs-sm-property.gjs-sm-disabled .gjs-field textarea,
+#wb-traits input:disabled,
+#wb-traits select:disabled,
+#wb-traits textarea:disabled {
+  background: #f8fbff !important;
+  border-color: #d3dce9 !important;
+  color: #334155 !important;
+  opacity: 1 !important;
+}
+
 .website-builder-page__save-section-btn--after-dock {
   margin-top: 0.75rem;
 }
@@ -3248,10 +3307,22 @@
   font-size: 0.82rem;
 }
 
+/* Marquee / box selection overlay (host document, above canvas) */
+.wb-canvas-marquee {
+  position: fixed;
+  z-index: 499999;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 1px dashed #2563eb;
+  border-radius: 2px;
+  background: rgba(37, 99, 235, 0.08);
+}
+
 /* Canvas right-click: layer order menu (fixed to host window, above builder chrome) */
 .wb-canvas-ctx-menu {
   position: fixed;
-  z-index: 500000;
+  /* Max 32-bit z-index so the menu paints above Grapes overlays, Bootstrap modals, MUI, etc. */
+  z-index: 2147483647;
   min-width: 11rem;
   padding: 0.3rem;
   margin: 0;

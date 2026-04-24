@@ -144,7 +144,7 @@ function inferPushButtonAction(comp: Component, pages: BuilderPageOption[]): But
 
 function toOnclickNavigate(url: string): string {
   const escaped = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `window.location.href='${escaped}'`;
+  return `try{if('${escaped}'.charAt(0)!=='#'&&window.top&&window.top!==window){window.top.location.href='${escaped}';}else{window.location.href='${escaped}';}}catch(e){window.location.href='${escaped}';}`;
 }
 
 function InspectorEmpty() {
@@ -660,7 +660,7 @@ function PushButtonContent({
   const applyAction = (nextAction: ButtonActionChoice) => {
     setAction(nextAction);
     if (nextAction === 'none') {
-      patchAttributes(comp, { 'data-wb-open': undefined, onclick: undefined });
+      patchAttributes(comp, { 'data-wb-open': undefined, onclick: undefined, 'data-wb-nav-href': undefined });
       setCustomUrl('');
       return;
     }
@@ -669,6 +669,7 @@ function PushButtonContent({
       patchAttributes(comp, {
         'data-wb-open': undefined,
         onclick: sectionId ? toOnclickNavigate(`#${sectionId}`) : undefined,
+        'data-wb-nav-href': undefined,
       });
       return;
     }
@@ -679,6 +680,7 @@ function PushButtonContent({
       patchAttributes(comp, {
         'data-wb-open': undefined,
         onclick: toOnclickNavigate(href),
+        'data-wb-nav-href': href,
         type: 'button',
       });
       setBtnType('button');
@@ -689,12 +691,13 @@ function PushButtonContent({
       patchAttributes(comp, {
         'data-wb-open': undefined,
         onclick: toOnclickNavigate(u),
+        'data-wb-nav-href': u,
         type: 'button',
       });
       setBtnType('button');
       return;
     }
-    patchAttributes(comp, { 'data-wb-open': nextAction, onclick: undefined, type: 'button' });
+    patchAttributes(comp, { 'data-wb-open': nextAction, onclick: undefined, 'data-wb-nav-href': undefined, type: 'button' });
     setBtnType('button');
   };
 
@@ -758,6 +761,7 @@ function PushButtonContent({
               patchAttributes(comp, {
                 'data-wb-open': undefined,
                 onclick: v ? toOnclickNavigate(`#${v}`) : undefined,
+                'data-wb-nav-href': undefined,
               });
             }}
           />
@@ -783,6 +787,7 @@ function PushButtonContent({
               patchAttributes(comp, {
                 'data-wb-open': undefined,
                 onclick: toOnclickNavigate(href),
+                'data-wb-nav-href': href,
               });
             }}
           >
@@ -813,6 +818,7 @@ function PushButtonContent({
               patchAttributes(comp, {
                 'data-wb-open': undefined,
                 onclick: v.trim() ? toOnclickNavigate(v.trim()) : undefined,
+                'data-wb-nav-href': v.trim() || undefined,
               });
             }}
           />
@@ -1141,7 +1147,7 @@ function ButtonContent({
   const applyAction = (nextAction: ButtonActionChoice) => {
     setAction(nextAction);
     if (nextAction === 'none') {
-      patchAttributes(comp, { 'data-wb-open': undefined, href: '#' });
+      patchAttributes(comp, { 'data-wb-open': undefined, href: '#', 'data-wb-nav-href': undefined });
       setHref('#');
       setSectionTarget('');
       setCustomUrl('');
@@ -1150,7 +1156,7 @@ function ButtonContent({
     if (nextAction === 'section') {
       const target = sanitizeSectionTarget(sectionTarget);
       const nextHref = target ? `#${target}` : '#';
-      patchAttributes(comp, { 'data-wb-open': undefined, href: nextHref });
+      patchAttributes(comp, { 'data-wb-open': undefined, href: nextHref, target: undefined, 'data-wb-nav-href': undefined });
       setHref(nextHref);
       return;
     }
@@ -1158,18 +1164,18 @@ function ButtonContent({
       const idx = Math.max(0, builderPages.findIndex((p) => p.id === pageId));
       const p = builderPages[idx] ?? builderPages[0];
       const nextHref = p ? hrefForBuilderPage(p, idx) : '/';
-      patchAttributes(comp, { 'data-wb-open': undefined, href: nextHref });
+      patchAttributes(comp, { 'data-wb-open': undefined, href: nextHref, target: undefined, 'data-wb-nav-href': nextHref });
       setHref(nextHref);
       if (p) setPageId(p.id);
       return;
     }
     if (nextAction === 'custom') {
       const u = customUrl.trim() || '#';
-      patchAttributes(comp, { 'data-wb-open': undefined, href: u });
+      patchAttributes(comp, { 'data-wb-open': undefined, href: u, target: undefined, 'data-wb-nav-href': u });
       setHref(u);
       return;
     }
-    patchAttributes(comp, { 'data-wb-open': nextAction, href: '#' });
+    patchAttributes(comp, { 'data-wb-open': nextAction, href: '#', target: undefined, 'data-wb-nav-href': undefined });
     setHref('#');
   };
 
@@ -1231,7 +1237,7 @@ function ButtonContent({
               setSectionTarget(v);
               const nextHref = v ? `#${v}` : '#';
               setHref(nextHref);
-              patchAttributes(comp, { href: nextHref, 'data-wb-open': undefined });
+              patchAttributes(comp, { href: nextHref, 'data-wb-open': undefined, target: undefined, 'data-wb-nav-href': undefined });
             }}
             placeholder="pricing"
           />
@@ -1255,7 +1261,7 @@ function ButtonContent({
               const p = builderPages[i];
               const nextHref = p ? hrefForBuilderPage(p, i) : '/';
               setHref(nextHref);
-              patchAttributes(comp, { href: nextHref, 'data-wb-open': undefined });
+              patchAttributes(comp, { href: nextHref, 'data-wb-open': undefined, target: undefined, 'data-wb-nav-href': nextHref });
             }}
           >
             {builderPages.map((p, i) => (
@@ -1284,7 +1290,8 @@ function ButtonContent({
               const v = e.target.value;
               setCustomUrl(v);
               setHref(v.trim() || '#');
-              patchAttributes(comp, { href: v.trim() || '#', 'data-wb-open': undefined });
+              const u = v.trim() || '#';
+              patchAttributes(comp, { href: u, 'data-wb-open': undefined, target: undefined, 'data-wb-nav-href': u });
             }}
           />
         </div>
