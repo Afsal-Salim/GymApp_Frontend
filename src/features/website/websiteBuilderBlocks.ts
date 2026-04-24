@@ -1,4 +1,4 @@
-import type { Editor } from 'grapesjs';
+import type { Component, Editor } from 'grapesjs';
 import { registerDesignSystemBlocks } from './websiteBuilderDesignSystemBlocks';
 import { registerIconBlocks } from './websiteBuilderIconBlocks';
 
@@ -156,6 +156,77 @@ export function registerAnimatableComponents(editor: Editor) {
   for (const tag of ['section', 'header', 'footer', 'nav', 'article', 'main']) {
     registerAnimatableTag(editor, tag);
   }
+}
+
+/**
+ * Grapes’ HTML parser sets `type: 'text'` when a node has a single text child and no resolved type
+ * (`parseNode`: `!model.type && (model.type = 'text')`). That hits `<button class="component-btn">…</button>`
+ * and plain `<a class="component-btn">Choose Starter</a>` (one text node): the default matcher returns
+ * `{ tagName }` without `type`, then the parser forces `text`, which applies text-block chrome (white fill).
+ * Register **after** `whatsapp-link` / `link-button` so those stay distinct; register **before** nothing —
+ * these must be last overall so `isComponent` runs before the generic `default` match.
+ */
+export function registerComponentBtnDomType(editor: Editor) {
+  editor.DomComponents.addType('wb-component-btn', {
+    extend: 'default',
+    isComponent: (el) => {
+      const n = el as HTMLElement;
+      if (n.tagName !== 'BUTTON') return false;
+      if (!n.classList.contains('component-btn')) return false;
+      return { type: 'wb-component-btn' };
+    },
+    model: {
+      defaults: {
+        tagName: 'button',
+        droppable: false,
+      },
+    },
+  });
+}
+
+/** Same as `wb-component-btn` but for `<a class="component-btn">` (tel/mailto/download/pricing CTAs). */
+export function registerComponentBtnAnchorDomType(editor: Editor) {
+  editor.DomComponents.addType('wb-component-btn-a', {
+    extend: 'link',
+    isComponent: (el) => {
+      const n = el as HTMLElement;
+      if (n.tagName !== 'A') return false;
+      if (!n.classList.contains('component-btn')) return false;
+      if (n.classList.contains('wb-link-btn')) return false;
+      if (n.classList.contains('wb-wa-btn') || n.classList.contains('wb-wa-float')) return false;
+      return { type: 'wb-component-btn-a' };
+    },
+    model: {
+      defaults: {
+        tagName: 'a',
+        droppable: false,
+      },
+    },
+  });
+}
+
+function walkComponentTree(root: Component | undefined, visit: (c: Component) => void) {
+  if (!root) return;
+  visit(root);
+  const ch = root.components();
+  const len = typeof ch.length === 'number' ? ch.length : 0;
+  for (let i = 0; i < len; i += 1) {
+    const c = typeof ch.at === 'function' ? ch.at(i) : undefined;
+    if (c) walkComponentTree(c, visit);
+  }
+}
+
+/** Fix CTAs already stored as Grapes `text` (see `registerComponentBtnDomType` / `registerComponentBtnAnchorDomType`). */
+export function normalizeMisclassifiedComponentButtons(editor: Editor) {
+  walkComponentTree(editor.getWrapper() ?? undefined, (c) => {
+    const tag = String(c.get('tagName') || '').toLowerCase();
+    if (tag !== 'button' && tag !== 'a') return;
+    const cls = String(c.getAttributes?.()?.class ?? '');
+    if (!/\bcomponent-btn\b/.test(cls)) return;
+    if (tag === 'a' && (/\bwb-link-btn\b/.test(cls) || /\bwb-wa-btn\b/.test(cls) || /\bwb-wa-float\b/.test(cls))) return;
+    if (String(c.get('type') || '') !== 'text') return;
+    c.set('type', tag === 'button' ? 'wb-component-btn' : 'wb-component-btn-a');
+  });
 }
 
 export function registerSectionBlocks(editor: Editor) {
@@ -1177,5 +1248,20 @@ export function registerWebsiteBuilderExtensions(editor: Editor) {
   registerSectionBlocks(editor);
   registerIconBlocks(editor);
   registerDesignSystemBlocks(editor);
+  /** Last wins first in Grapes’ `componentTypes` stack — anchor after button (both before `default`). */
+  registerComponentBtnDomType(editor);
+  registerComponentBtnAnchorDomType(editor);
   expandBlockManagerCategories(editor);
+  const runNormalize = () => normalizeMisclassifiedComponentButtons(editor);
+  editor.on('load', () => {
+    queueMicrotask(runNormalize);
+    window.setTimeout(runNormalize, 240);
+  });
+  editor.on('project:loaded', () => {
+    queueMicrotask(runNormalize);
+    window.setTimeout(runNormalize, 320);
+  });
+  editor.on('component:add', () => {
+    queueMicrotask(runNormalize);
+  });
 }

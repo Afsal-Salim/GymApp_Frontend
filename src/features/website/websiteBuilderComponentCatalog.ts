@@ -80,6 +80,13 @@ export type ComponentLibraryPreviewKind =
 /** Design-system section previews lay out at this width, then scale down to the iframe (avoids mobile breakpoints). */
 export const WB_LIB_DS_SECTION_PREVIEW_WIDTH = 1200;
 
+/**
+ * Marketing / modal / form block previews in the sidebar + library cards. The iframe slot is narrow;
+ * without a desktop artboard, `width=device-width` makes `@media (max-width: 767px)` fire and tiles
+ * look like tall “phone strips”. Lay out at this width, then `applyLibraryPreviewFit` scales to fit.
+ */
+export const WB_LIB_BLOCK_PREVIEW_ARTBOARD_WIDTH = 960;
+
 export type ComponentCatalogEntry = {
   blockId: string;
   title: string;
@@ -408,11 +415,12 @@ export function getBlockHtmlString(editor: Editor, blockId: string): string {
 export function buildComponentPreviewSrcDoc(editor: Editor, blockId: string): string {
   const html = getBlockHtmlString(editor, blockId);
   if (!html) return '';
+  const artboard = WB_LIB_BLOCK_PREVIEW_ARTBOARD_WIDTH;
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=${artboard}, initial-scale=1, maximum-scale=1" />
     ${previewBaseTag()}
     <style>
       ${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}
@@ -437,7 +445,6 @@ export function buildComponentPreviewSrcDoc(editor: Editor, blockId: string): st
       }
       .wb-lib-preview-root {
         box-sizing: border-box;
-        max-width: 100%;
         transform-origin: center center;
         will-change: transform;
       }
@@ -446,6 +453,14 @@ export function buildComponentPreviewSrcDoc(editor: Editor, blockId: string): st
       ${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}
       ${WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS}
       ${WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS}
+      /* After template CSS: emulate desktop width inside the narrow iframe (must beat .wb-template-root width:100%). */
+      .wb-lib-preview-stage .wb-lib-preview-root.wb-template-root {
+        width: ${artboard}px !important;
+        min-width: ${artboard}px !important;
+        max-width: ${artboard}px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
     </style>
   </head>
   <body>
