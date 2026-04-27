@@ -1917,10 +1917,23 @@ function DesignPanel({
   );
 }
 
+function resolveHeroInnerEl(root: NonNullable<ReturnType<Editor['getSelected']>>) {
+  const inner = findOne(root, '.wb-hero-premium__inner');
+  if (inner) return inner;
+  const comps = root.components?.();
+  if (!comps || typeof comps.length !== 'number') return undefined;
+  for (let i = 0; i < comps.length; i += 1) {
+    const ch = comps.at(i);
+    if (ch && String(ch.get('tagName') ?? '').toLowerCase() === 'div') return ch;
+  }
+  return undefined;
+}
+
 function HeroDesign({ root }: { root: NonNullable<ReturnType<Editor['getSelected']>> }) {
   const [layoutWidth, setLayoutWidth] = useState('Contained');
   const [vAlign, setVAlign] = useState<'start' | 'center' | 'end'>('center');
-  const [contentPos, setContentPos] = useState('Left');
+  /** Matches centered scratch hero; uses text-align + full-width inner so preview matches editor. */
+  const [contentPos, setContentPos] = useState('Center');
   const [minH, setMinH] = useState(80);
   const [minUnit, setMinUnit] = useState<'vh' | 'px'>('vh');
   const [gap, setGap] = useState('Default');
@@ -1974,30 +1987,66 @@ function HeroDesign({ root }: { root: NonNullable<ReturnType<Editor['getSelected
   );
 
   useEffect(() => {
+    const textAlign = contentPos === 'Right' ? 'right' : contentPos === 'Center' ? 'center' : 'left';
     applyRootStyle({
       'min-height': `${minH}${minUnit}`,
       display: 'flex',
       'flex-direction': 'column',
       'justify-content': vAlign === 'start' ? 'flex-start' : vAlign === 'end' ? 'flex-end' : 'center',
-      'align-items': contentPos === 'Right' ? 'flex-end' : contentPos === 'Center' ? 'center' : 'flex-start',
+      'align-items': 'stretch',
+      'text-align': textAlign,
     });
   }, [applyRootStyle, minH, minUnit, vAlign, contentPos]);
 
   useEffect(() => {
+    const inner = resolveHeroInnerEl(root);
+    if (!inner) return;
+    const prev = inner.getStyle?.() ?? {};
+    if (layoutWidth === 'Full width') {
+      inner.setStyle({
+        ...prev,
+        width: '100%',
+        'max-width': 'none',
+        'margin-left': '0',
+        'margin-right': '0',
+        'box-sizing': 'border-box',
+      });
+    } else {
+      inner.setStyle({
+        ...prev,
+        width: '100%',
+        'max-width': '42rem',
+        'margin-left': 'auto',
+        'margin-right': 'auto',
+        'box-sizing': 'border-box',
+      });
+    }
+  }, [root, layoutWidth]);
+
+  const hRem = (hSize / 16).toFixed(2);
+  const pRem = (pSize / 16).toFixed(2);
+  const btnRadiusRem = (btnRadius / 16).toFixed(3);
+
+  useEffect(() => {
+    const cap = (hSize / 16).toFixed(2);
     applyHeadingStyle({
       'font-family': `${hFont}, system-ui, sans-serif`,
       'font-weight': hWeight,
-      'font-size': `${hSize}px`,
+      'font-size': `clamp(1.35rem, 2.5vw + 0.75rem, ${cap}rem)`,
       'line-height': String(hLh),
     });
   }, [applyHeadingStyle, hFont, hWeight, hSize, hLh]);
 
   useEffect(() => {
+    const cap = (pSize / 16).toFixed(2);
     applySubStyle({
       'font-family': `${pFont}, system-ui, sans-serif`,
       'font-weight': pWeight,
-      'font-size': `${pSize}px`,
+      'font-size': `clamp(0.9rem, 1.2vw + 0.65rem, ${cap}rem)`,
       'line-height': String(pLh),
+      'max-width': 'min(36rem, 92%)',
+      'margin-left': 'auto',
+      'margin-right': 'auto',
     });
   }, [applySubStyle, pFont, pWeight, pSize, pLh]);
 
@@ -2005,8 +2054,9 @@ function HeroDesign({ root }: { root: NonNullable<ReturnType<Editor['getSelected
     const border =
       btnStyle === 'Outline' ? '2px solid rgba(255,255,255,0.9)' : btnStyle === 'Solid' ? '2px solid transparent' : '0';
     const bg = btnStyle === 'Solid' ? 'rgba(255,255,255,0.15)' : 'transparent';
+    const r = (btnRadius / 16).toFixed(3);
     applyLinkStyle({
-      'border-radius': `${btnRadius}px`,
+      'border-radius': `${r}rem`,
       border,
       background: bg,
     });
@@ -2112,7 +2162,7 @@ function HeroDesign({ root }: { root: NonNullable<ReturnType<Editor['getSelected
           </div>
           <div className="website-builder-page__range-row">
             <input type="range" min={24} max={96} value={hSize} className="website-builder-page__range" onChange={(e) => setHSize(Number(e.target.value))} />
-            <span className="website-builder-page__range-value">{hSize}px</span>
+            <span className="website-builder-page__range-value">{hRem}rem</span>
           </div>
         </div>
         <div className="website-builder-page__form-block">
@@ -2138,7 +2188,7 @@ function HeroDesign({ root }: { root: NonNullable<ReturnType<Editor['getSelected
         <div className="website-builder-page__form-block">
           <div className="website-builder-page__range-row">
             <input type="range" min={12} max={32} value={pSize} className="website-builder-page__range" onChange={(e) => setPSize(Number(e.target.value))} />
-            <span className="website-builder-page__range-value">{pSize}px</span>
+            <span className="website-builder-page__range-value">{pRem}rem</span>
           </div>
         </div>
         <div className="website-builder-page__form-block">
@@ -2161,7 +2211,7 @@ function HeroDesign({ root }: { root: NonNullable<ReturnType<Editor['getSelected
           <label className="website-builder-page__field-label">Border Radius</label>
           <div className="website-builder-page__range-row">
             <input type="range" min={0} max={32} value={btnRadius} className="website-builder-page__range" onChange={(e) => setBtnRadius(Number(e.target.value))} />
-            <span className="website-builder-page__range-value">{btnRadius}px</span>
+            <span className="website-builder-page__range-value">{btnRadiusRem}rem</span>
           </div>
         </div>
       </details>

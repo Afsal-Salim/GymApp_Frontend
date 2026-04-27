@@ -20,20 +20,20 @@ const WB_CANVAS_INJECTED_LIBRARY_ID = 'wb-canvas-injected-component-library';
 const WB_SKIP_OWN_BG_SHORTHAND = ':not([style*="background:"]):not([style*="Background:"])';
 
 const WB_CANVAS_COMPONENT_BTN_COERCION = `
-button.component-btn${WB_SKIP_OWN_BG_SHORTHAND},
-a.component-btn${WB_SKIP_OWN_BG_SHORTHAND} {
+button.component-btn:not(.wb-wa-btn)${WB_SKIP_OWN_BG_SHORTHAND},
+a.component-btn:not(.wb-wa-btn)${WB_SKIP_OWN_BG_SHORTHAND} {
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 42%, #4f46e5 100%) !important;
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.32), 0 1px 0 rgba(255, 255, 255, 0.18) inset !important;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
-button.component-btn:hover,
-a.component-btn:hover {
+button.component-btn:not(.wb-wa-btn):hover,
+a.component-btn:not(.wb-wa-btn):hover {
   box-shadow: 0 10px 28px rgba(37, 99, 235, 0.42), 0 1px 0 rgba(255, 255, 255, 0.22) inset !important;
   filter: brightness(1.04) !important;
 }
-button.component-btn:active,
-a.component-btn:active {
+button.component-btn:not(.wb-wa-btn):active,
+a.component-btn:not(.wb-wa-btn):active {
   filter: brightness(0.97) !important;
 }
 
@@ -86,18 +86,6 @@ a.component-btn[href^='mailto:']${WB_SKIP_OWN_BG_SHORTHAND} {
 }
 a.component-btn[href^='mailto:']:hover {
   box-shadow: 0 10px 30px rgba(99, 102, 241, 0.45), 0 1px 0 rgba(255, 255, 255, 0.22) inset !important;
-}
-
-a.component-btn.wb-wa-btn${WB_SKIP_OWN_BG_SHORTHAND},
-button.component-btn.wb-wa-btn${WB_SKIP_OWN_BG_SHORTHAND} {
-  background: linear-gradient(135deg, #047857 0%, #059669 35%, #10b981 72%, #34d399 100%) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.42), 0 1px 0 rgba(255, 255, 255, 0.22) inset !important;
-}
-a.component-btn.wb-wa-btn:hover,
-button.component-btn.wb-wa-btn:hover {
-  box-shadow: 0 10px 32px rgba(52, 211, 153, 0.45), 0 1px 0 rgba(255, 255, 255, 0.26) inset !important;
-  filter: brightness(1.05) !important;
 }
 
 .wb-enquiry-slide .component-btn.wb-enquiry-slide__toggle${WB_SKIP_OWN_BG_SHORTHAND} {

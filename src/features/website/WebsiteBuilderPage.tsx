@@ -51,6 +51,7 @@ import { registerWebsiteBuilderLayerGroup } from './websiteBuilderLayerGroup';
 import { readCrystalWebsitePreviewFromStorage } from './setup/createWebsiteFormState';
 import {
   WEBSITE_BUILDER_ANIMATION_CSS,
+  WEBSITE_BUILDER_CANVAS_DOCUMENT_SHELL_CSS,
   WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS,
   WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS,
   WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
@@ -76,6 +77,7 @@ import {
 } from './websiteBuilderComponentCatalog';
 import { attachCanvasBlockPaletteDrop } from './websiteBuilderCanvasBlockPaletteDrop';
 import { WebsiteBuilderComponentsLibrary } from './WebsiteBuilderComponentsLibrary';
+import { attachWebsiteBuilderCanvasAutoFit, runCanvasAutoFit } from './websiteBuilderCanvasAutoFit';
 import { attachCanvasClipboardPaste } from './websiteBuilderCanvasClipboardPaste';
 import { attachCanvasLayerOrderContextMenu, resolveComponentFromPointer } from './websiteBuilderCanvasContextMenu';
 import { attachCanvasMarqueeSelect } from './websiteBuilderCanvasMarqueeSelect';
@@ -337,7 +339,7 @@ function collectCanvasFrameDocs(editor: Editor): Document[] {
   return [...byRef.keys()];
 }
 
-/** Run page/custom button navigation from the host window (outside iframe sandbox) to avoid about:blank#blocked. */
+/** In builder mode, block in-canvas CTA/navigation actions so editing doesn't trigger runtime behavior. */
 function attachCanvasTopNavigationBridge(editor: Editor): () => void {
   const offs: Array<() => void> = [];
   const docOpts: AddEventListenerOptions = { capture: true, passive: false };
@@ -511,16 +513,9 @@ function attachCanvasTopNavigationBridge(editor: Editor): () => void {
       return;
     }
     if (nav.reason) {
-      if (isHashReason(nav.reason)) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        const doc =
-          e.currentTarget instanceof Document ? e.currentTarget
-          : e.currentTarget instanceof Window ? e.currentTarget.document
-          : null;
-        if (doc) scrollToHashInFrame(doc, nav.url);
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
       dbg('skip: bypassed url', {
         target: t.tagName,
         tag: nav.el.tagName,
@@ -531,24 +526,18 @@ function attachCanvasTopNavigationBridge(editor: Editor): () => void {
       });
       return;
     }
+
     const el = nav.el;
     const url = nav.url;
-    const wbOpen = (el.getAttribute('data-wb-open') ?? '').trim().toLowerCase();
-    dbg('intercept: navigating from host', {
-      tag: el.tagName,
-      href: el.getAttribute('href'),
-      onclick: el.getAttribute('onclick'),
-      wbOpen,
-      resolvedUrl: url,
-    });
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    const navUrl = toFrameNavigationUrl(url);
-    const ok = navigateInCanvasFrame(e, navUrl);
-    dbg(ok ? 'navigate: loaded url in canvas iframe' : 'navigate: failed to load in canvas iframe', {
+
+    dbg('blocked: in-canvas interaction disabled', {
+      tag: el.tagName,
+      href: el.getAttribute('href'),
+      onclick: el.getAttribute('onclick'),
       resolvedUrl: url,
-      frameUrl: navUrl,
     });
   };
 
@@ -931,6 +920,8 @@ export default function WebsiteBuilderPage() {
     startW: number;
     startH: number;
   } | null>(null);
+  /** Debounced fit from {@link attachWebsiteBuilderCanvasAutoFit} — used by ResizeObserver on the canvas slot. */
+  const canvasAutoFitDebouncedRef = useRef<(() => void) | null>(null);
 
   const routeSlug = useMemo(() => {
     const raw = params.slug;
@@ -1064,6 +1055,8 @@ export default function WebsiteBuilderPage() {
       queueMicrotask(() => {
         try {
           editorRef.current?.refresh?.();
+          const ed = editorRef.current;
+          if (ed) runCanvasAutoFit(ed);
         } catch {
           /* ignore */
         }
@@ -1076,6 +1069,21 @@ export default function WebsiteBuilderPage() {
       window.removeEventListener('mouseup', onUp);
     };
   }, []);
+
+  /** Refit zoom when the canvas column is resized so the whole page stays in view at any sidebar/window width. */
+  useEffect(() => {
+    if (!editorInstance) return;
+    const slot = canvasSectionRef.current;
+    if (!slot) return;
+    const ro = new ResizeObserver(() => {
+      canvasAutoFitDebouncedRef.current?.();
+    });
+    ro.observe(slot);
+    queueMicrotask(() => {
+      canvasAutoFitDebouncedRef.current?.();
+    });
+    return () => ro.disconnect();
+  }, [editorInstance, leftW, rightW, leftCollapsed, rightCollapsed, canvasDims]);
 
   useEffect(() => {
     const releaseOurPointerCapture = () => {
@@ -1274,6 +1282,8 @@ export default function WebsiteBuilderPage() {
         ],
       },
       panels: { defaults: [] },
+      /** Allow panning when zoom is below 100% after fit-to-view. */
+      canvas: { scrollableCanvas: true },
     });
 
     editorRef.current = editor;
@@ -1322,6 +1332,8 @@ export default function WebsiteBuilderPage() {
     const detachCanvasTopNavBridge = attachCanvasTopNavigationBridge(editor);
     const detachCanvasComponentAnimations = attachCanvasComponentAnimations(editor);
     const detachInjectedLibraryCss = attachCanvasInjectedComponentLibraryCss(editor);
+    const canvasAutoFit = attachWebsiteBuilderCanvasAutoFit(editor);
+    canvasAutoFitDebouncedRef.current = canvasAutoFit.debouncedFit;
     const onEditorLoadCssBaseline = () => {
       if (resolved.kind === 'project') ensureCanvasCssBaselineInComposer(editor);
     };
@@ -1450,6 +1462,8 @@ export default function WebsiteBuilderPage() {
       detachCanvasTopNavBridge();
       detachCanvasComponentAnimations();
       detachInjectedLibraryCss();
+      canvasAutoFitDebouncedRef.current = null;
+      canvasAutoFit.detach();
       try {
         editor.off('load', onEditorLoadCssBaseline);
       } catch {
@@ -1673,6 +1687,7 @@ ${html}
   <title>Website preview</title>
   <style>
 ${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}
+${WEBSITE_BUILDER_CANVAS_DOCUMENT_SHELL_CSS}
 ${WEBSITE_BUILDER_ANIMATION_CSS}
 ${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}
 ${WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS}
@@ -1984,6 +1999,8 @@ ${html}
         const b = el.getBoundingClientRect();
         setCanvasDimsLabel(`${Math.round(b.width)} × ${Math.round(b.height)}`);
       }
+      const ed = editorRef.current;
+      if (ed) runCanvasAutoFit(ed);
     });
   }, []);
 
@@ -2003,6 +2020,13 @@ ${html}
       } catch {
         /* ignore */
       }
+      queueMicrotask(() => {
+        try {
+          runCanvasAutoFit(ed);
+        } catch {
+          /* ignore */
+        }
+      });
     });
   }, []);
 
@@ -2529,6 +2553,8 @@ ${html}
                       e.preventDefault();
                       resetCanvasSize();
                       editorRef.current?.refresh?.();
+                      const ed = editorRef.current;
+                      if (ed) queueMicrotask(() => runCanvasAutoFit(ed));
                     }}
                   >
                     {canvasDimsLabel}

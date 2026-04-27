@@ -1,3 +1,9 @@
+/**
+ * Grapes “Desktop” iframe width: matches a typical laptop viewport so centered max-width sections
+ * show the same side gutters as `/preview` and the in-app preview tab (canvas was ~900–1100px before).
+ */
+export const WEBSITE_BUILDER_EDITOR_DESKTOP_FRAME_WIDTH_PX = 1440;
+
 /** Shared animation utilities + primary CTA style for GrapesJS blocks (injected into canvas CSS). */
 export const WEBSITE_BUILDER_ANIMATION_CSS = `
 .wb-fade-up { animation: wbFadeUp 0.88s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -297,6 +303,8 @@ a.component-btn[href^='mailto:']:hover {
   box-shadow: 0 10px 30px rgba(99, 102, 241, 0.45), 0 1px 0 rgba(255, 255, 255, 0.22) inset;
 }
 
+a.wb-wa-btn,
+button.wb-wa-btn,
 a.component-btn.wb-wa-btn,
 button.component-btn.wb-wa-btn {
   color: #ecfdf5;
@@ -304,6 +312,8 @@ button.component-btn.wb-wa-btn {
   border-color: rgba(255, 255, 255, 0.18);
   box-shadow: 0 4px 18px rgba(16, 185, 129, 0.42), 0 1px 0 rgba(255, 255, 255, 0.22) inset;
 }
+a.wb-wa-btn:hover,
+button.wb-wa-btn:hover,
 a.component-btn.wb-wa-btn:hover,
 button.component-btn.wb-wa-btn:hover {
   box-shadow: 0 10px 32px rgba(52, 211, 153, 0.45), 0 1px 0 rgba(255, 255, 255, 0.26) inset;
@@ -566,6 +576,7 @@ export const WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS = `
 .wb-wa-btn .wb-wa-ico {
   flex-shrink: 0;
   display: block;
+  
 }
 
 .wb-wa-float {
