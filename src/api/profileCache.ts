@@ -1,4 +1,4 @@
-import { STORAGE_USER_PROFILE_CACHE } from '../config/storageKeys';
+import { STORAGE_USER_PROFILE_CACHE } from '@/config/storageKeys';
 import type { LoginResponse, UserProfile } from './auth';
 import { getProfile } from './auth';
 import { getAccessToken } from './tokens';

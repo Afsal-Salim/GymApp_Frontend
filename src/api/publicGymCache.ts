@@ -1,4 +1,4 @@
-import { STORAGE_PUBLIC_GYM_BUNDLE_CACHE } from '../config/storageKeys';
+import { STORAGE_PUBLIC_GYM_BUNDLE_CACHE } from '@/config/storageKeys';
 import type { ActiveSubscriptionResponse, PublicBusinessDetail } from './businesses';
 import {
   clearPublicBusinessBySlugRuntimeMemo,

@@ -1,4 +1,4 @@
-import NotFoundPage from '@/features/NotFound';
+import NotFoundPage from '@/features/NotFound/NotFound';
 
 export const revalidate = 3600;
 

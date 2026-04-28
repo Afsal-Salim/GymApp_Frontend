@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { apiBaseUrl } from '../config/env';
+import { apiBaseUrl } from '@/config/env';
 import { privateApi } from './interceptor';
 import { publicApi } from './http/publicApi';
 import { getAxiosErrorMessage } from './http/axiosErrorMessage';

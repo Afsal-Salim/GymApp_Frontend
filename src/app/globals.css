@@ -1,7 +1,7 @@
 @import '../styles/base.css';
 /* Same full-viewport gradient + Crystal mark as profile / route transition (`RouteTransitionLoader`). */
-@import '../layouts/RouteTransitionLoader.css';
-@import '../features/crystal/CrystalClientLogoLoader.css';
+@import '../layouts/RouteTransitionLoader/RouteTransitionLoader.css';
+@import '../features/crystal/CrystalClientLogoLoader/CrystalClientLogoLoader.css';
 
 /* First-paint home loader (`HomeInitialLoaderSsr`) — exit class used by `HomeInitialLoaderClient`. */
 .home-initial-loader-ssr.route-transition-loader {

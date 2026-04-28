@@ -3,15 +3,15 @@ import {
   DESIGN_SYSTEM_SETS,
   getDesignSystemTemplatePayloadForBuilder,
   type DesignSystemSetId,
-} from '@/features/website/websiteBuilderDesignSystemBlocks';
+} from '@/features/website/websiteBuilderDesignSystemBlocks/websiteBuilderDesignSystemBlocks';
 import {
   WEBSITE_BUILDER_ANIMATION_CSS,
   WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS,
   WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS,
   WEBSITE_BUILDER_TEMPLATE_RESPONSIVE_CSS,
-} from '@/features/website/websiteBuilderConstants';
-import { WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_STYLESHEET_HREF } from '@/features/website/websiteBuilderDesignSystemFonts';
-import { WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS } from '@/features/website/websiteBuilderDesignSystems.css';
+} from '@/features/website/websiteBuilderConstants/websiteBuilderConstants';
+import { WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_STYLESHEET_HREF } from '@/features/website/websiteBuilderDesignSystemFonts/websiteBuilderDesignSystemFonts';
+import { WEBSITE_BUILDER_DESIGN_SYSTEMS_CSS } from '@/features/website/websiteBuilderDesignSystems.css/websiteBuilderDesignSystems.css';
 
 /**
  * Read-only full-page preview for a design system (used by template picker iframes).

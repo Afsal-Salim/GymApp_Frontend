@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { CrystalWebsiteSetupPayload } from '../features/crystal/gymClientSiteContent';
+import type { CrystalWebsiteSetupPayload } from '@/features/crystal/gymClientSiteContent/gymClientSiteContent';
 import type { BusinessLogoPayload } from './businessLogo';
 import { privateApi } from './interceptor';
 import { getAxiosErrorMessage, isAxiosOrAbortCanceled } from './http/axiosErrorMessage';

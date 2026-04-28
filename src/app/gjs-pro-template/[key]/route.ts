@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
-import { PRO_WEBSITE_TEMPLATE_KEYS } from '@/features/crystal/gymClientSiteContent';
+import { PRO_WEBSITE_TEMPLATE_KEYS } from '@/features/crystal/gymClientSiteContent/gymClientSiteContent';
 import {
   DESIGN_SYSTEM_SETS,
   getDesignSystemTemplatePayloadForBuilder,
   type DesignSystemSetId,
-} from '@/features/website/websiteBuilderDesignSystemBlocks';
+} from '@/features/website/websiteBuilderDesignSystemBlocks/websiteBuilderDesignSystemBlocks';
 
 const TEMPLATES_DIR = path.join(process.cwd(), 'src/assets/templates');
 

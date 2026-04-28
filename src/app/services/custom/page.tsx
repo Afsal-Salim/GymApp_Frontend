@@ -1,4 +1,4 @@
-import ServiceEnquiryPage from '@/features/services/ServiceEnquiryPage';
+import ServiceEnquiryPage from '@/features/services/ServiceEnquiryPage/ServiceEnquiryPage';
 
 export const revalidate = 3600;
 

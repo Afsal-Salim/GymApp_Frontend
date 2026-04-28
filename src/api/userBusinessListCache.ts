@@ -1,4 +1,4 @@
-import { STORAGE_USER_BUSINESS_LIST_CACHE } from '../config/storageKeys';
+import { STORAGE_USER_BUSINESS_LIST_CACHE } from '@/config/storageKeys';
 import type { BusinessDetail, BusinessListPaginatedResponse } from './businesses';
 import { getBusinessListPaginated } from './businesses';
 import { getAccessToken } from './tokens';

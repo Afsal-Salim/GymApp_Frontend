@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Navbar, Footer } from '@/components';
+import { Navbar, Footer } from '@/components/index/index';
 import { getPublicGymSlugFromHost, MARKETING_APP_PATH_FIRST_SEGMENTS } from '@/config/env';
-import { PageTransitionBar } from '@/layouts/PageTransitionBar';
-import { RouteTransitionLoader } from '@/layouts/RouteTransitionLoader';
+import { PageTransitionBar } from '@/layouts/PageTransitionBar/PageTransitionBar';
+import { RouteTransitionLoader } from '@/layouts/RouteTransitionLoader/RouteTransitionLoader';
 import MarketingRoutePrefetcher from '@/app/_components/MarketingRoutePrefetcher';
-import '@/layouts/MainLayout.css';
+import '@/layouts/MainLayout/MainLayout.css';
 
 /** Overlay duration — long enough to cover slow dev compiles and dynamic route RSC. */
 const ROUTE_TRANSITION_OVERLAY_MS = 2800;

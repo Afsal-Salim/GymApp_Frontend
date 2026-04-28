@@ -1,4 +1,4 @@
-import { HOME_PAGE_FAQ } from '@/features/home/homeFaq';
+import { HOME_PAGE_FAQ } from '@/features/home/homeFaq/homeFaq';
 import { getMarketingSiteOrigin } from '@/lib/siteUrl';
 
 const ORG_ID = '#organization';

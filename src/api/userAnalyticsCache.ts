@@ -1,4 +1,4 @@
-import { STORAGE_USER_ANALYTICS_CACHE } from '../config/storageKeys';
+import { STORAGE_USER_ANALYTICS_CACHE } from '@/config/storageKeys';
 import type { AnalyticsRangePreset, WebsiteAnalytics } from './businesses';
 import { getAllWebsitesAnalytics, getBusinessWebsiteAnalytics } from './businesses';
 import { getAccessToken } from './tokens';

@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
-const SelectWebsiteTemplatePage = dynamic(() => import('@/features/website/SelectWebsiteTemplatePage'), {
+const SelectWebsiteTemplatePage = dynamic(() => import('@/features/website/pages/select-template/SelectWebsiteTemplatePage/SelectWebsiteTemplatePage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

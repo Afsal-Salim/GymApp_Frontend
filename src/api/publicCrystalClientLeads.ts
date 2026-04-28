@@ -4,7 +4,7 @@
  * Backend contract: `POST {apiBaseUrl}/businesses/public/{slug}/crystal-leads/` with JSON body
  * (`lead_type`: join_now | book_free_trial | plan_visit | whatsapp_click, etc.).
  */
-import { apiBaseUrl } from '../config/env';
+import { apiBaseUrl } from '@/config/env';
 import { getAxiosErrorMessage } from './http/axiosErrorMessage';
 import { publicApi } from './http/publicApi';
 

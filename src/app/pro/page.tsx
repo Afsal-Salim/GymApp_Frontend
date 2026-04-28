@@ -3,7 +3,7 @@ import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
 
 export const revalidate = 3600;
 
-const PaymentPage = dynamic(() => import('@/features/payment/PaymentPage'), {
+const PaymentPage = dynamic(() => import('@/features/payment/PaymentPage/PaymentPage'), {
   loading: () => <RouteSegmentLoading />,
 });
 

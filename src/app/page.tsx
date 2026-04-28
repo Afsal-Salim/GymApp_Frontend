@@ -3,7 +3,7 @@ import { Sora } from 'next/font/google';
 import HomeInitialLoaderClient from '@/app/_components/HomeInitialLoaderClient';
 import HomeInitialLoaderSsr from '@/app/_components/HomeInitialLoaderSsr';
 import HomeLandingJsonLd from '@/app/_components/HomeLandingJsonLd';
-import HomePage from '@/features/home/HomePage';
+import HomePage from '@/features/home/HomePage/HomePage';
 import { getMarketingSiteOrigin } from '@/lib/siteUrl';
 
 const sora = Sora({

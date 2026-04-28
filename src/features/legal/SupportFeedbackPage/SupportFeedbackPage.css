@@ -1,0 +1,5 @@
+/* Used in support history item body text to preserve user-entered line breaks/messages. */
+.support-feedback-page__history-message {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

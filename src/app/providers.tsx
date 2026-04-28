@@ -1,7 +1,7 @@
 'use client';
 
-import { ToastProvider } from '@/contexts/ToastContext';
-import { EnquiryModalProvider } from '@/contexts/EnquiryModalContext';
+import { ToastProvider } from '@/contexts/ToastContext/ToastContext';
+import { EnquiryModalProvider } from '@/contexts/EnquiryModalContext/EnquiryModalContext';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (

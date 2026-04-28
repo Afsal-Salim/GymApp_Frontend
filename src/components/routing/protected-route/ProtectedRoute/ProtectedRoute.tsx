@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { getAccessToken } from '../../../../api';
+import { getAccessToken } from '@/api';
 
 /**
  * Protects routes that require authentication.

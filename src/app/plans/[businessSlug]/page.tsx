@@ -1,4 +1,4 @@
-import PlansPage from '@/features/plans/PlansPage';
+import PlansPage from '@/features/plans/PlansPage/PlansPage';
 import { fetchPlanListForServer } from '@/lib/plansServer';
 
 export const revalidate = 60;

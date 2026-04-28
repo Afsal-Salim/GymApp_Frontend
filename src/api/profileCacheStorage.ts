@@ -1,7 +1,7 @@
 /**
  * Writes `/auth/me`-shaped profile JSON without importing `auth` or `protectedApi` (avoids circular deps).
  */
-import { STORAGE_USER_PROFILE_CACHE } from '../config/storageKeys';
+import { STORAGE_USER_PROFILE_CACHE } from '@/config/storageKeys';
 import { getAccessToken } from './tokens';
 
 export function primeProfileCache(data: object): void {

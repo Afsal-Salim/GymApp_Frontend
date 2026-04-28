@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import PrivacyPolicyPage from '@/features/legal/PrivacyPolicyPage';
+import PrivacyPolicyPage from '@/features/legal/PrivacyPolicyPage/PrivacyPolicyPage';
 
 export const revalidate = 3600;
 

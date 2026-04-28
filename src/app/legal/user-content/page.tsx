@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import UserContentPolicyPage from '@/features/legal/UserContentPolicyPage';
+import UserContentPolicyPage from '@/features/legal/UserContentPolicyPage/UserContentPolicyPage';
 
 export const revalidate = 3600;
 

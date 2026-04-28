@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { apiBaseUrl } from '../../config/env';
+import { apiBaseUrl } from '@/config/env';
 
 /**
  * **Public API layer** — no `Authorization` header, no token refresh.

@@ -3,7 +3,7 @@
  * Use for owner/dashboard calls: businesses CRUD, payments, `/auth/me/`, etc.
  */
 import axios, { type InternalAxiosRequestConfig } from 'axios';
-import { apiBaseUrl, authRefreshPath } from '../../config/env';
+import { apiBaseUrl, authRefreshPath } from '@/config/env';
 import { primeProfileCache } from '../profileCacheStorage';
 import {
   getAccessToken,

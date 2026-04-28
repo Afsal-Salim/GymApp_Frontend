@@ -1,0 +1,5 @@
+/* Used by legal page wrappers (`UserContentPolicyPage`, `PrivacyPolicyPage`, `SupportFeedbackPage`) to cap readable line length. */
+.user-content-policy-page__inner {
+  max-width: 42rem;
+  margin: 0 auto;
+}

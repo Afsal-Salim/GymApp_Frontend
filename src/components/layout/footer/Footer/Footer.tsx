@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Container, Row, Col } from 'react-bootstrap';
-import { useEnquiryModal } from '../../../../contexts/EnquiryModalContext';
+import { useEnquiryModal } from '@/contexts/EnquiryModalContext/EnquiryModalContext';
 import './Footer.css';
 
 const HOME_PATH = '/';

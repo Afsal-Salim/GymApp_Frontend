@@ -2,7 +2,7 @@
 
 import { Modal, Button } from 'react-bootstrap';
 import { useRouter } from 'next/navigation';
-import { SESSION_PAYMENT_CHECKOUT_DRAFT } from '../../../../config/storageKeys';
+import { SESSION_PAYMENT_CHECKOUT_DRAFT } from '@/config/storageKeys';
 import './PaymentLoginRequiredModal.css';
 
 export type CheckoutRedirect = {

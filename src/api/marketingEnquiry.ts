@@ -1,6 +1,6 @@
 import { getAxiosErrorMessage } from './http/axiosErrorMessage';
 import { publicApi } from './http/publicApi';
-import { marketingEnquiryPath } from '../config/env';
+import { marketingEnquiryPath } from '@/config/env';
 
 export type SubmitMarketingEnquiryPayload = {
   name: string;

@@ -6,7 +6,7 @@ import {
   STORAGE_USER_BUSINESS_LIST_CACHE,
   STORAGE_USER_ANALYTICS_CACHE,
   STORAGE_USER_USERNAME,
-} from '../config/storageKeys';
+} from '@/config/storageKeys';
 
 /** Fired on same-tab login / logout / token refresh so the navbar can update without a full reload. */
 export const CRYSTAL_AUTH_CHANGED_EVENT = 'crystal-auth-changed';

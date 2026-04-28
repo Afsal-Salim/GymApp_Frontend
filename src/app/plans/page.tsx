@@ -1,4 +1,4 @@
-import PlansPage from '@/features/plans/PlansPage';
+import PlansPage from '@/features/plans/PlansPage/PlansPage';
 import { fetchPlanListForServer } from '@/lib/plansServer';
 
 /** Public plan catalog — refresh periodically to reduce API load (EC2). */

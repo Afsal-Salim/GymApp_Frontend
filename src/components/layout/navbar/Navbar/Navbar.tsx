@@ -8,9 +8,9 @@ import HeadsetMicOutlinedIcon from '@mui/icons-material/HeadsetMicOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import { Container, Nav, Navbar as BSNavbar, Button, Modal } from 'react-bootstrap';
-import { getAccessToken, clearTokens, getUserInfo, CRYSTAL_AUTH_CHANGED_EVENT } from '../../../../api';
-import { STORAGE_ACCESS_TOKEN, STORAGE_USER_AVATAR_URL } from '../../../../config/storageKeys';
-import logo from '../../../../assets/logo.svg';
+import { getAccessToken, clearTokens, getUserInfo, CRYSTAL_AUTH_CHANGED_EVENT } from '@/api';
+import { STORAGE_ACCESS_TOKEN, STORAGE_USER_AVATAR_URL } from '@/config/storageKeys';
+import logo from '@/assets/logo.svg';
 import './Navbar.css';
 
 const navHashItems = [
