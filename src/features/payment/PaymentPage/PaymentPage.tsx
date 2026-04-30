@@ -31,21 +31,19 @@ type PlanDetailsFallback = {
 };
 
 const FALLBACK_PLANS: Record<string, PlanDetailsFallback> = {
-  starter: {
-    name: 'Starter',
-    price: '₹299',
-    period: ' / 28 days',
-    currency: 'INR',
-    listPriceFormatted: '₹499',
-    firstActivationFormatted: '₹299',
+  base: {
+    name: 'Base',
+    price: '$499',
+    period: ' / month',
+    currency: 'USD',
+    listPriceFormatted: '$499',
+    firstActivationFormatted: null,
   },
-  pro: { name: 'Pro', price: '₹999', period: ' / 28 days', currency: 'INR' },
 };
 
 /** Map plan slug to backend plan_id (adjust if your API uses different ids) */
 const PLAN_SLUG_TO_ID: Record<string, number> = {
-  starter: 1,
-  pro: 2,
+  base: 1,
 };
 
 const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -87,7 +85,7 @@ function loadRazorpayScript(): Promise<void> {
 }
 
 type PaymentPageProps = {
-  plan: 'starter' | 'pro';
+  plan: 'base';
 };
 
 type PaymentCheckoutDraft = {

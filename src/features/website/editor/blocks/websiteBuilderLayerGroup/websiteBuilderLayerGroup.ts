@@ -46,10 +46,10 @@ function patchDefaultToolbarItemTitles(comp: Component) {
       hint = 'Lift out — parent no longer moves this block with it';
       shortLabel = 'Lift out';
     } else if (cmd === WB_TLB_FRONT) {
-      hint = 'Bring to front — raise z-index when layers overlap (does not reorder page flow)';
+      hint = 'Bring to front — move this layer to top of sibling stack (Canva-like order)';
       shortLabel = 'To front';
     } else if (cmd === WB_TLB_BACK) {
-      hint = 'Send to back — lower z-index when layers overlap (does not reorder page flow)';
+      hint = 'Send to back — move this layer to bottom of sibling stack';
       shortLabel = 'To back';
     } else if (cmd === WB_TLB_GROUP) {
       hint = 'Group — multi-select with Ctrl/Cmd+click, or drag on empty / unselected area to box-select';
@@ -168,47 +168,34 @@ export function minSiblingPaintZ(comp: Component): number {
 }
 
 export function isPaintFrontmost(comp: Component): boolean {
-  return computedStackingZ(comp) > maxSiblingPaintZ(comp);
+  const parent = comp.parent();
+  if (!parent) return true;
+  const len = parentChildCount(parent);
+  return len <= 1 || siblingIndex(comp) >= len - 1;
 }
 
 export function isPaintBackmost(comp: Component): boolean {
-  return computedStackingZ(comp) < minSiblingPaintZ(comp);
+  const parent = comp.parent();
+  if (!parent) return true;
+  return parentChildCount(parent) <= 1 || siblingIndex(comp) <= 0;
 }
 
-/** `z-index` only affects stacking when the element participates in a stacking context (e.g. positioned or transformed). */
-function ensureStackingParticipation(comp: Component): void {
-  try {
-    const el = comp.getEl?.();
-    if (!el) return;
-    const cs = getComputedStyle(el);
-    if (cs.position === 'static' && (cs.transform === 'none' || cs.transform === '')) {
-      comp.addStyle({ position: 'relative' });
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-/** Raise paint order without changing DOM sibling order (no XY layout shift in normal flow). */
+/** Canva-style front: move to the end of sibling stack, then normalize z-indexes. */
 export function bringComponentPaintToFront(comp: Component): void {
   if (!comp || comp.is('wrapper')) return;
   const p = comp.parent();
-  if (!p || p.is('wrapper')) return;
+  if (!p) return;
   if (parentChildCount(p) <= 1) return;
-  const next = maxSiblingPaintZ(comp) + 1;
-  ensureStackingParticipation(comp);
-  comp.addStyle({ zIndex: String(next) });
+  moveToSiblingAt(comp, parentChildCount(p) - 1);
 }
 
-/** Lower paint order without changing DOM sibling order. */
+/** Canva-style back: move to the start of sibling stack, then normalize z-indexes. */
 export function sendComponentPaintToBack(comp: Component): void {
   if (!comp || comp.is('wrapper')) return;
   const p = comp.parent();
-  if (!p || p.is('wrapper')) return;
+  if (!p) return;
   if (parentChildCount(p) <= 1) return;
-  const next = minSiblingPaintZ(comp) - 1;
-  ensureStackingParticipation(comp);
-  comp.addStyle({ zIndex: String(next) });
+  moveToSiblingAt(comp, 0);
 }
 
 export function isWbLayerGroup(comp: Component): boolean {
@@ -433,14 +420,14 @@ function augmentToolbar(editor: Editor, comp: Component) {
       label: icon('arrowUp', '↑'),
       command: WB_TLB_FRONT,
       attributes: {
-        title: 'Bring to front — paint above sibling layers',
+        title: 'Bring to front — move this layer to top of sibling stack',
         'data-wb-toolbar-label': 'To front',
       },
     },
     {
       label: '↓',
       command: WB_TLB_BACK,
-      attributes: { title: 'Send to back — paint below sibling layers', 'data-wb-toolbar-label': 'To back' },
+      attributes: { title: 'Send to back — move this layer to bottom of sibling stack', 'data-wb-toolbar-label': 'To back' },
     },
     {
       label: '⧉',

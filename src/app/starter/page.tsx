@@ -1,12 +1,8 @@
-import dynamic from 'next/dynamic';
-import RouteSegmentLoading from '@/app/_components/RouteSegmentLoading';
+import { redirect } from 'next/navigation';
 
 export const revalidate = 3600;
 
-const PaymentPage = dynamic(() => import('@/features/payment/PaymentPage/PaymentPage'), {
-  loading: () => <RouteSegmentLoading />,
-});
-
-export default function StarterPaymentPage() {
-  return <PaymentPage plan="starter" />;
+/** Legacy checkout URL — use `/base`. */
+export default function StarterCheckoutRedirectPage() {
+  redirect('/base');
 }

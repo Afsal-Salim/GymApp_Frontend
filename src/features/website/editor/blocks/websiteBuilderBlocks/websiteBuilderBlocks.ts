@@ -577,18 +577,44 @@ export function registerSectionBlocks(editor: Editor) {
   });
 
   bm.add('wb-coaches-2', {
-    label: 'Gallery · 2 images',
+    label: 'Gallery · carousel',
     category: 'Sections',
     content: `
-      <section class="wb-add-el wb-fade-up wb-section-shell" style="padding:3.5rem 0; background:var(--bg);">
+      <section id="gallery" class="wb-add-el wb-fade-up wb-section-shell" style="padding:3.5rem 0; background:var(--bg);">
         <div style="text-align:center; max-width:36rem; margin:0 auto 2rem;">
           <span class="component-eyebrow">Visual story</span>
           <h2 style="margin:0; font-size:clamp(1.45rem,3vw,1.8rem); font-weight:800; letter-spacing:-0.03em; color:var(--text);">Inside the training floor</h2>
-          <p style="margin:0.45rem 0 0; font-size:0.9rem; color:var(--muted); line-height:1.55;">Swap placeholders for high-res photography—pair with motion blocks for hover polish.</p>
+          <p style="margin:0.45rem 0 0; font-size:0.9rem; color:var(--muted); line-height:1.55;">Carousel with prev/next—use the inspector to add or remove slides and set each image URL.</p>
         </div>
-        <div class="wb-add-el grid" style="max-width:46rem; margin:0 auto;">
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%23f1f5f9'/%3E%3Cstop offset='1' stop-color='%23e2e8f0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='640' height='420' rx='18'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='system-ui' font-size='15' font-weight='600'%3EReplace · Facility%3C/text%3E%3C/svg%3E" alt="" style="width:100%;height:auto;border-radius:16px;display:block;border:1px solid rgba(148,163,184,0.35);box-shadow:0 10px 30px rgba(15,23,42,0.08);" />
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'%3E%3Cdefs%3E%3ClinearGradient id='h' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop stop-color='%23f8fafc'/%3E%3Cstop offset='1' stop-color='%23e2e8f0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23h)' width='640' height='420' rx='18'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='system-ui' font-size='15' font-weight='600'%3EReplace · Community%3C/text%3E%3C/svg%3E" alt="" style="width:100%;height:auto;border-radius:16px;display:block;border:1px solid rgba(148,163,184,0.35);box-shadow:0 10px 30px rgba(15,23,42,0.08);" />
+        <div class="wb-sys-carousel wb-gallery-carousel" data-wb-gallery-carousel="1" data-wb-ds-gallery="1" data-wb-ds-gallery-autoplay="6400" style="max-width:46rem; margin:0 auto;">
+          <button type="button" class="wb-sys-carousel__btn wb-sys-carousel__btn--prev" aria-label="Previous slide">‹</button>
+          <div class="wb-sys-carousel__viewport">
+            <div class="wb-sys-carousel__track">
+              <figure class="wb-sys-carousel__slide">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%23f1f5f9'/%3E%3Cstop offset='1' stop-color='%23e2e8f0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='640' height='420' rx='18'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='system-ui' font-size='15' font-weight='600'%3EReplace · Facility%3C/text%3E%3C/svg%3E" alt="Facility" style="width:100%;height:auto;border-radius:12px;display:block;border:1px solid rgba(148,163,184,0.35);box-shadow:0 10px 30px rgba(15,23,42,0.08);" />
+                <figcaption style="margin-top:0.45rem;font-size:0.82rem;color:var(--muted);text-align:center;">Facility</figcaption>
+              </figure>
+              <figure class="wb-sys-carousel__slide">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'%3E%3Cdefs%3E%3ClinearGradient id='h' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop stop-color='%23f8fafc'/%3E%3Cstop offset='1' stop-color='%23e2e8f0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23h)' width='640' height='420' rx='18'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='system-ui' font-size='15' font-weight='600'%3EReplace · Community%3C/text%3E%3C/svg%3E" alt="Community" style="width:100%;height:auto;border-radius:12px;display:block;border:1px solid rgba(148,163,184,0.35);box-shadow:0 10px 30px rgba(15,23,42,0.08);" />
+                <figcaption style="margin-top:0.45rem;font-size:0.82rem;color:var(--muted);text-align:center;">Community</figcaption>
+              </figure>
+              <figure class="wb-sys-carousel__slide">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'%3E%3Crect fill='%23f1f5f9' width='640' height='420' rx='18'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='system-ui' font-size='15' font-weight='600'%3EReplace · Training%3C/text%3E%3C/svg%3E" alt="Training" style="width:100%;height:auto;border-radius:12px;display:block;border:1px solid rgba(148,163,184,0.35);box-shadow:0 10px 30px rgba(15,23,42,0.08);" />
+                <figcaption style="margin-top:0.45rem;font-size:0.82rem;color:var(--muted);text-align:center;">Training</figcaption>
+              </figure>
+              <figure class="wb-sys-carousel__slide">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'%3E%3Crect fill='%23f8fafc' width='640' height='420' rx='18'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='system-ui' font-size='15' font-weight='600'%3EReplace · Members%3C/text%3E%3C/svg%3E" alt="Members" style="width:100%;height:auto;border-radius:12px;display:block;border:1px solid rgba(148,163,184,0.35);box-shadow:0 10px 30px rgba(15,23,42,0.08);" />
+                <figcaption style="margin-top:0.45rem;font-size:0.82rem;color:var(--muted);text-align:center;">Members</figcaption>
+              </figure>
+            </div>
+          </div>
+          <button type="button" class="wb-sys-carousel__btn wb-sys-carousel__btn--next" aria-label="Next slide">›</button>
+          <div class="wb-sys-carousel__dots" role="tablist">
+            <button type="button" class="wb-sys-carousel__dot wb-sys-carousel__dot--active" data-wb-ds-dot="0" aria-label="Photo 1 of 4" aria-current="true"></button>
+            <button type="button" class="wb-sys-carousel__dot" data-wb-ds-dot="1" aria-label="Photo 2 of 4" aria-current="false"></button>
+            <button type="button" class="wb-sys-carousel__dot" data-wb-ds-dot="2" aria-label="Photo 3 of 4" aria-current="false"></button>
+            <button type="button" class="wb-sys-carousel__dot" data-wb-ds-dot="3" aria-label="Photo 4 of 4" aria-current="false"></button>
+          </div>
         </div>
       </section>
     `,
@@ -682,7 +708,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Lead capture</span>
         <div class="component-title">Join now</div>
         <div class="component-desc">High-intent CTA wired to your live join flow—same backend as Crystal marketing pages.</div>
-        <button type="button" class="component-btn" data-wb-open="join">Start membership</button>
+        <button type="button" class="component-btn" data-wb-open="join" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.12);box-shadow:0 4px 16px rgba(37,99,235,0.32),0 1px 0 rgba(255,255,255,0.18) inset;background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 42%,#4f46e5 100%);">Start membership</button>
       </div>
     `,
   });
@@ -695,7 +721,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Direct line</span>
         <div class="component-title">Call the front desk</div>
         <div class="component-desc">One tap for prospects on mobile—update the tel: link to your studio line.</div>
-        <a class="component-btn" href="tel:+919000000000">Call now</a>
+        <a class="component-btn" href="tel:+919000000000" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(234,88,12,0.38),0 1px 0 rgba(255,255,255,0.18) inset;background:linear-gradient(135deg,#c2410c 0%,#ea580c 40%,#f97316 100%);">Call now</a>
       </div>
     `,
   });
@@ -708,7 +734,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Messaging</span>
         <div class="component-title">WhatsApp concierge</div>
         <div class="component-desc">Route warm leads to WhatsApp—set your business number in the sidebar; visitors tap to open chat.</div>
-        <a class="component-btn wb-wa-btn wb-add-el" href="https://wa.me/919876543210" target="_blank" rel="noopener noreferrer" data-wb-wa-phone="919876543210" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;">
+        <a class="component-btn wb-wa-btn wb-add-el" href="https://wa.me/919876543210" target="_blank" rel="noopener noreferrer" data-wb-wa-phone="919876543210" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#ecfdf5;background:linear-gradient(135deg,#047857 0%,#059669 35%,#10b981 72%,#34d399 100%);border:1px solid rgba(255,255,255,0.18);box-shadow:0 4px 18px rgba(16,185,129,0.42),0 1px 0 rgba(255,255,255,0.22) inset;">
           <span class="wb-wa-btn__inner" style="display:inline-flex;align-items:center;gap:0.5rem;">
             ${WB_WA_ICON_SVG}
             <span>Chat on WhatsApp</span>
@@ -726,7 +752,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Inbox</span>
         <div class="component-title">Email the team</div>
         <div class="component-desc">Premium mailto CTA with clear intent—set href to your front desk or sales inbox.</div>
-        <a class="component-btn" href="mailto:hello@gym.com">Compose email</a>
+        <a class="component-btn" href="mailto:hello@gym.com" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(79,70,229,0.35),0 1px 0 rgba(255,255,255,0.2) inset;background:linear-gradient(135deg,#3730a3 0%,#4f46e5 42%,#6366f1 100%);">Compose email</a>
       </div>
     `,
   });
@@ -739,7 +765,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Experience</span>
         <div class="component-title">Plan a studio visit</div>
         <div class="component-desc">Qualified tours with zero friction—opens your visit capture flow on the published site.</div>
-        <button type="button" class="component-btn" data-wb-open="visit">Schedule visit</button>
+        <button type="button" class="component-btn" data-wb-open="visit" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.16);box-shadow:0 4px 18px rgba(6,182,212,0.35),0 1px 0 rgba(255,255,255,0.2) inset;background:linear-gradient(135deg,#0f766e 0%,#0e7490 38%,#06b6d4 100%);">Schedule visit</button>
       </div>
     `,
   });
@@ -752,7 +778,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Acquisition</span>
         <div class="component-title">Complimentary trial session</div>
         <div class="component-desc">Lower the barrier to entry—wired to your Crystal trial booking modal when live.</div>
-        <button type="button" class="component-btn" data-wb-open="trial">Claim free trial</button>
+        <button type="button" class="component-btn" data-wb-open="trial" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(234,88,12,0.38),0 1px 0 rgba(255,255,255,0.2) inset;background:linear-gradient(135deg,#c2410c 0%,#ea580c 45%,#f59e0b 100%);">Claim free trial</button>
       </div>
     `,
   });
@@ -765,7 +791,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Concierge</span>
         <div class="component-title">Priority enquiry</div>
         <div class="component-desc">A single confident action that opens your service enquiry modal—ideal beside pricing or contact rows.</div>
-        <button type="button" class="component-btn" data-wb-open="enquiry">Talk to us</button>
+        <button type="button" class="component-btn" data-wb-open="enquiry" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(124,58,237,0.38),0 1px 0 rgba(255,255,255,0.2) inset;background:linear-gradient(135deg,#6d28d9 0%,#7c3aed 48%,#a855f7 100%);">Talk to us</button>
       </div>
     `,
   });
@@ -801,7 +827,7 @@ export function registerSectionBlocks(editor: Editor) {
           <input type="email" name="email" placeholder="Email" autocomplete="email" />
           <input type="tel" name="phone" placeholder="Mobile (10 digits)" inputmode="numeric" autocomplete="tel" />
           <textarea name="message" rows="3" placeholder="Tell us about your goals"></textarea>
-          <button type="submit" class="component-btn">Submit enquiry</button>
+          <button type="submit" class="component-btn" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.72rem 1.15rem;border-radius:12px;text-decoration:none;color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(124,58,237,0.38),0 1px 0 rgba(255,255,255,0.2) inset;background:linear-gradient(135deg,#6d28d9 0%,#7c3aed 48%,#a855f7 100%);">Submit enquiry</button>
         </form>
       </div>
     `,
@@ -1220,6 +1246,59 @@ export function registerSectionBlocks(editor: Editor) {
     `,
   });
 
+  bm.add('wb-gym-location-hours', {
+    label: 'Gym · address & hours',
+    category: 'Business',
+    content: `
+      <section class="wb-add-el wb-fade-in" style="padding:2.5rem 1.25rem; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0; max-width:42rem; margin:0 auto;">
+        <h2 style="margin:0 0 0.75rem; font-size:1.35rem; font-weight:800; color:#0f172a;">Visit us</h2>
+        <p style="margin:0 0 1rem; color:#475569; line-height:1.55; font-size:0.95rem;">Replace with your street, city, and postcode. Add schema-friendly text for search engines.</p>
+        <address style="font-style:normal; margin:0 0 1rem; color:#0f172a; font-weight:600;">123 Training Street, Your City</address>
+        <p style="margin:0 0 1rem; font-size:0.9rem; color:#64748b;"><strong>Hours</strong><br/>Mon–Fri 6:00–22:00 · Sat 8:00–18:00 · Sun 9:00–14:00</p>
+        <a href="https://maps.google.com/?q=Your+Gym" target="_blank" rel="noopener noreferrer" style="display:inline-block; font-weight:600; color:#2563eb; text-decoration:none;">Get directions →</a>
+      </section>
+    `,
+  });
+
+  bm.add('wb-gym-schedule', {
+    label: 'Gym · class timetable (starter)',
+    category: 'Business',
+    content: `
+      <section class="wb-add-el wb-fade-up" style="padding:2.5rem 1.25rem; max-width:48rem; margin:0 auto;">
+        <span class="component-eyebrow">Timetable</span>
+        <h2 style="margin:0.35rem 0 1rem; font-size:1.4rem; font-weight:800; color:#0f172a;">Classes this week</h2>
+        <div style="display:grid; gap:0.5rem; font-size:0.9rem; color:#334155;">
+          <div style="display:flex; justify-content:space-between; padding:0.65rem 0.75rem; background:#fff; border:1px solid #e2e8f0; border-radius:8px;"><span>HIIT</span><span>Mon / Wed 07:00</span></div>
+          <div style="display:flex; justify-content:space-between; padding:0.65rem 0.75rem; background:#fff; border:1px solid #e2e8f0; border-radius:8px;"><span>Strength</span><span>Tue / Thu 18:30</span></div>
+          <div style="display:flex; justify-content:space-between; padding:0.65rem 0.75rem; background:#fff; border:1px solid #e2e8f0; border-radius:8px;"><span>Yoga</span><span>Sat 10:00</span></div>
+        </div>
+        <p style="margin:1rem 0 0; font-size:0.82rem; color:#94a3b8;">Connect your app timetable here when available.</p>
+      </section>
+    `,
+  });
+
+  bm.add('wb-gym-lead-strip', {
+    label: 'Gym · lead form strip',
+    category: 'Business',
+    content: `
+      <section class="wb-add-el wb-slide-left" style="padding:1.75rem 1.25rem; background:linear-gradient(90deg,#1e40af,#2563eb); color:#fff; border-radius:12px; max-width:56rem; margin:0 auto; text-align:center;">
+        <p style="margin:0 0 0.75rem; font-size:1rem; font-weight:600;">We’ll call you back — no spam.</p>
+        <button type="button" class="wb-link-btn" data-wb-open="enquiry" style="border:0; cursor:pointer; font:inherit; background:#fff; color:#1e40af; padding:0.55rem 1.25rem; border-radius:8px; font-weight:700;">Request a call</button>
+      </section>
+    `,
+  });
+
+  bm.add('wb-gym-contact-row', {
+    label: 'Gym · call · WhatsApp · email',
+    category: 'Business',
+    content: `
+      <div class="wb-add-el wb-fade-in" style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:center; align-items:center; padding:1.25rem; max-width:40rem; margin:0 auto;">
+        <a href="tel:+15551234567" class="component-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.35rem;">Call</a>
+        <a class="wb-wa-btn" href="https://wa.me/15551234567" target="_blank" rel="noopener noreferrer" data-wb-wa-phone="15551234567" style="display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none; padding:0.5rem 1rem; border-radius:8px; background:#22c55e; color:#fff; font-weight:600;">WhatsApp</a>
+        <a href="mailto:hello@gym.com" class="component-btn" style="text-decoration:none;">Email</a>
+      </div>
+    `,
+  });
 }
 
 /** Open every Grapes block category (so Design · POWER … blocks are visible without extra clicks). */

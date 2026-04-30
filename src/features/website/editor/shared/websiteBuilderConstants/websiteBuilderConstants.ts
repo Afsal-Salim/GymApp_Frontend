@@ -175,10 +175,14 @@ export const WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS = `
 .wb-canvas-layer-group > .component-card {
   box-sizing: border-box;
   flex: 0 1 auto;
-  width: min(100%, 36rem) !important;
-  max-width: 36rem !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* Default responsive card width; inline style width (from canvas resize handles) may override this. */
+.wb-canvas-layer-group > .component-card:not([style*='width']) {
+  max-width: 36rem;
 }
 .wb-canvas-layer-group > .wb-enquiry-slide {
   width: fit-content;
@@ -202,7 +206,7 @@ export const WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS = `
   border-radius: var(--radius-card);
   padding: 1.28rem 1.4rem 1.32rem;
   box-shadow: var(--shadow-card);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, width 0.16s ease, min-height 0.16s ease;
 }
 
 .component-card:hover {
@@ -250,6 +254,41 @@ a.component-btn {
   background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary) 42%, var(--accent-indigo) 100%);
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.32), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, filter 0.2s ease;
+}
+
+/* Guard against template-level button resets (example: button background and text both forced to white). */
+.component-card button.component-btn:not([style*='background']),
+.component-card a.component-btn:not([style*='background']) {
+  color: #fff !important;
+  text-decoration: none !important;
+  background: linear-gradient(135deg, var(--primary-deep, #1d4ed8) 0%, var(--primary, #2563eb) 42%, var(--accent-indigo, #4f46e5) 100%) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.32), 0 1px 0 rgba(255, 255, 255, 0.18) inset !important;
+}
+.component-card button.component-btn[data-wb-open='visit']:not([style*='background']),
+.component-card a.component-btn[data-wb-open='visit']:not([style*='background']) {
+  background: linear-gradient(135deg, #0f766e 0%, var(--wb-visit-from, #0e7490) 38%, var(--wb-visit-to, #06b6d4) 100%) !important;
+}
+.component-card button.component-btn[data-wb-open='trial']:not([style*='background']),
+.component-card a.component-btn[data-wb-open='trial']:not([style*='background']) {
+  background: linear-gradient(135deg, var(--wb-trial-from, #c2410c) 0%, #ea580c 45%, var(--wb-trial-to, #f59e0b) 100%) !important;
+}
+.component-card button.component-btn[data-wb-open='enquiry']:not([style*='background']),
+.component-card a.component-btn[data-wb-open='enquiry']:not([style*='background']) {
+  background: linear-gradient(135deg, var(--wb-enquiry-from, #6d28d9) 0%, #7c3aed 48%, var(--wb-enquiry-to, #a855f7) 100%) !important;
+}
+.component-card a.component-btn[href^='tel:']:not([style*='background']) {
+  background: linear-gradient(135deg, #c2410c 0%, var(--wb-phone-from, #ea580c) 40%, var(--wb-phone-to, #f97316) 100%) !important;
+}
+.component-card a.component-btn[href^='mailto:']:not([style*='background']) {
+  background: linear-gradient(135deg, #3730a3 0%, var(--wb-mail-from, #4f46e5) 42%, var(--wb-mail-to, #6366f1) 100%) !important;
+}
+.component-card a.component-btn.wb-wa-btn:not([style*='background']),
+.component-card button.component-btn.wb-wa-btn:not([style*='background']) {
+  color: #ecfdf5 !important;
+  background: linear-gradient(135deg, #047857 0%, var(--wb-wa-from, #059669) 35%, var(--wb-wa-mid, #10b981) 72%, var(--wb-wa-to, #34d399) 100%) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.42), 0 1px 0 rgba(255, 255, 255, 0.22) inset !important;
 }
 
 button.component-btn:hover,
@@ -353,6 +392,126 @@ a.component-btn[download]:not(.wb-wa-btn) {
 }
 a.component-btn[download]:not(.wb-wa-btn):hover {
   box-shadow: 0 10px 28px rgba(51, 65, 85, 0.35), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+}
+
+/* Safety layer: keep CTA contrast stable inside design-system wrappers (some templates define broad button/link styles). */
+.wb-ds-root .component-card button.component-btn,
+.wb-ds-root .component-card a.component-btn {
+  color: #fff !important;
+  text-decoration: none !important;
+  background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary) 42%, var(--accent-indigo) 100%) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.32), 0 1px 0 rgba(255, 255, 255, 0.18) inset !important;
+}
+.wb-ds-root .component-card button.component-btn[data-wb-open='visit'],
+.wb-ds-root .component-card a.component-btn[data-wb-open='visit'] {
+  background: linear-gradient(135deg, #0f766e 0%, var(--wb-visit-from) 38%, var(--wb-visit-to) 100%) !important;
+}
+.wb-ds-root .component-card button.component-btn[data-wb-open='trial'],
+.wb-ds-root .component-card a.component-btn[data-wb-open='trial'] {
+  background: linear-gradient(135deg, var(--wb-trial-from) 0%, #ea580c 45%, var(--wb-trial-to) 100%) !important;
+}
+.wb-ds-root .component-card button.component-btn[data-wb-open='enquiry'],
+.wb-ds-root .component-card a.component-btn[data-wb-open='enquiry'] {
+  background: linear-gradient(135deg, var(--wb-enquiry-from) 0%, #7c3aed 48%, var(--wb-enquiry-to) 100%) !important;
+}
+.wb-ds-root .component-card a.component-btn[href^='tel:'] {
+  background: linear-gradient(135deg, #c2410c 0%, var(--wb-phone-from) 40%, var(--wb-phone-to) 100%) !important;
+}
+.wb-ds-root .component-card a.component-btn[href^='mailto:'] {
+  background: linear-gradient(135deg, #3730a3 0%, var(--wb-mail-from) 42%, var(--wb-mail-to) 100%) !important;
+}
+.wb-ds-root .component-card a.component-btn.wb-wa-btn,
+.wb-ds-root .component-card button.component-btn.wb-wa-btn {
+  color: #ecfdf5 !important;
+  background: linear-gradient(135deg, #047857 0%, var(--wb-wa-from) 35%, var(--wb-wa-mid) 72%, var(--wb-wa-to) 100%) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.42), 0 1px 0 rgba(255, 255, 255, 0.22) inset !important;
+}
+
+/* Safety layer for design-system template buttons used by non-POWER sets (.wb-sys-btn variants). */
+.wb-ds-root .wb-sys--elite .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']),
+.wb-ds-root .wb-sys--focus .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']),
+.wb-ds-root .wb-sys--energy .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']),
+.wb-ds-root .wb-sys--prime .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']),
+.wb-ds-root .wb-sys--sporty .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']),
+.wb-ds-root .wb-sys--glassmorph .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']),
+.wb-ds-root .wb-sys--cyberfit .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  color: #fff !important;
+  text-decoration: none !important;
+}
+.wb-ds-root .wb-sys--elite .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  background: linear-gradient(135deg, #0052cc, var(--wb-eli-blue, #0066ff) 52%, var(--wb-eli-blue-soft, #60a5fa)) !important;
+  border-color: rgba(0, 102, 255, 0.25) !important;
+  box-shadow: 0 8px 26px rgba(0, 102, 255, 0.32) !important;
+}
+.wb-ds-root .wb-sys--focus .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  background: linear-gradient(135deg, var(--wb-foc-lime-deep, #65a30d), var(--wb-foc-lime, #84cc16) 52%, var(--wb-foc-lime-bright, #bef264)) !important;
+  color: var(--wb-foc-ink, #0f172a) !important;
+  border-color: rgba(200, 232, 119, 0.45) !important;
+  box-shadow: 0 10px 32px rgba(156, 207, 63, 0.32) !important;
+}
+.wb-ds-root .wb-sys--energy .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  background: linear-gradient(135deg, var(--wb-eng-orange-deep, #c2410c), var(--wb-eng-orange, #ea580c) 50%, #ff8533) !important;
+  border-color: rgba(255, 102, 0, 0.35) !important;
+  box-shadow: 0 8px 26px rgba(255, 102, 0, 0.32) !important;
+}
+.wb-ds-root .wb-sys--prime .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  background: linear-gradient(135deg, #6b21a8, var(--wb-prm-violet, #7c3aed) 48%, #d8b4fe) !important;
+  border-color: rgba(233, 213, 254, 0.45) !important;
+  box-shadow: 0 10px 32px rgba(109, 40, 217, 0.42) !important;
+}
+.wb-ds-root .wb-sys--sporty .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  background: linear-gradient(135deg, var(--wb-spo-teal-deep, #0f766e), var(--wb-spo-teal, #14b8a6) 52%, #33b8c0) !important;
+  border-color: rgba(0, 163, 173, 0.35) !important;
+  box-shadow: 0 8px 26px rgba(0, 163, 173, 0.28) !important;
+}
+.wb-ds-root .wb-sys--glassmorph .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  background: linear-gradient(135deg, #6f8cff 0%, #79bcff 100%) !important;
+  border-color: rgba(89, 130, 246, 0.48) !important;
+  box-shadow: 0 10px 24px rgba(92, 132, 235, 0.35) !important;
+}
+.wb-ds-root .wb-sys--cyberfit .wb-sys-btn:not(.wb-sys-btn--ghost):not([style*='background']) {
+  background: linear-gradient(90deg, var(--wb-cyb-magenta-deep, #7e22ce) 0%, var(--wb-cyb-magenta-hot, #db2777) 55%, #c026d3 100%) !important;
+  border-color: rgba(255, 0, 255, 0.45) !important;
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.35), 0 8px 28px rgba(156, 0, 132, 0.35) !important;
+}
+
+.wb-ds-root .wb-sys--elite .wb-sys-btn--ghost:not([style*='background']) {
+  background: transparent !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.28) !important;
+}
+.wb-ds-root .wb-sys--focus .wb-sys-btn--ghost:not([style*='background']) {
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: #f8fafc !important;
+  border-color: rgba(248, 250, 252, 0.45) !important;
+}
+.wb-ds-root .wb-sys--energy .wb-sys-btn--ghost:not([style*='background']) {
+  background: #fff !important;
+  color: #1c1917 !important;
+  border-color: rgba(214, 211, 209, 0.95) !important;
+}
+.wb-ds-root .wb-sys--prime .wb-sys-btn--ghost:not([style*='background']) {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #faf5ff !important;
+  border-color: rgba(233, 213, 254, 0.42) !important;
+}
+.wb-ds-root .wb-sys--sporty .wb-sys-btn--ghost:not([style*='background']) {
+  background: #fff !important;
+  color: var(--wb-spo-teal-deep, #0f766e) !important;
+  border-color: rgba(0, 163, 173, 0.45) !important;
+}
+.wb-ds-root .wb-sys--glassmorph .wb-sys-btn--ghost:not([style*='background']) {
+  background: rgba(255, 255, 255, 0.62) !important;
+  color: #4567d5 !important;
+  border-color: rgba(113, 149, 255, 0.38) !important;
+}
+.wb-ds-root .wb-sys--cyberfit .wb-sys-btn--ghost:not([style*='background']) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.12) !important;
 }
 
 .component-card form {

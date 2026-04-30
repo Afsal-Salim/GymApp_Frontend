@@ -100,9 +100,11 @@ function formatSubscriptionDate(s: string | null | undefined): string {
   }
 }
 
+/** Product has only Trial and Base; legacy API tiers map to Base. */
 function formatPlanTierLabel(tier: ActiveSubscriptionResponse['plan_tier']): string {
   if (!tier) return '—';
-  return tier === 'other' ? 'Other' : tier.charAt(0).toUpperCase() + tier.slice(1);
+  if (tier === 'trial') return 'Trial';
+  return 'Base';
 }
 
 function toMetricNumber(value: unknown): number | null {

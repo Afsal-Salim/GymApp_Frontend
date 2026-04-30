@@ -23,6 +23,9 @@ import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlin
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import RedoOutlinedIcon from '@mui/icons-material/RedoOutlined';
@@ -77,6 +80,8 @@ import {
 } from '@/features/website/editor/core/websiteBuilderComponentCatalog/websiteBuilderComponentCatalog';
 import { attachCanvasBlockPaletteDrop } from '@/features/website/editor/canvas/websiteBuilderCanvasBlockPaletteDrop/websiteBuilderCanvasBlockPaletteDrop';
 import { WebsiteBuilderComponentsLibrary } from '@/features/website/editor/library/WebsiteBuilderComponentsLibrary/WebsiteBuilderComponentsLibrary';
+import { scanLinksOnCurrentPage } from '@/features/website/editor/tools/websiteBuilderEditorTools';
+import { attachCanvasTypographyResizeToFontSize } from '@/features/website/editor/canvas/websiteBuilderCanvasTextResizeFont/websiteBuilderCanvasTextResizeFont';
 import { attachWebsiteBuilderCanvasAutoFit, runCanvasAutoFit } from '@/features/website/editor/canvas/websiteBuilderCanvasAutoFit/websiteBuilderCanvasAutoFit';
 import { attachCanvasClipboardPaste } from '@/features/website/editor/canvas/websiteBuilderCanvasClipboardPaste/websiteBuilderCanvasClipboardPaste';
 import { attachCanvasLayerOrderContextMenu, resolveComponentFromPointer } from '@/features/website/editor/canvas/websiteBuilderCanvasContextMenu/websiteBuilderCanvasContextMenu';
@@ -85,10 +90,13 @@ import { filterCssUsedByPageHtml } from '@/features/website/editor/canvas/websit
 import {
   attachCanvasSelectionFocus,
   attachSelectionListener,
-  nameLastAddedLayer,
+  selectLastAddedChild,
   type SelectionInfo,
 } from '@/features/website/editor/right-column/websiteBuilderInspector/websiteBuilderInspector';
-import { WebsiteBuilderLeftPanel, type LeftPanelTab } from '@/features/website/editor/left-column/WebsiteBuilderLeftPanel/WebsiteBuilderLeftPanel';
+import {
+  WebsiteBuilderLeftPanel,
+  type LeftPanelTab,
+} from '@/features/website/editor/left-column/WebsiteBuilderLeftPanel/WebsiteBuilderLeftPanel';
 import { WebsiteBuilderInspector, type InspectorTab } from '@/features/website/editor/right-column/WebsiteBuilderInspector/WebsiteBuilderInspector';
 
 type BuilderPageTab = {
@@ -141,6 +149,13 @@ function absolutePublicAssetUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   const base = nextBaseUrl.endsWith('/') ? nextBaseUrl.slice(0, -1) : nextBaseUrl;
   return `${window.location.origin}${base}${p}`;
+}
+
+/** Blob preview needs a base URL so relative image/asset links resolve like the real site. */
+function previewBaseHref(): string {
+  if (typeof window === 'undefined') return '/';
+  const base = nextBaseUrl.endsWith('/') ? nextBaseUrl : `${nextBaseUrl}/`;
+  return `${window.location.origin}${base}`;
 }
 
 function buildPreviewLeadBodyAttrs(mode: 'create' | 'edit', routeSlug: string): string {
@@ -249,26 +264,18 @@ function enableCanvasResizeHandles(comp: Component | null | undefined) {
   } catch {
     return;
   }
-  const tag = String(comp.get('tagName') ?? '').trim().toLowerCase();
-  const textOnlyTag = tag === 'p' || tag === 'span' || tag === 'strong' || tag === 'em' || tag === 'small';
-  const handles = textOnlyTag ?
-      {
-        cl: true,
-        cr: true,
-        keyWidth: 'width',
-      }
-    : {
-        tl: true,
-        tr: true,
-        bl: true,
-        br: true,
-        tc: true,
-        bc: true,
-        cl: true,
-        cr: true,
-        keyWidth: 'width',
-        keyHeight: 'min-height',
-      };
+  const handles = {
+    tl: true,
+    tr: true,
+    bl: true,
+    br: true,
+    tc: true,
+    bc: true,
+    cl: true,
+    cr: true,
+    keyWidth: 'width',
+    keyHeight: 'min-height',
+  };
   comp.set('resizable', handles);
 }
 
@@ -590,6 +597,10 @@ const WB_CANVAS_COMPONENT_ANIM_SCRIPT_ID = 'wb-component-animations-canvas';
 const WB_CANVAS_COMPONENT_ANIM_EDITOR_STYLE_ID = 'wb-component-animations-editor-visibility';
 
 function attachCanvasComponentAnimations(editor: Editor): () => void {
+  /** `component:update` fires very often during drags — debounce DOM walks to cut CPU. */
+  /** Use `number` for the handle: `window.setTimeout` returns `number` in the DOM; Node typings use `Timeout`. */
+  let updateDebounce: number | undefined;
+
   const forceEditorVisibleMotionNodes = () => {
     try {
       const doc = editor.Canvas?.getDocument?.();
@@ -608,14 +619,18 @@ function attachCanvasComponentAnimations(editor: Editor): () => void {
     }
   };
 
-  const scheduleForceEditorVisibleMotionNodes = () => {
+  /** One follow-up frame is enough with editor CSS that already disables key animations. */
+  const scheduleMotionFix = () => {
     forceEditorVisibleMotionNodes();
-    requestAnimationFrame(() => {
-      forceEditorVisibleMotionNodes();
-      requestAnimationFrame(forceEditorVisibleMotionNodes);
-    });
-    window.setTimeout(forceEditorVisibleMotionNodes, 60);
-    window.setTimeout(forceEditorVisibleMotionNodes, 180);
+    requestAnimationFrame(forceEditorVisibleMotionNodes);
+  };
+
+  const scheduleMotionFixDebounced = () => {
+    if (updateDebounce) window.clearTimeout(updateDebounce);
+    updateDebounce = window.setTimeout(() => {
+      updateDebounce = undefined;
+      scheduleMotionFix();
+    }, 200);
   };
 
   const inject = () => {
@@ -658,19 +673,20 @@ function attachCanvasComponentAnimations(editor: Editor): () => void {
       /* ignore */
     }
 
-    scheduleForceEditorVisibleMotionNodes();
+    scheduleMotionFix();
   };
   editor.on('canvas:frame:load', inject);
-  editor.on('component:add', scheduleForceEditorVisibleMotionNodes);
-  editor.on('component:update', scheduleForceEditorVisibleMotionNodes);
-  editor.on('load', scheduleForceEditorVisibleMotionNodes);
+  editor.on('component:add', scheduleMotionFix);
+  editor.on('component:update', scheduleMotionFixDebounced);
+  editor.on('load', scheduleMotionFix);
   queueMicrotask(inject);
   return () => {
+    if (updateDebounce) window.clearTimeout(updateDebounce);
     try {
       editor.off('canvas:frame:load', inject);
-      editor.off('component:add', scheduleForceEditorVisibleMotionNodes);
-      editor.off('component:update', scheduleForceEditorVisibleMotionNodes);
-      editor.off('load', scheduleForceEditorVisibleMotionNodes);
+      editor.off('component:add', scheduleMotionFix);
+      editor.off('component:update', scheduleMotionFixDebounced);
+      editor.off('load', scheduleMotionFix);
     } catch {
       /* ignore */
     }
@@ -882,8 +898,6 @@ export default function WebsiteBuilderPage() {
   const [inspectorSelection, setInspectorSelection] = useState<SelectionInfo | null>(null);
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
   const [deviceMode, setDeviceMode] = useState<'Desktop' | 'Tablet' | 'Mobile portrait'>('Desktop');
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const addMenuRef = useRef<HTMLDivElement | null>(null);
   const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>('structure');
 
   const [canUndo, setCanUndo] = useState(false);
@@ -895,6 +909,8 @@ export default function WebsiteBuilderPage() {
   const [publishSlug, setPublishSlug] = useState('');
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishErr, setPublishErr] = useState<string | null>(null);
+  const [publishLinkHints, setPublishLinkHints] = useState<ReturnType<typeof scanLinksOnCurrentPage>>([]);
+  const [builderHelpOpen, setBuilderHelpOpen] = useState(false);
 
   const [leftW, setLeftW] = useState(SIDEBAR_LEFT_DEF);
   const [rightW, setRightW] = useState(SIDEBAR_RIGHT_DEF);
@@ -943,17 +959,30 @@ export default function WebsiteBuilderPage() {
     return '';
   }, [params.slug]);
 
+  const toolsBusinessSlug = useMemo(() => {
+    if (routeSlug) return routeSlug.trim().toLowerCase();
+    return readCrystalWebsitePreviewFromStorage()?.slug?.trim().toLowerCase() ?? '';
+  }, [routeSlug]);
+
+  const undoKbdHint = useMemo(
+    () => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.userAgent) ? '⌘Z' : 'Ctrl+Z'),
+    [],
+  );
+  const redoKbdHint = useMemo(
+    () => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.userAgent) ? '⇧⌘Z' : 'Ctrl+Shift+Z'),
+    [],
+  );
+
   const mode: 'create' | 'edit' = routeSlug ? 'edit' : 'create';
   const templateQuery = searchParams.get('template');
 
   useEffect(() => {
-    if (!addMenuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) setAddMenuOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [addMenuOpen]);
+    if (!publishOpen || !editorInstance) {
+      setPublishLinkHints([]);
+      return;
+    }
+    setPublishLinkHints(scanLinksOnCurrentPage(editorInstance));
+  }, [publishOpen, editorInstance]);
 
   useEffect(() => {
     if (leftPanelTab !== 'components') return;
@@ -1018,13 +1047,18 @@ export default function WebsiteBuilderPage() {
   useEffect(() => {
     const el = canvasSectionRef.current;
     if (!el || canvasDims !== null) return;
+    let labelT: number | undefined;
     const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      const slot = el.parentElement;
-      const sr = slot?.getBoundingClientRect();
-      const wp = sr?.width ? (r.width / sr.width) * 100 : 100;
-      const hp = sr?.height ? (r.height / sr.height) * 100 : 100;
-      setCanvasDimsLabel(`${formatCanvasPct(wp)} × ${formatCanvasPct(hp)}`);
+      if (labelT) window.clearTimeout(labelT);
+      labelT = window.setTimeout(() => {
+        labelT = undefined;
+        const r = el.getBoundingClientRect();
+        const slot = el.parentElement;
+        const sr = slot?.getBoundingClientRect();
+        const wp = sr?.width ? (r.width / sr.width) * 100 : 100;
+        const hp = sr?.height ? (r.height / sr.height) * 100 : 100;
+        setCanvasDimsLabel(`${formatCanvasPct(wp)} × ${formatCanvasPct(hp)}`);
+      }, 120);
     });
     ro.observe(el);
     queueMicrotask(() => {
@@ -1035,7 +1069,10 @@ export default function WebsiteBuilderPage() {
       const hp = sr?.height ? (r.height / sr.height) * 100 : 100;
       setCanvasDimsLabel(`${formatCanvasPct(wp)} × ${formatCanvasPct(hp)}`);
     });
-    return () => ro.disconnect();
+    return () => {
+      if (labelT) window.clearTimeout(labelT);
+      ro.disconnect();
+    };
   }, [canvasDims, resolved, booting, leftW, rightW, leftCollapsed, rightCollapsed]);
 
   useEffect(() => {
@@ -1286,6 +1323,13 @@ export default function WebsiteBuilderPage() {
       container: editorHostRef.current,
       fromElement: false,
       storageManager: false,
+      deviceManager: {
+        devices: [
+          { name: 'Desktop', width: '' },
+          { name: 'Tablet', width: '820px' },
+          { name: 'Mobile portrait', width: '390px' },
+        ],
+      },
       /** Ctrl/Cmd+click adds to selection; Shift+click extends among siblings (GrapesJS default). */
       multipleSelection: true,
       /** Canva-style: move handle drags with transform, not only flow / CSS position. */
@@ -1314,6 +1358,7 @@ export default function WebsiteBuilderPage() {
     setEditorInstance(editor);
     registerWebsiteBuilderExtensions(editor);
     const detachLayerGroup = registerWebsiteBuilderLayerGroup(editor);
+    const detachTypographyFontResize = attachCanvasTypographyResizeToFontSize(editor);
 
     const syncUndoRedo = () => {
       try {
@@ -1379,7 +1424,7 @@ export default function WebsiteBuilderPage() {
         const target = sel || ed.getWrapper();
         if (!target) return;
         target.append('<div style="min-height:80px; padding:16px; border:1px dashed #94a3b8;">New div</div>');
-        nameLastAddedLayer(target);
+        selectLastAddedChild(ed, target);
       },
     });
 
@@ -1390,7 +1435,7 @@ export default function WebsiteBuilderPage() {
         target.append(
           '<button type="button" class="wb-add-el" style="padding:8px 16px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer">New button</button>',
         );
-        nameLastAddedLayer(target);
+        selectLastAddedChild(ed, target);
       },
     });
 
@@ -1401,7 +1446,7 @@ export default function WebsiteBuilderPage() {
         target.append(
           '<iframe title="Embedded content" src="about:blank" style="width:100%;min-height:200px;border:1px solid #cbd5e1;border-radius:8px;display:block"></iframe>',
         );
-        nameLastAddedLayer(target);
+        selectLastAddedChild(ed, target);
       },
     });
 
@@ -1412,7 +1457,7 @@ export default function WebsiteBuilderPage() {
         target.append(
           '<iframe title="Gym location map" src="about:blank" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;min-height:260px;border:1px solid #cbd5e1;border-radius:10px;display:block;background:#f8fafc"></iframe>',
         );
-        nameLastAddedLayer(target);
+        selectLastAddedChild(ed, target);
       },
     });
 
@@ -1423,7 +1468,7 @@ export default function WebsiteBuilderPage() {
         target.append(
           '<section class="wb-add-el" style="padding:48px 20px; background:#f8fafc; border:1px dashed #94a3b8;"><p style="margin:0">New section</p></section>',
         );
-        nameLastAddedLayer(target);
+        selectLastAddedChild(ed, target);
       },
     });
 
@@ -1432,7 +1477,7 @@ export default function WebsiteBuilderPage() {
         const target = ed.getSelected() || ed.getWrapper();
         if (!target) return;
         target.append('<h2 class="wb-add-el" style="margin:0 0 12px">New heading</h2>');
-        nameLastAddedLayer(target);
+        selectLastAddedChild(ed, target);
       },
     });
 
@@ -1441,7 +1486,7 @@ export default function WebsiteBuilderPage() {
         const target = ed.getSelected() || ed.getWrapper();
         if (!target) return;
         target.append('<p class="wb-add-el" style="margin:0 0 12px">New paragraph</p>');
-        nameLastAddedLayer(target);
+        selectLastAddedChild(ed, target);
       },
     });
 
@@ -1482,6 +1527,7 @@ export default function WebsiteBuilderPage() {
       detachCanvasClipboardPaste();
       detachCanvasBlockPaletteDrop();
       detachLayerGroup();
+      detachTypographyFontResize();
       detachCanvasLeadBridge();
       detachCanvasTopNavBridge();
       detachCanvasComponentAnimations();
@@ -1708,6 +1754,7 @@ ${html}
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="${previewBaseHref()}" />
   <title>Website preview</title>
   <style>
 ${WEBSITE_BUILDER_DESIGN_SYSTEM_FONTS_IMPORT}
@@ -1894,6 +1941,14 @@ ${html}
     setRightCollapsed(false);
   }, []);
 
+  const activateLeftRailPanel = useCallback(
+    (t: LeftPanelTab) => {
+      expandLeftPanel();
+      setLeftPanelTab(t);
+    },
+    [expandLeftPanel],
+  );
+
   openInspectFromCanvasRef.current = (ed, comp) => {
     expandRightPanel();
     setInspectorTab('content');
@@ -1906,13 +1961,11 @@ ${html}
     }
     /* Stacked/mobile grid: inspector is below the canvas — scroll it into view after the next paint. */
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        try {
-          inspectorAsideRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        } catch {
-          /* ignore */
-        }
-      });
+      try {
+        inspectorAsideRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } catch {
+        /* ignore */
+      }
     });
   };
 
@@ -1922,13 +1975,11 @@ ${html}
       expandRightPanel();
       setInspectorTab('content');
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          try {
-            inspectorAsideRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-          } catch {
-            /* ignore */
-          }
-        });
+        try {
+          inspectorAsideRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } catch {
+          /* ignore */
+        }
       });
     },
     [expandRightPanel],
@@ -1953,28 +2004,20 @@ ${html}
 
     const frame = ed.Canvas.getFrameEl() as HTMLIFrameElement | null | undefined;
     const fdoc = ed.Canvas.getDocument();
-    let inserted: ReturnType<typeof insertBlockById> | undefined;
     if (frame && fdoc) {
       const fr = frame.getBoundingClientRect();
       const x = e.clientX - fr.left;
       const y = e.clientY - fr.top;
       const inside = x >= 0 && y >= 0 && x <= fr.width && y <= fr.height;
       if (inside) {
-        inserted = insertBlockByIdAtFrameClientPoint(ed, id, fdoc, x, y) ?? insertBlockById(ed, id);
+        insertBlockByIdAtFrameClientPoint(ed, id, fdoc, x, y) ?? insertBlockById(ed, id);
       } else {
-        inserted = insertBlockById(ed, id);
+        insertBlockById(ed, id);
       }
     } else {
-      inserted = insertBlockById(ed, id);
+      insertBlockById(ed, id);
     }
-    if (!inserted) return;
-    queueMicrotask(() => {
-      try {
-        ed.select(inserted);
-      } catch {
-        /* ignore */
-      }
-    });
+    /* Selection + smooth canvas scroll: `selectLastAddedChild` / `deferSelectComponent` inside insert helpers. */
   }, []);
 
   const pinchCollapseLeft = useCallback(() => {
@@ -2057,7 +2100,7 @@ ${html}
       } catch {
         /* ignore */
       }
-      queueMicrotask(() => {
+      requestAnimationFrame(() => {
         try {
           runCanvasAutoFit(ed);
         } catch {
@@ -2070,6 +2113,8 @@ ${html}
   const editorDeviceAttr =
     deviceMode === 'Desktop' ? 'desktop' : deviceMode === 'Tablet' ? 'tablet' : 'mobile';
 
+  const builderChromeDisabled = resolving || Boolean(resolveErr) || !resolved;
+
   return (
     <PageContainer className="website-builder-page__page-container">
       <main className="website-builder-page py-3">
@@ -2081,7 +2126,7 @@ ${html}
           : null}
 
           <div className="website-builder-page__workbar mb-2">
-            <div className="website-builder-page__workbar-group website-builder-page__workbar-group--left" ref={addMenuRef}>
+            <div className="website-builder-page__workbar-group website-builder-page__workbar-group--left">
               <button
                 type="button"
                 className="website-builder-page__workbar-back"
@@ -2101,44 +2146,6 @@ ${html}
               >
                 {saveBusy ? 'Saving…' : 'Save'}
               </Button>
-              <div className="website-builder-page__add-wrap">
-                <Button
-                  size="sm"
-                  className="website-builder-page__workbar-add"
-                  type="button"
-                  aria-expanded={addMenuOpen}
-                  aria-haspopup="true"
-                  onClick={() => setAddMenuOpen((o) => !o)}
-                >
-                  <AddOutlinedIcon fontSize="small" className="website-builder-page__workbar-add-icon" aria-hidden />
-                  Add
-                </Button>
-                {addMenuOpen ?
-                  <div className="website-builder-page__add-menu" role="menu">
-                    <button type="button" className="website-builder-page__add-menu-item" role="menuitem" onClick={() => { runCommand('wb:add-div'); setAddMenuOpen(false); }}>
-                      Div
-                    </button>
-                    <button type="button" className="website-builder-page__add-menu-item" role="menuitem" onClick={() => { runCommand('wb:add-button-element'); setAddMenuOpen(false); }}>
-                      Button
-                    </button>
-                    <button type="button" className="website-builder-page__add-menu-item" role="menuitem" onClick={() => { runCommand('wb:add-iframe'); setAddMenuOpen(false); }}>
-                      Iframe
-                    </button>
-                    <button type="button" className="website-builder-page__add-menu-item" role="menuitem" onClick={() => { runCommand('wb:add-map'); setAddMenuOpen(false); }}>
-                      Map
-                    </button>
-                    <button type="button" className="website-builder-page__add-menu-item" role="menuitem" onClick={() => { runCommand('wb:add-section'); setAddMenuOpen(false); }}>
-                      Section
-                    </button>
-                    <button type="button" className="website-builder-page__add-menu-item" role="menuitem" onClick={() => { runCommand('wb:add-h2'); setAddMenuOpen(false); }}>
-                      Heading
-                    </button>
-                    <button type="button" className="website-builder-page__add-menu-item" role="menuitem" onClick={() => { runCommand('wb:add-p'); setAddMenuOpen(false); }}>
-                      Paragraph
-                    </button>
-                  </div>
-                : null}
-              </div>
               <Button
                 size="sm"
                 className="website-builder-page__workbar-code"
@@ -2185,50 +2192,60 @@ ${html}
               </Button>
             </div>
             <div className="website-builder-page__workbar-group website-builder-page__workbar-group--center">
-              <button
-                type="button"
-                className={`website-builder-page__icon-btn${deviceMode === 'Desktop' ? ' is-active' : ''}`}
-                onClick={() => setDevice('Desktop')}
-                aria-label="Desktop view"
-              >
-                <DesktopWindowsOutlinedIcon fontSize="small" />
-              </button>
-              <button
-                type="button"
-                className={`website-builder-page__icon-btn${deviceMode === 'Tablet' ? ' is-active' : ''}`}
-                onClick={() => setDevice('Tablet')}
-                aria-label="Tablet view"
-              >
-                <TabletMacOutlinedIcon fontSize="small" />
-              </button>
-              <button
-                type="button"
-                className={`website-builder-page__icon-btn${deviceMode === 'Mobile portrait' ? ' is-active' : ''}`}
-                onClick={() => setDevice('Mobile portrait')}
-                aria-label="Mobile view"
-              >
-                <PhoneIphoneOutlinedIcon fontSize="small" />
-              </button>
-              <button
-                type="button"
-                className={`website-builder-page__icon-btn website-builder-page__icon-btn--ghost${canUndo ? ' website-builder-page__icon-btn--history-ready' : ' website-builder-page__icon-btn--history-idle'}`}
-                disabled={!canUndo || resolving || Boolean(resolveErr) || !resolved}
-                onClick={() => runCommand('core:undo')}
-                aria-label="Undo"
-                title={canUndo ? 'Undo' : 'Nothing to undo'}
-              >
-                <UndoOutlinedIcon fontSize="small" />
-              </button>
-              <button
-                type="button"
-                className={`website-builder-page__icon-btn website-builder-page__icon-btn--ghost${canRedo ? ' website-builder-page__icon-btn--history-ready' : ' website-builder-page__icon-btn--history-idle'}`}
-                disabled={!canRedo || resolving || Boolean(resolveErr) || !resolved}
-                onClick={() => runCommand('core:redo')}
-                aria-label="Redo"
-                title={canRedo ? 'Redo' : 'Nothing to redo'}
-              >
-                <RedoOutlinedIcon fontSize="small" />
-              </button>
+              <span className="website-builder-page__device-cluster" title="Narrow the canvas to preview how the page feels on smaller screens">
+                <button
+                  type="button"
+                  className={`website-builder-page__icon-btn${deviceMode === 'Desktop' ? ' is-active' : ''}`}
+                  onClick={() => setDevice('Desktop')}
+                  aria-label="Desktop width preview"
+                >
+                  <DesktopWindowsOutlinedIcon fontSize="small" />
+                </button>
+                <button
+                  type="button"
+                  className={`website-builder-page__icon-btn${deviceMode === 'Tablet' ? ' is-active' : ''}`}
+                  onClick={() => setDevice('Tablet')}
+                  aria-label="Tablet width preview"
+                >
+                  <TabletMacOutlinedIcon fontSize="small" />
+                </button>
+                <button
+                  type="button"
+                  className={`website-builder-page__icon-btn${deviceMode === 'Mobile portrait' ? ' is-active' : ''}`}
+                  onClick={() => setDevice('Mobile portrait')}
+                  aria-label="Mobile width preview"
+                >
+                  <PhoneIphoneOutlinedIcon fontSize="small" />
+                </button>
+              </span>
+              <span className="website-builder-page__undo-cluster">
+                <span className="website-builder-page__undo-pair">
+                  <button
+                    type="button"
+                    className={`website-builder-page__icon-btn website-builder-page__icon-btn--ghost${canUndo ? ' website-builder-page__icon-btn--history-ready' : ' website-builder-page__icon-btn--history-idle'}`}
+                    disabled={!canUndo || resolving || Boolean(resolveErr) || !resolved}
+                    onClick={() => runCommand('core:undo')}
+                    aria-label="Undo"
+                    title={canUndo ? `Undo (${undoKbdHint})` : 'Nothing to undo'}
+                  >
+                    <UndoOutlinedIcon fontSize="small" />
+                  </button>
+                  <span className="website-builder-page__kbd-hint">{undoKbdHint}</span>
+                </span>
+                <span className="website-builder-page__undo-pair">
+                  <button
+                    type="button"
+                    className={`website-builder-page__icon-btn website-builder-page__icon-btn--ghost${canRedo ? ' website-builder-page__icon-btn--history-ready' : ' website-builder-page__icon-btn--history-idle'}`}
+                    disabled={!canRedo || resolving || Boolean(resolveErr) || !resolved}
+                    onClick={() => runCommand('core:redo')}
+                    aria-label="Redo"
+                    title={canRedo ? `Redo (${redoKbdHint})` : 'Nothing to redo'}
+                  >
+                    <RedoOutlinedIcon fontSize="small" />
+                  </button>
+                  <span className="website-builder-page__kbd-hint">{redoKbdHint}</span>
+                </span>
+              </span>
             </div>
             <div className="website-builder-page__workbar-group website-builder-page__workbar-group--actions">
               <Button
@@ -2315,6 +2332,39 @@ ${html}
               </Button>
               <Button variant="danger" onClick={() => handleClearCanvasConfirm()}>
                 Clear canvas
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          <Modal show={builderHelpOpen} onHide={() => setBuilderHelpOpen(false)} centered animation>
+            <Modal.Header closeButton>
+              <Modal.Title as="h2" className="h5 mb-0">
+                Builder tips
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <ul className="mb-0 ps-3 small text-muted">
+                <li className="mb-2">
+                  Use the <strong className="text-body">icons on the far left</strong> for Elements, Pages, and Layers —
+                  they also <strong className="text-body">re-open the sidebar</strong> if you collapsed it.
+                </li>
+                <li className="mb-2">
+                  Drag tiles from <strong className="text-body">Add elements</strong> onto your page, or open{' '}
+                  <strong className="text-body">Library</strong> from the top bar for full layouts.
+                </li>
+                <li className="mb-2">
+                  Click the canvas to select a block; use the <strong className="text-body">right panel</strong> for
+                  content, style, and advanced options.
+                </li>
+                <li className="mb-0">
+                  <strong className="text-body">Tools</strong> and <strong className="text-body">Quick add</strong> live in
+                  the left column — find/replace, links, spacing, brand, images, and basic blocks.
+                </li>
+              </ul>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="primary" onClick={() => setBuilderHelpOpen(false)}>
+                Got it
               </Button>
             </Modal.Footer>
           </Modal>
@@ -2462,6 +2512,19 @@ ${html}
                 We’ll save your current design, then open your public gym page. Example:{' '}
                 <span className="fw-semibold text-body">{publicGymSiteHostLabel('my-gym')}</span>
               </p>
+              {publishLinkHints.length > 0 ?
+                <div className="alert alert-warning small py-2 mb-3" role="status">
+                  <strong className="d-block mb-1">Link check ({publishLinkHints.length})</strong>
+                  <ul className="mb-0 ps-3">
+                    {publishLinkHints.slice(0, 6).map((h, i) => (
+                      <li key={i}>{h.message}</li>
+                    ))}
+                  </ul>
+                  {publishLinkHints.length > 6 ?
+                    <span className="text-muted">…and more. Use Tools → Check links.</span>
+                  : null}
+                </div>
+              : null}
               <Form.Group className="mb-2" controlId="wb-publish-slug">
                 <Form.Label className="small fw-semibold">
                   {mode === 'edit' ? 'Site slug' : 'Choose your site slug'}
@@ -2506,6 +2569,75 @@ ${html}
             className="website-builder-page__grid website-builder-page__grid--resizable"
             style={gridCssVars}
           >
+            <nav className="website-builder-page__primary-rail" aria-label="Builder sections">
+              <button
+                type="button"
+                className={`website-builder-page__primary-rail-btn${leftPanelTab === 'components' ? ' is-active' : ''}`}
+                disabled={builderChromeDisabled}
+                aria-current={leftPanelTab === 'components' ? 'true' : undefined}
+                title="Add elements — blocks and quick inserts"
+                onClick={() => activateLeftRailPanel('components')}
+              >
+                <ViewModuleOutlinedIcon aria-hidden />
+                <span className="visually-hidden">Add elements</span>
+              </button>
+              <button
+                type="button"
+                className={`website-builder-page__primary-rail-btn${leftPanelTab === 'pages' ? ' is-active' : ''}`}
+                disabled={builderChromeDisabled}
+                aria-current={leftPanelTab === 'pages' ? 'true' : undefined}
+                title="Pages"
+                onClick={() => activateLeftRailPanel('pages')}
+              >
+                <DescriptionOutlinedIcon aria-hidden />
+                <span className="visually-hidden">Pages</span>
+              </button>
+              <button
+                type="button"
+                className={`website-builder-page__primary-rail-btn${leftPanelTab === 'structure' ? ' is-active' : ''}`}
+                disabled={builderChromeDisabled}
+                aria-current={leftPanelTab === 'structure' ? 'true' : undefined}
+                title="Layers — page outline"
+                onClick={() => activateLeftRailPanel('structure')}
+              >
+                <LayersOutlinedIcon aria-hidden />
+                <span className="visually-hidden">Layers</span>
+              </button>
+              <button
+                type="button"
+                className={`website-builder-page__primary-rail-btn${leftPanelTab === 'add' ? ' is-active' : ''}`}
+                disabled={builderChromeDisabled}
+                aria-current={leftPanelTab === 'add' ? 'true' : undefined}
+                title="Quick add — div, button, section, text…"
+                onClick={() => activateLeftRailPanel('add')}
+              >
+                <AddOutlinedIcon aria-hidden />
+                <span className="visually-hidden">Quick add</span>
+              </button>
+              <button
+                type="button"
+                className={`website-builder-page__primary-rail-btn${leftPanelTab === 'tools' ? ' is-active' : ''}`}
+                disabled={builderChromeDisabled}
+                aria-current={leftPanelTab === 'tools' ? 'true' : undefined}
+                title="Tools — find, links, spacing, brand, images"
+                onClick={() => activateLeftRailPanel('tools')}
+              >
+                <TuneOutlinedIcon aria-hidden />
+                <span className="visually-hidden">Tools</span>
+              </button>
+              <div className="website-builder-page__primary-rail-spacer" aria-hidden />
+              <button
+                type="button"
+                className="website-builder-page__primary-rail-btn"
+                disabled={builderChromeDisabled}
+                title="Help"
+                onClick={() => setBuilderHelpOpen(true)}
+              >
+                <HelpOutlineOutlinedIcon aria-hidden />
+                <span className="visually-hidden">Help</span>
+              </button>
+            </nav>
+
             <aside
               className={`website-builder-page__sidebar website-builder-page__sidebar--pages${leftCollapsed ? ' website-builder-page__sidebar--collapsed-rail' : ''}`}
             >
@@ -2539,6 +2671,10 @@ ${html}
                   editor={editorInstance}
                   tab={leftPanelTab}
                   onTabChange={setLeftPanelTab}
+                  leftNavStyle="rail"
+                  businessSlug={toolsBusinessSlug}
+                  toolsChromeDisabled={builderChromeDisabled}
+                  onRunCommand={runCommand}
                   pages={pages}
                   selectedPageId={selectedPageId}
                   onSelectPage={switchPage}
@@ -2567,20 +2703,21 @@ ${html}
               onDragOver={onCanvasBlockPaletteDragOver}
               onDrop={onCanvasBlockPaletteDrop}
             >
-              <section
-                ref={canvasSectionRef}
-                className={`website-builder-page__canvas card shadow-sm border-0${canvasDims ? ' website-builder-page__canvas--sized' : ' website-builder-page__canvas--fill'}`}
-                style={
-                  canvasDims ?
-                    {
-                      width: `${canvasDims.w}%`,
-                      height: `${canvasDims.h}%`,
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                    }
-                  : undefined
-                }
-              >
+              <div className="website-builder-page__canvas-column">
+                <section
+                  ref={canvasSectionRef}
+                  className={`website-builder-page__canvas card shadow-sm border-0${canvasDims ? ' website-builder-page__canvas--sized' : ' website-builder-page__canvas--fill'}`}
+                  style={
+                    canvasDims ?
+                      {
+                        width: `${canvasDims.w}%`,
+                        height: `${canvasDims.h}%`,
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                      }
+                    : undefined
+                  }
+                >
                 {canvasDimsLabel ?
                   <button
                     type="button"
@@ -2634,6 +2771,13 @@ ${html}
                   />
                 : null}
               </section>
+              </div>
+              {resolved ?
+                <p className="website-builder-page__canvas-tip" role="note">
+                  Tip: Drag elements from the left panel onto the page. Click anything to edit it — settings open on the
+                  right.
+                </p>
+              : null}
             </div>
 
             <div

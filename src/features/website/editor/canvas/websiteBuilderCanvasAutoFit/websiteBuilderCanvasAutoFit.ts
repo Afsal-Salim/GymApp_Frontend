@@ -1,6 +1,7 @@
 import type { Editor } from 'grapesjs';
 
-const DEBOUNCE_MS = 220;
+/** Slightly longer debounce = fewer zoom refits during rapid style edits (lower CPU). */
+const DEBOUNCE_MS = 320;
 
 /** Full document scroll size inside the canvas iframe (not just the viewport). */
 export function measureIframeContentBox(doc: Document | null | undefined): { w: number; h: number } {
@@ -89,9 +90,7 @@ export function createDebouncedCanvasFit(editor: Editor): () => void {
       t = undefined;
       queueMicrotask(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            runCanvasAutoFit(editor);
-          });
+          runCanvasAutoFit(editor);
         });
       });
     }, DEBOUNCE_MS);
@@ -108,9 +107,7 @@ export function attachWebsiteBuilderCanvasAutoFit(editor: Editor): {
   const onFrameReady = () => {
     queueMicrotask(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          runCanvasAutoFit(editor);
-        });
+        runCanvasAutoFit(editor);
       });
     });
   };

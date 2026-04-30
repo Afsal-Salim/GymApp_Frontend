@@ -552,13 +552,13 @@ export async function getBusinessDetail(slug: string): Promise<BusinessDetail> {
   return promise;
 }
 
-/** Starter block from GET `/businesses/<slug>/first-recharge/` (owner only). */
-export type BusinessFirstRechargeStarter = {
+/** Base plan block from GET `/businesses/<slug>/first-recharge/` (owner only). */
+export type BusinessFirstRechargeBase = {
   plan_id: number;
   list_price: string;
   first_recharge_price: string | null;
   currency: string;
-  /** Amount create-order would charge today for Starter. */
+  /** Amount create-order would charge today for Base. */
   applicable_price: string;
 };
 
@@ -566,21 +566,49 @@ export type BusinessFirstRechargeResponse = {
   slug: string;
   is_first_recharge: boolean;
   has_had_subscription: boolean;
-  starter: BusinessFirstRechargeStarter | null;
+  base: BusinessFirstRechargeBase | null;
 };
+
+function parseFirstRechargeBlock(raw: unknown): BusinessFirstRechargeBase | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const b = raw as Record<string, unknown>;
+  const plan_id = Number(b.plan_id);
+  const list_price = typeof b.list_price === 'string' ? b.list_price : '';
+  const first_recharge_price =
+    typeof b.first_recharge_price === 'string' || b.first_recharge_price === null ?
+      (b.first_recharge_price as string | null)
+    : null;
+  const currency = typeof b.currency === 'string' ? b.currency : '';
+  const applicable_price = typeof b.applicable_price === 'string' ? b.applicable_price : '';
+  if (!Number.isFinite(plan_id) || plan_id <= 0) return null;
+  return { plan_id, list_price, first_recharge_price, currency, applicable_price };
+}
+
+function normalizeBusinessFirstRechargeResponse(raw: unknown): BusinessFirstRechargeResponse {
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Invalid first-recharge response');
+  }
+  const o = raw as Record<string, unknown>;
+  const blockRaw = o.base ?? o.starter;
+  return {
+    slug: typeof o.slug === 'string' ? o.slug : '',
+    is_first_recharge: o.is_first_recharge === true,
+    has_had_subscription: o.has_had_subscription === true,
+    base: parseFirstRechargeBlock(blockRaw),
+  };
+}
 
 /**
  * **GET** `/api/businesses/<slug>/first-recharge/` — Bearer; owner only. Inactive site → **404**.
  * Aligns with create-order first activation vs list pricing.
+ * Accepts legacy JSON keys `starter` or `base` for the pricing block.
  */
 export async function getBusinessFirstRecharge(businessSlug: string): Promise<BusinessFirstRechargeResponse> {
   const key = businessSlug.trim();
   if (!key) throw new Error('Business slug is required.');
   try {
-    const { data } = await privateApi.get<BusinessFirstRechargeResponse>(
-      `${BASE}/${encodeURIComponent(key)}/first-recharge/`
-    );
-    return data;
+    const { data } = await privateApi.get<unknown>(`${BASE}/${encodeURIComponent(key)}/first-recharge/`);
+    return normalizeBusinessFirstRechargeResponse(data);
   } catch (e) {
     if (axios.isAxiosError(e) && e.response?.status === 404) {
       throw new Error('Business not found or you do not have access.');
@@ -813,8 +841,8 @@ export async function getPublicBusinessBySlug(slug: string): Promise<PublicBusin
   return promise;
 }
 
-/** `plan_tier` on GET `/businesses/<slug>/active-subscription/` (public). */
-export type ActiveSubscriptionPlanTier = 'trial' | 'starter' | 'pro' | 'other';
+/** `plan_tier` on GET `/businesses/<slug>/active-subscription/` (public). Legacy API value `starter` is normalized to `base`. */
+export type ActiveSubscriptionPlanTier = 'trial' | 'pro' | 'base' | 'max' | 'other';
 
 /**
  * Response from GET `/businesses/<slug>/active-subscription/` (public, no auth).
@@ -832,6 +860,14 @@ export type ActiveSubscriptionResponse = {
   /** Optional message on error-shaped bodies (e.g. 404). */
   detail?: string;
 };
+
+/** Full builder + premium templates: any active paid subscription except trial (single Base tier; legacy names included). */
+export function planTierHasFullProductAccess(sub: ActiveSubscriptionResponse | null): boolean {
+  if (!sub?.has_active_subscription) return false;
+  if (sub.is_active === false) return false;
+  const t = (sub.plan_tier ?? '').toString().trim().toLowerCase();
+  return t !== 'trial';
+}
 
 function inactiveActiveSubscriptionResponse(slug: string, detail?: string): ActiveSubscriptionResponse {
   const s = slug.trim();
@@ -877,9 +913,15 @@ export function normalizeActiveSubscriptionResponse(raw: unknown, fallbackSlug: 
         (nested.plan as { tier: string }).tier
       : null
     : null);
-  const tierLc = typeof planTierRaw === 'string' ? planTierRaw.trim().toLowerCase() : '';
+  let tierLc = typeof planTierRaw === 'string' ? planTierRaw.trim().toLowerCase() : '';
+  if (tierLc === 'starter') tierLc = 'base';
   const planTier: ActiveSubscriptionResponse['plan_tier'] =
-    tierLc === 'trial' || tierLc === 'starter' || tierLc === 'pro' || tierLc === 'other' ? tierLc
+    tierLc === 'trial' ||
+    tierLc === 'pro' ||
+    tierLc === 'base' ||
+    tierLc === 'max' ||
+    tierLc === 'other' ?
+      tierLc
     : tierLc ? 'other'
     : null;
 

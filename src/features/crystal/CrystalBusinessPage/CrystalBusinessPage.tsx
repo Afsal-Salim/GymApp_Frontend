@@ -22,6 +22,7 @@ import {
   fetchPublicGymBundle,
   getAccessToken,
   getActiveSubscription,
+  planTierHasFullProductAccess,
   getBusinessDetail,
   invalidatePublicGymBundleCache,
   listBusinessImages,
@@ -91,6 +92,17 @@ const PRO_TEMPLATE_PUBLIC_PATHS: Record<ProWebsiteTemplateKey, string> = {
   'grapes-welcome': '/templates/client-grapes-welcome',
   'grapes-hello': '/templates/client-grapes-hello',
   'grapes-cli': '/templates/client-grapes-cli',
+  'ds-power': '/templates/design-system-preview/power',
+  'ds-elite': '/templates/design-system-preview/elite',
+  'ds-focus': '/templates/design-system-preview/focus',
+  'ds-energy': '/templates/design-system-preview/energy',
+  'ds-prime': '/templates/design-system-preview/prime',
+  'ds-sporty': '/templates/design-system-preview/sporty',
+  'ds-cyberfit': '/templates/design-system-preview/cyberfit',
+  'ds-glassmorph': '/templates/design-system-preview/glassmorph',
+  'ds-junglebeast': '/templates/design-system-preview/junglebeast',
+  'ds-liquidfit': '/templates/design-system-preview/liquidfit',
+  'ds-vintageiron': '/templates/design-system-preview/vintageiron',
 };
 
 function appendMailtoSubjectBody(mailtoHref: string, subject: string, body: string): string {
@@ -2371,7 +2383,7 @@ export default function CrystalBusinessPage() {
   const activeProTemplateKey =
     !activeVisualBuilderPage &&
     siteContent?.proTemplateKey &&
-    (slug === 'preview' || (publicSubscription && resolvePlanTier(publicSubscription) === 'pro')) ?
+    (slug === 'preview' || (publicSubscription && planTierHasFullProductAccess(publicSubscription))) ?
       siteContent.proTemplateKey
     : null;
 

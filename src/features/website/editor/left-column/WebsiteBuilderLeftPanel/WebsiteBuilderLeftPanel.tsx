@@ -1,5 +1,6 @@
 'use client';
 
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import CallOutlinedIcon from '@mui/icons-material/CallOutlined';
@@ -40,13 +41,16 @@ import {
   insertBlockById,
   insertFullDesignSystemPage,
   setBlockDragTransferData,
+  type ComponentCatalogEntry,
   type ComponentLibraryPreviewKind,
   type ComponentsLibraryOpenTarget,
 } from '@/features/website/editor/core/websiteBuilderComponentCatalog/websiteBuilderComponentCatalog';
+import { scorePaletteCard } from '@/features/website/editor/core/websiteBuilderComponentCatalog/websiteBuilderComponentSearch';
 import type { DesignSystemSetId } from '@/features/website/editor/blocks/websiteBuilderDesignSystemBlocks/websiteBuilderDesignSystemBlocks';
 import { isWbLayerGroup } from '@/features/website/editor/blocks/websiteBuilderLayerGroup/websiteBuilderLayerGroup';
+import { WebsiteBuilderEditorToolsMenu } from '@/features/website/editor/tools/WebsiteBuilderEditorToolsMenu';
 
-export type LeftPanelTab = 'pages' | 'structure' | 'components';
+export type LeftPanelTab = 'pages' | 'structure' | 'components' | 'tools' | 'add';
 
 type PageItem = { id: string; name: string };
 
@@ -61,6 +65,14 @@ type Props = {
   onPageRenamed?: () => void;
   onAddSection: () => void;
   onOpenComponentsLibrary?: (target?: ComponentsLibraryOpenTarget) => void;
+  /**
+   * When `rail`, the page-level icon rail owns tab switching — show a title row instead of duplicating the three tabs.
+   */
+  leftNavStyle?: 'tabs' | 'rail';
+  /** Slug for Tools (image library, brand kit). */
+  businessSlug: string;
+  toolsChromeDisabled: boolean;
+  onRunCommand: (cmd: string) => void;
 };
 
 type PaletteAccent = 'blue' | 'green' | 'purple' | 'orange' | 'slate' | 'pink' | 'amber';
@@ -76,6 +88,8 @@ type PaletteCard = {
   onInsert?: () => void;
   icon: ReactNode;
   accent?: PaletteAccent;
+  /** Hidden search #tags / keywords (merged with catalog tags when blockId is set). */
+  searchTags?: string[];
 };
 
 type PaletteSection = {
@@ -164,6 +178,14 @@ function ComponentsPalette({
     const m = new Map<string, ComponentLibraryPreviewKind>();
     for (const row of getComponentCatalog()) {
       m.set(row.blockId, row.preview);
+    }
+    return m;
+  }, []);
+
+  const catalogByBlockId = useMemo(() => {
+    const m = new Map<string, ComponentCatalogEntry>();
+    for (const row of getComponentCatalog()) {
+      m.set(row.blockId, row);
     }
     return m;
   }, []);
@@ -520,22 +542,35 @@ function ComponentsPalette({
     insertBlockById(editor, card.blockId);
   };
 
-  const needle = searchQuery.trim().toLowerCase();
-  const cardMatches = (card: PaletteCard) => {
-    if (!needle) return true;
-    return (
-      card.title.toLowerCase().includes(needle) ||
-      (card.titleLine2?.toLowerCase().includes(needle) ?? false) ||
-      card.desc.toLowerCase().includes(needle) ||
-      (card.blockId ? card.blockId.toLowerCase().includes(needle) : false) ||
-      (card.designSystemSetId?.toLowerCase().includes(needle) ?? false)
-    );
+  const needle = searchQuery.trim();
+  const rankCard = (card: PaletteCard) => {
+    if (!needle) return 1;
+    const cat = card.blockId ? catalogByBlockId.get(card.blockId) : undefined;
+    return scorePaletteCard(card, needle, cat);
   };
 
-  const quickFiltered = quickAdd.filter(cardMatches);
-  const filteredSections = sections
-    .map((sec) => ({ ...sec, items: sec.items.filter(cardMatches) }))
-    .filter((sec) => sec.items.length > 0);
+  const quickFiltered =
+    needle ?
+      quickAdd
+        .map((c) => ({ c, s: rankCard(c) }))
+        .filter((x) => x.s > 0)
+        .sort((a, b) => b.s - a.s)
+        .map((x) => x.c)
+    : quickAdd;
+
+  const filteredSections =
+    needle ?
+      sections
+        .map((sec) => ({
+          ...sec,
+          items: sec.items
+            .map((item) => ({ item, s: rankCard(item) }))
+            .filter((x) => x.s > 0)
+            .sort((a, b) => b.s - a.s)
+            .map((x) => x.item),
+        }))
+        .filter((sec) => sec.items.length > 0)
+    : sections;
 
   return (
     <div className="wb-components-palette">
@@ -558,10 +593,10 @@ function ComponentsPalette({
         <input
           type="search"
           className="wb-components-palette__search"
-          placeholder="Search or add something…"
+          placeholder="Search name, #tag, or intent (e.g. signup, hero)…"
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
-          aria-label="Search or add something"
+          aria-label="Search blocks by name, hidden tags, or keywords"
         />
         {onOpenComponentsLibrary ?
           <button
@@ -1205,6 +1240,32 @@ function StructureBreadcrumb({ editor, tick }: { editor: Editor | null; tick: nu
   );
 }
 
+function leftRailHeading(tab: LeftPanelTab): { title: string; subtitle: string } {
+  switch (tab) {
+    case 'pages':
+      return { title: 'Pages', subtitle: 'Switch pages and rename them for your menu.' };
+    case 'structure':
+      return { title: 'Layers', subtitle: 'Select blocks and reorder the page outline.' };
+    case 'tools':
+      return { title: 'Tools', subtitle: 'Find text, check links, spacing, gym blocks, brand, and images.' };
+    case 'add':
+      return { title: 'Quick add', subtitle: 'Insert basic blocks onto the current page.' };
+    case 'components':
+    default:
+      return { title: 'Add elements', subtitle: 'Drag tiles onto the canvas or use search.' };
+  }
+}
+
+const QUICK_ADD_ACTIONS: { label: string; cmd: string }[] = [
+  { label: 'Div', cmd: 'wb:add-div' },
+  { label: 'Button', cmd: 'wb:add-button-element' },
+  { label: 'Iframe', cmd: 'wb:add-iframe' },
+  { label: 'Map', cmd: 'wb:add-map' },
+  { label: 'Section', cmd: 'wb:add-section' },
+  { label: 'Heading', cmd: 'wb:add-h2' },
+  { label: 'Paragraph', cmd: 'wb:add-p' },
+];
+
 export function WebsiteBuilderLeftPanel({
   editor,
   tab,
@@ -1216,6 +1277,10 @@ export function WebsiteBuilderLeftPanel({
   onPageRenamed,
   onAddSection,
   onOpenComponentsLibrary,
+  leftNavStyle = 'tabs',
+  businessSlug,
+  toolsChromeDisabled,
+  onRunCommand,
 }: Props) {
   const [treeTick, setTreeTick] = useState(0);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
@@ -1256,38 +1321,63 @@ export function WebsiteBuilderLeftPanel({
   const searchPlaceholder =
     tab === 'pages' ? 'Search pages…'
     : tab === 'structure' ? 'Search layers…'
-    : 'Search or add something…';
+    : tab === 'components' ? 'Search name, #tag, or intent (e.g. hero, WhatsApp)…'
+    : 'Search…';
+
+  const railHead = leftNavStyle === 'rail' ? leftRailHeading(tab) : null;
 
   return (
     <div className="website-builder-page__left-shell">
-      <div className="website-builder-page__left-tabs">
-        <button
-          type="button"
-          className={`website-builder-page__left-tab${tab === 'pages' ? ' is-active' : ''}`}
-          onClick={() => onTabChange('pages')}
-        >
-          <DescriptionOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
-          <span>Pages</span>
-        </button>
-        <button
-          type="button"
-          className={`website-builder-page__left-tab${tab === 'structure' ? ' is-active' : ''}`}
-          onClick={() => onTabChange('structure')}
-        >
-          <LayersOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
-          <span>Structure</span>
-        </button>
-        <button
-          type="button"
-          className={`website-builder-page__left-tab${tab === 'components' ? ' is-active' : ''}`}
-          onClick={() => onTabChange('components')}
-        >
-          <BoltOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
-          <span>Components</span>
-        </button>
-      </div>
+      {leftNavStyle === 'rail' && railHead ?
+        <div className="website-builder-page__left-heading website-builder-page__left-heading--rail">
+          <h2 className="website-builder-page__left-heading-title">{railHead.title}</h2>
+          <p className="website-builder-page__left-heading-sub">{railHead.subtitle}</p>
+        </div>
+      : <div className="website-builder-page__left-tabs website-builder-page__left-tabs--extended">
+          <button
+            type="button"
+            className={`website-builder-page__left-tab${tab === 'pages' ? ' is-active' : ''}`}
+            onClick={() => onTabChange('pages')}
+          >
+            <DescriptionOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
+            <span>Pages</span>
+          </button>
+          <button
+            type="button"
+            className={`website-builder-page__left-tab${tab === 'structure' ? ' is-active' : ''}`}
+            onClick={() => onTabChange('structure')}
+          >
+            <LayersOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
+            <span>Structure</span>
+          </button>
+          <button
+            type="button"
+            className={`website-builder-page__left-tab${tab === 'components' ? ' is-active' : ''}`}
+            onClick={() => onTabChange('components')}
+          >
+            <BoltOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
+            <span>Components</span>
+          </button>
+          <button
+            type="button"
+            className={`website-builder-page__left-tab${tab === 'add' ? ' is-active' : ''}`}
+            onClick={() => onTabChange('add')}
+          >
+            <AddOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
+            <span>Add</span>
+          </button>
+          <button
+            type="button"
+            className={`website-builder-page__left-tab${tab === 'tools' ? ' is-active' : ''}`}
+            onClick={() => onTabChange('tools')}
+          >
+            <TuneOutlinedIcon className="website-builder-page__left-tab-icon" fontSize="small" />
+            <span>Tools</span>
+          </button>
+        </div>
+      }
 
-      {tab !== 'components' || !editor ?
+      {tab === 'pages' || tab === 'structure' || (tab === 'components' && !editor) ?
         <div className="website-builder-page__left-toolbar">
           <input
             type="search"
@@ -1306,7 +1396,9 @@ export function WebsiteBuilderLeftPanel({
       : null}
 
       <div className="website-builder-page__left-main">
-        <div className="website-builder-page__left-panel-body">
+        <div
+          className={`website-builder-page__left-panel-body${tab === 'tools' ? ' website-builder-page__left-panel-body--tools-host' : ''}`}
+        >
           {tab === 'pages' ?
             <div className="website-builder-page__pages-list">
               {filteredPages.length === 0 ?
@@ -1353,6 +1445,30 @@ export function WebsiteBuilderLeftPanel({
                 <StructurePanel editor={editor} treeTick={treeTick} searchQuery={searchQuery} />
               : <p className="website-builder-page__left-empty">Open the builder to see structure.</p>}
             </>
+          : tab === 'tools' ?
+            <div className="website-builder-page__left-tools-wrap">
+              <WebsiteBuilderEditorToolsMenu
+                variant="leftPanel"
+                editor={editor}
+                disabled={toolsChromeDisabled}
+                businessSlug={businessSlug}
+              />
+            </div>
+          : tab === 'add' ?
+            <div className="website-builder-page__left-add-blocks" role="group" aria-label="Quick add blocks">
+              {QUICK_ADD_ACTIONS.map(({ label, cmd }) => (
+                <button
+                  key={cmd}
+                  type="button"
+                  className="website-builder-page__left-add-block-btn"
+                  disabled={toolsChromeDisabled}
+                  onClick={() => onRunCommand(cmd)}
+                >
+                  <AddOutlinedIcon className="website-builder-page__left-add-block-ico" fontSize="small" aria-hidden />
+                  {label}
+                </button>
+              ))}
+            </div>
           : editor ?
             <ComponentsPalette
               editor={editor}

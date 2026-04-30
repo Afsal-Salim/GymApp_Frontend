@@ -107,6 +107,80 @@ a.component-btn[download]:not(.wb-wa-btn):hover {
 }
 `;
 
+/**
+ * Design-system templates (ELITE/FOCUS/ENERGY/PRIME/SPORTY/GLASSMORPH/CYBERFIT) mostly use
+ * `.wb-sys-btn` instead of `.component-btn`. Grapes can inject per-node `background-color` rules
+ * that flatten these themed gradients in canvas. Mirror key themed button backgrounds with
+ * `!important`, same strategy as component CTA coercion above.
+ */
+const WB_CANVAS_DS_SYS_BTN_COERCION = `
+.wb-ds-root .wb-sys--elite .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(135deg, #0052cc, var(--wb-eli-blue, #0066ff) 52%, var(--wb-eli-blue-soft, #60a5fa)) !important;
+  border-color: rgba(0, 102, 255, 0.25) !important;
+  box-shadow: 0 8px 26px rgba(0, 102, 255, 0.32) !important;
+}
+.wb-ds-root .wb-sys--focus .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(135deg, var(--wb-foc-lime-deep, #65a30d), var(--wb-foc-lime, #84cc16) 52%, var(--wb-foc-lime-bright, #bef264)) !important;
+  border-color: rgba(200, 232, 119, 0.45) !important;
+  box-shadow: 0 10px 32px rgba(156, 207, 63, 0.32) !important;
+}
+.wb-ds-root .wb-sys--energy .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(135deg, var(--wb-eng-orange-deep, #c2410c), var(--wb-eng-orange, #ea580c) 50%, #ff8533) !important;
+  border-color: rgba(255, 102, 0, 0.35) !important;
+  box-shadow: 0 8px 26px rgba(255, 102, 0, 0.32) !important;
+}
+.wb-ds-root .wb-sys--prime .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(135deg, #6b21a8, var(--wb-prm-violet, #7c3aed) 48%, #d8b4fe) !important;
+  border-color: rgba(233, 213, 254, 0.45) !important;
+  box-shadow: 0 10px 32px rgba(109, 40, 217, 0.42) !important;
+}
+.wb-ds-root .wb-sys--sporty .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(135deg, var(--wb-spo-teal-deep, #0f766e), var(--wb-spo-teal, #14b8a6) 52%, #33b8c0) !important;
+  border-color: rgba(0, 163, 173, 0.35) !important;
+  box-shadow: 0 8px 26px rgba(0, 163, 173, 0.28) !important;
+}
+.wb-ds-root .wb-sys--glassmorph .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(135deg, #6f8cff 0%, #79bcff 100%) !important;
+  border-color: rgba(89, 130, 246, 0.48) !important;
+  box-shadow: 0 10px 24px rgba(92, 132, 235, 0.35) !important;
+}
+.wb-ds-root .wb-sys--cyberfit .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(90deg, var(--wb-cyb-magenta-deep, #7e22ce) 0%, var(--wb-cyb-magenta-hot, #db2777) 55%, #c026d3 100%) !important;
+  border-color: rgba(255, 0, 255, 0.45) !important;
+  box-shadow: 0 0 18px rgba(255, 0, 255, 0.35), 0 8px 28px rgba(156, 0, 132, 0.35) !important;
+}
+
+.wb-ds-root .wb-sys--elite .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: transparent !important;
+  border-color: rgba(37, 99, 235, 0.28) !important;
+}
+.wb-ds-root .wb-sys--focus .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(248, 250, 252, 0.45) !important;
+}
+.wb-ds-root .wb-sys--energy .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: #fff !important;
+  border-color: rgba(214, 211, 209, 0.95) !important;
+}
+.wb-ds-root .wb-sys--prime .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(233, 213, 254, 0.42) !important;
+}
+.wb-ds-root .wb-sys--sporty .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: #fff !important;
+  border-color: rgba(0, 163, 173, 0.45) !important;
+}
+.wb-ds-root .wb-sys--glassmorph .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: rgba(255, 255, 255, 0.62) !important;
+  border-color: rgba(113, 149, 255, 0.38) !important;
+}
+.wb-ds-root .wb-sys--cyberfit .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.12) !important;
+}
+`;
+
 function shouldSkipCanvasFrameDoc(doc: Document | null | undefined): boolean {
   if (!doc) return true;
   const href = String(doc.defaultView?.location?.href ?? '');
@@ -133,7 +207,7 @@ export function attachCanvasInjectedComponentLibraryCss(editor: Editor): () => v
         s = doc.createElement('style');
         s.id = WB_CANVAS_INJECTED_LIBRARY_ID;
       }
-      s.textContent = `${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WB_CANVAS_COMPONENT_BTN_COERCION}`;
+      s.textContent = `${WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS}\n${WB_CANVAS_COMPONENT_BTN_COERCION}\n${WB_CANVAS_DS_SYS_BTN_COERCION}`;
       doc.body.appendChild(s);
     } catch {
       /* ignore */

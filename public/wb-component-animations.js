@@ -121,207 +121,269 @@
     }
   }
 
-  function initDesignSystemGalleries() {
-    var roots = document.querySelectorAll('[data-wb-ds-gallery]');
-    for (var r = 0; r < roots.length; r++) {
-      var root = roots[r];
-      if (root.getAttribute('data-wb-ds-gallery-init')) continue;
+  function teardownDsGallery(root) {
+    if (!root) return;
+    try {
+      var ac = root._wbGalleryAC;
+      if (ac && typeof ac.abort === 'function') ac.abort();
+    } catch (e0) {
+      /* ignore */
+    }
+    root._wbGalleryAC = null;
+    try {
+      var tid = root._wbGalleryApT;
+      if (tid) window.clearInterval(tid);
+    } catch (e1) {
+      /* ignore */
+    }
+    root._wbGalleryApT = 0;
+    root.removeAttribute('data-wb-ds-gallery-init');
+  }
 
-      var vp = root.querySelector('.wb-sys-carousel__viewport');
-      var track = root.querySelector('.wb-sys-carousel__track');
-      if (!vp || !track) continue;
+  function bindOneDsGallery(root) {
+    teardownDsGallery(root);
 
-      var slides = vp.querySelectorAll('.wb-sys-carousel__slide');
-      var dots = root.querySelectorAll('.wb-sys-carousel__dot[data-wb-ds-dot]');
-      var prev = root.querySelector('.wb-sys-carousel__btn--prev');
-      var next = root.querySelector('.wb-sys-carousel__btn--next');
-      if (slides.length < 1) continue;
-      root.setAttribute('data-wb-ds-gallery-init', '1');
+    var vp = root.querySelector('.wb-sys-carousel__viewport');
+    var track = root.querySelector('.wb-sys-carousel__track');
+    if (!vp || !track) return;
 
-      /**
-       * Scroll offset for slide i: distance from track's left edge to slide's left edge.
-       * Slides often share offsetParent with the track (the positioned .wb-sys-carousel), so
-       * raw slide.offsetLeft is wrong for vp.scrollLeft — must subtract track.offsetLeft.
-       */
-      function slideScrollTarget(i) {
-        var s = slides[i];
-        if (!s || !track) return 0;
-        if (s.offsetParent === track) return s.offsetLeft;
-        return s.offsetLeft - track.offsetLeft;
-      }
+    var slidesLive = function () {
+      return track.querySelectorAll('.wb-sys-carousel__slide');
+    };
+    var dotsLive = function () {
+      return root.querySelectorAll('.wb-sys-carousel__dot[data-wb-ds-dot]');
+    };
+    var prev = root.querySelector('.wb-sys-carousel__btn--prev');
+    var next = root.querySelector('.wb-sys-carousel__btn--next');
+    var slides0 = slidesLive();
+    if (slides0.length < 1) return;
 
-      function activeIndex() {
-        var x = vp.scrollLeft;
-        var best = 0;
-        var bestD = Infinity;
-        for (var i = 0; i < slides.length; i++) {
-          var t = slideScrollTarget(i);
-          var d = Math.abs(t - x);
-          if (d < bestD) {
-            bestD = d;
-            best = i;
-          }
+    var ac = new AbortController();
+    root._wbGalleryAC = ac;
+    var signal = ac.signal;
+
+    /**
+     * Scroll offset for slide i: distance from track's left edge to slide's left edge.
+     */
+    function slideScrollTarget(i) {
+      var slides = slidesLive();
+      var s = slides[i];
+      if (!s || !track) return 0;
+      if (s.offsetParent === track) return s.offsetLeft;
+      return s.offsetLeft - track.offsetLeft;
+    }
+
+    function activeIndex() {
+      var slides = slidesLive();
+      var x = vp.scrollLeft;
+      var best = 0;
+      var bestD = Infinity;
+      for (var i = 0; i < slides.length; i++) {
+        var t = slideScrollTarget(i);
+        var d = Math.abs(t - x);
+        if (d < bestD) {
+          bestD = d;
+          best = i;
         }
-        return best;
       }
+      return best;
+    }
 
-      function setDots(i) {
-        for (var j = 0; j < dots.length; j++) {
-          dots[j].classList.toggle('wb-sys-carousel__dot--active', j === i);
-          dots[j].setAttribute('aria-current', j === i ? 'true' : 'false');
-        }
+    function setDots(i) {
+      var dots = dotsLive();
+      for (var j = 0; j < dots.length; j++) {
+        dots[j].classList.toggle('wb-sys-carousel__dot--active', j === i);
+        dots[j].setAttribute('aria-current', j === i ? 'true' : 'false');
       }
+    }
 
-      function goTo(i) {
-        if (i < 0) i = slides.length - 1;
-        if (i >= slides.length) i = 0;
-        var s = slides[i];
-        if (!s) return;
-        var left = slideScrollTarget(i);
-        var maxLeft = Math.max(0, track.scrollWidth - vp.clientWidth);
-        if (left < 0) left = 0;
-        if (left > maxLeft) left = maxLeft;
-        /* Direct viewport scroll is most reliable across canvas/preview/public runtime contexts. */
+    function goTo(i) {
+      var slides = slidesLive();
+      if (slides.length < 1) return;
+      if (i < 0) i = slides.length - 1;
+      if (i >= slides.length) i = 0;
+      var s = slides[i];
+      if (!s) return;
+      var left = slideScrollTarget(i);
+      var maxLeft = Math.max(0, track.scrollWidth - vp.clientWidth);
+      if (left < 0) left = 0;
+      if (left > maxLeft) left = maxLeft;
+      try {
+        vp.scrollTo({ left: left, behavior: 'smooth' });
+      } catch (e1) {
         try {
-          vp.scrollTo({ left: left, behavior: 'smooth' });
-        } catch (e1) {
+          vp.scrollLeft = left;
+        } catch (e2) {
           try {
-            vp.scrollLeft = left;
-          } catch (e2) {
+            s.scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
+          } catch (e3) {
             try {
-              s.scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'smooth' });
-            } catch (e3) {
-              try {
-                s.scrollIntoView(true);
-              } catch (e4) {
-                vp.scrollLeft = left;
-              }
+              s.scrollIntoView(true);
+            } catch (e4) {
+              vp.scrollLeft = left;
             }
           }
         }
-        setDots(i);
       }
+      setDots(i);
+    }
 
-      function step(dir) {
-        goTo(activeIndex() + dir);
+    function step(dir) {
+      goTo(activeIndex() + dir);
+    }
+
+    var apMs = parseInt(String(root.getAttribute('data-wb-ds-gallery-autoplay') || '0'), 10);
+
+    function clearAutoplay() {
+      var t = root._wbGalleryApT;
+      if (t) window.clearInterval(t);
+      root._wbGalleryApT = 0;
+    }
+
+    function startAutoplay() {
+      clearAutoplay();
+      if (!(apMs >= 1200)) return;
+      root._wbGalleryApT = window.setInterval(function () {
+        var slides = slidesLive();
+        if (slides.length < 2) return;
+        var last = slides.length - 1;
+        if (activeIndex() >= last) goTo(0);
+        else step(1);
+      }, apMs);
+    }
+
+    function resetAutoplay() {
+      clearAutoplay();
+      startAutoplay();
+    }
+
+    function pauseAutoplay() {
+      clearAutoplay();
+    }
+
+    /* Capture + stopPropagation: GrapesJS can steal nav clicks in the canvas iframe. */
+    function wireNav(btn, dir) {
+      if (!btn) return;
+      try {
+        if (!btn.getAttribute('type')) btn.setAttribute('type', 'button');
+      } catch (e0) {
+        /* ignore */
       }
+      var run = function (ev) {
+        if (ev) {
+          if (typeof ev.preventDefault === 'function') ev.preventDefault();
+          if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+        }
+        step(dir);
+        resetAutoplay();
+      };
+      btn.addEventListener('pointerdown', run, { capture: true, signal: signal });
+      btn.addEventListener('click', run, { capture: true, signal: signal });
+    }
+    wireNav(prev, -1);
+    wireNav(next, 1);
 
-      /* Capture + stopPropagation: GrapesJS binds click on iframe body (bubble) with preventDefault and would steal nav. */
-      function wireNav(btn, dir) {
-        if (!btn) return;
+    var dots = dotsLive();
+    for (var d = 0; d < dots.length; d++) {
+      (function (dot, idx) {
         try {
-          if (!btn.getAttribute('type')) btn.setAttribute('type', 'button');
+          if (!dot.getAttribute('type')) dot.setAttribute('type', 'button');
         } catch (e0) {
           /* ignore */
         }
-        var run = function (ev) {
+        var runDot = function (ev) {
           if (ev) {
             if (typeof ev.preventDefault === 'function') ev.preventDefault();
             if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
           }
-          step(dir);
+          goTo(idx);
           resetAutoplay();
         };
-        btn.addEventListener(
-          'pointerdown',
-          function (ev) {
-            run(ev);
-          },
-          true
-        );
-        btn.addEventListener(
-          'click',
-          function (ev) {
-            run(ev);
-          },
-          true
-        );
-      }
-      wireNav(prev, -1);
-      wireNav(next, 1);
+        dot.addEventListener('pointerdown', runDot, { capture: true, signal: signal });
+        dot.addEventListener('click', runDot, { capture: true, signal: signal });
+      })(dots[d], d);
+    }
 
-      for (var d = 0; d < dots.length; d++) {
-        (function (dot, idx) {
-          try {
-            if (!dot.getAttribute('type')) dot.setAttribute('type', 'button');
-          } catch (e0) {
-            /* ignore */
-          }
-          var runDot = function (ev) {
-            if (ev) {
-              if (typeof ev.preventDefault === 'function') ev.preventDefault();
-              if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
-            }
-            goTo(idx);
-            resetAutoplay();
-          };
-          dot.addEventListener(
-            'pointerdown',
-            function (ev) {
-              runDot(ev);
-            },
-            true
-          );
-          dot.addEventListener(
-            'click',
-            function (ev) {
-              runDot(ev);
-            },
-            true
-          );
-        })(dots[d], d);
-      }
+    var scrollTick = false;
+    vp.addEventListener(
+      'scroll',
+      function () {
+        if (scrollTick) return;
+        scrollTick = true;
+        window.requestAnimationFrame(function () {
+          scrollTick = false;
+          setDots(activeIndex());
+        });
+      },
+      { passive: true, signal: signal }
+    );
 
-      var scrollTick = false;
-      vp.addEventListener(
-        'scroll',
-        function () {
-          if (scrollTick) return;
-          scrollTick = true;
-          window.requestAnimationFrame(function () {
-            scrollTick = false;
-            setDots(activeIndex());
-          });
-        },
-        { passive: true }
-      );
+    startAutoplay();
+    root.addEventListener('mouseenter', pauseAutoplay, { signal: signal });
+    root.addEventListener('mouseleave', startAutoplay, { signal: signal });
+    root.addEventListener('touchstart', pauseAutoplay, { passive: true, signal: signal });
+    root.addEventListener('touchend', resetAutoplay, { passive: true, signal: signal });
 
-      var apMs = parseInt(String(root.getAttribute('data-wb-ds-gallery-autoplay') || '0'), 10);
-      var apTimer = 0;
+    root.setAttribute('data-wb-ds-gallery-init', '1');
+    setDots(0);
+  }
 
-      function clearAutoplay() {
-        if (apTimer) window.clearInterval(apTimer);
-        apTimer = 0;
-      }
-
-      function startAutoplay() {
-        clearAutoplay();
-        if (!(apMs >= 1200)) return;
-        apTimer = window.setInterval(function () {
-          var last = slides.length - 1;
-          if (activeIndex() >= last) goTo(0);
-          else step(1);
-        }, apMs);
-      }
-
-      function resetAutoplay() {
-        clearAutoplay();
-        startAutoplay();
-      }
-
-      function pauseAutoplay() {
-        clearAutoplay();
-      }
-
-      startAutoplay();
-      root.addEventListener('mouseenter', pauseAutoplay);
-      root.addEventListener('mouseleave', startAutoplay);
-      root.addEventListener('touchstart', pauseAutoplay, { passive: true });
-      root.addEventListener('touchend', resetAutoplay, { passive: true });
-
-      setDots(0);
+  function ensureGalleryDotsMatchSlideCount(root) {
+    var track = root.querySelector('.wb-sys-carousel__track');
+    var dotsHost = root.querySelector('.wb-sys-carousel__dots');
+    if (!track || !dotsHost) return;
+    var slides = track.querySelectorAll('.wb-sys-carousel__slide');
+    var n = slides.length;
+    if (n < 1) return;
+    var dots = dotsHost.querySelectorAll('.wb-sys-carousel__dot[data-wb-ds-dot]');
+    if (dots.length === n) return;
+    var doc = root.ownerDocument;
+    if (!doc) return;
+    while (dotsHost.firstChild) dotsHost.removeChild(dotsHost.firstChild);
+    for (var i = 0; i < n; i++) {
+      var b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'wb-sys-carousel__dot' + (i === 0 ? ' wb-sys-carousel__dot--active' : '');
+      b.setAttribute('data-wb-ds-dot', String(i));
+      b.setAttribute('aria-label', 'Photo ' + (i + 1) + ' of ' + n);
+      b.setAttribute('aria-current', i === 0 ? 'true' : 'false');
+      dotsHost.appendChild(b);
     }
   }
+
+  function initDesignSystemGalleries() {
+    var roots = document.querySelectorAll('[data-wb-ds-gallery]');
+    for (var r = 0; r < roots.length; r++) {
+      var root = roots[r];
+      var vp = root.querySelector('.wb-sys-carousel__viewport');
+      var track = root.querySelector('.wb-sys-carousel__track');
+      if (!vp || !track) continue;
+
+      ensureGalleryDotsMatchSlideCount(root);
+
+      var slides = track.querySelectorAll('.wb-sys-carousel__slide');
+      var dots = root.querySelectorAll('.wb-sys-carousel__dot[data-wb-ds-dot]');
+      if (slides.length < 1) continue;
+
+      var prevN = root.getAttribute('data-wb-ds-bound-slides');
+      var prevDn = root.getAttribute('data-wb-ds-bound-dots');
+      var needRebind =
+        !root.getAttribute('data-wb-ds-gallery-init') ||
+        String(slides.length) !== prevN ||
+        String(dots.length) !== prevDn;
+
+      if (!needRebind) continue;
+
+      bindOneDsGallery(root);
+      root.setAttribute('data-wb-ds-bound-slides', String(slides.length));
+      root.setAttribute('data-wb-ds-bound-dots', String(dots.length));
+    }
+  }
+
+  /** After editor adds/removes slides, call from iframe to re-wire prev/next/dots. */
+  window.__wbRefreshDsGalleries = function () {
+    initDesignSystemGalleries();
+  };
 
   function prefersReducedMotion() {
     try {

@@ -28,6 +28,10 @@ import {
   insertFullDesignSystemPage,
   setBlockDragTransferData,
 } from '@/features/website/editor/core/websiteBuilderComponentCatalog/websiteBuilderComponentCatalog';
+import {
+  fuzzyDesignSystemBoost,
+  getSearchIntentTermSet,
+} from '@/features/website/editor/core/websiteBuilderComponentCatalog/websiteBuilderComponentSearch';
 import { DESIGN_SYSTEM_SETS } from '@/features/website/editor/blocks/websiteBuilderDesignSystemBlocks/websiteBuilderDesignSystemBlocks';
 import {
   ICON_GRID_KIT_CATALOG_ENTRY,
@@ -304,7 +308,7 @@ export function WebsiteBuilderComponentsLibrary({
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [iconSubgroup, setIconSubgroup] = useState<'all' | IconLibrarySubgroup>('all');
   const [fullPreview, setFullPreview] = useState<{ id: DesignSystemSetId; label: string } | null>(null);
-  /** Design systems library: full-page packs (Max) vs single sections (Pro). */
+  /** Design systems library: full-page template packs vs individual section blocks. */
   const [dsLibraryTab, setDsLibraryTab] = useState<'templates' | 'components'>('templates');
 
   useEffect(() => {
@@ -431,14 +435,32 @@ export function WebsiteBuilderComponentsLibrary({
   }, [isOpen]);
 
   const designSystemSetsFiltered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     if (!q) return DESIGN_SYSTEM_SETS;
-    return DESIGN_SYSTEM_SETS.filter(
-      (s) =>
-        s.label.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q),
-    );
+    const qLower = q.toLowerCase();
+    const terms = getSearchIntentTermSet(q);
+    const scored = DESIGN_SYSTEM_SETS.map((s) => {
+      const label = s.label.toLowerCase();
+      const id = s.id.toLowerCase();
+      const cat = s.category.toLowerCase();
+      const hay = `${label} ${id} ${cat}`;
+      let score = 0;
+      if (label === qLower) score = Math.max(score, 1000);
+      else if (label.startsWith(qLower)) score = Math.max(score, 900);
+      else if (label.includes(qLower)) score = Math.max(score, 820);
+      for (const t of terms) {
+        if (!t || t.length < 2) continue;
+        if (hay.includes(t)) score = Math.max(score, 600 + Math.min(80, t.length * 4));
+      }
+      const fz = fuzzyDesignSystemBoost(q, s.label, s.id, s.category);
+      if (fz > 0) {
+        score = score > 0 ? score + Math.min(fz, 220) : fz;
+      }
+      return { s, score };
+    })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+    return scored.map((x) => x.s);
   }, [search]);
 
   if (!isOpen) return null;
@@ -486,7 +508,7 @@ export function WebsiteBuilderComponentsLibrary({
             </h2>
             <p className="wb-comp-lib__subtitle">
               See live previews, then add blocks or copy HTML. Under <strong>Design systems</strong>, use{' '}
-              <strong>Complete templates</strong> (Max) or <strong>Section components</strong> (Pro). Full-page{' '}
+              <strong>Complete templates</strong> or <strong>Section components</strong>. Full-page{' '}
               <strong>Preview</strong> opens at real desktop width.
             </p>
           </div>
@@ -546,22 +568,14 @@ export function WebsiteBuilderComponentsLibrary({
             >
               <span className="wb-comp-lib__scope-inner">
                 <span>Design systems</span>
-                <span className="wb-ds-max-tag" aria-hidden>
-                  Max
-                </span>
-                <WorkspacePremiumOutlinedIcon
-                  className="wb-ds-max-crown wb-comp-lib__scope-crown"
-                  fontSize="inherit"
-                  aria-hidden
-                />
               </span>
             </button>
           </div>
           <div className="wb-comp-lib__premium-strip">
             <WorkspacePremiumOutlinedIcon className="wb-comp-lib__premium-ico" fontSize="small" aria-hidden />
             <span>
-              <strong>Tiers</strong> — Base (default site) · Pro (classic layouts + section blocks) · Max (full design-system
-              page packs). Saving any paid template still requires an active Pro subscription.
+              <strong>Plans</strong> — Base includes design-system templates and section blocks. Saving paid templates requires
+              an active subscription.
             </span>
           </div>
         </div>
@@ -572,10 +586,10 @@ export function WebsiteBuilderComponentsLibrary({
               <input
                 type="search"
                 className="wb-comp-lib__search"
-                placeholder="Search components…"
+                placeholder="Search name, #tag, or intent…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                aria-label="Search components"
+                aria-label="Search components by name, tags, or keywords"
               />
             : null}
             <button
@@ -729,7 +743,7 @@ export function WebsiteBuilderComponentsLibrary({
                     <input
                       type="search"
                       className="wb-comp-lib__ds-toolbar-input"
-                      placeholder="Search design systems…"
+                      placeholder="Search template name or intent…"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       aria-label="Search design systems"
@@ -751,9 +765,6 @@ export function WebsiteBuilderComponentsLibrary({
                     onClick={() => setDsLibraryTab('templates')}
                   >
                     <span className="wb-comp-lib__ds-subtab-label">Complete templates</span>
-                    <span className="wb-comp-lib__tier-pill wb-comp-lib__tier-pill--max" aria-hidden>
-                      Max
-                    </span>
                   </button>
                   <button
                     type="button"
@@ -763,19 +774,15 @@ export function WebsiteBuilderComponentsLibrary({
                     onClick={() => setDsLibraryTab('components')}
                   >
                     <span className="wb-comp-lib__ds-subtab-label">Section components</span>
-                    <span className="wb-comp-lib__tier-pill wb-comp-lib__tier-pill--pro" aria-hidden>
-                      Pro
-                    </span>
                   </button>
                 </div>
                 {dsLibraryTab === 'templates' ?
                   <p className="wb-comp-lib__filter-hint">
-                    <strong>Max</strong> — one click adds all nine sections (navbar → footer) in a single design set. Use{' '}
+                    One click adds all nine sections (navbar → footer) in a single design set. Use{' '}
                     <strong>Section components</strong> to add layers individually.
                   </p>
                 : <p className="wb-comp-lib__filter-hint">
-                    <strong>Pro</strong> — {visible.length} individual blocks (nav, hero, pricing, …). Drag or use{' '}
-                    <strong>Add to page</strong>.
+                    {visible.length} individual blocks (nav, hero, pricing, …). Drag or use <strong>Add to page</strong>.
                   </p>}
               </>
             }
@@ -791,7 +798,7 @@ export function WebsiteBuilderComponentsLibrary({
               {libraryScope === 'design-systems' && dsLibraryTab === 'templates' ?
                 <>
                   <li className="wb-comp-lib__ds-section-head" key="__ds-head-templates__">
-                    <h3 className="wb-comp-lib__ds-section-title">Complete templates · Max</h3>
+                    <h3 className="wb-comp-lib__ds-section-title">Complete templates</h3>
                     <p className="wb-comp-lib__template-sets-desc mb-0">
                       Navbar through footer in one style. <strong>Preview</strong> uses a {WB_LIB_DS_SECTION_PREVIEW_WIDTH}px
                       frame; <strong>Add</strong> drops all nine sections onto the canvas.
@@ -802,10 +809,6 @@ export function WebsiteBuilderComponentsLibrary({
                   : designSystemSetsFiltered.map((s) => (
                       <li key={s.id} className="wb-comp-lib__card wb-comp-lib__card--ds-template">
                         <div className="wb-comp-lib__card-visual wb-comp-lib__card-visual--ds">
-                          <div className="wb-comp-lib__ds-max-badge" aria-hidden>
-                            <span className="wb-ds-max-tag">Max</span>
-                            <WorkspacePremiumOutlinedIcon className="wb-ds-max-crown" fontSize="inherit" />
-                          </div>
                           <DesignSystemTemplatePreview editor={editor} setId={s.id} label={s.label} />
                         </div>
                         <div className="wb-comp-lib__card-body wb-comp-lib__card-body--ds">
@@ -839,9 +842,9 @@ export function WebsiteBuilderComponentsLibrary({
               : libraryScope === 'design-systems' && dsLibraryTab === 'components' ?
                 <>
                   <li className="wb-comp-lib__ds-section-head" key="__ds-head-sections__">
-                    <h3 className="wb-comp-lib__ds-section-title">Section components · Pro</h3>
+                    <h3 className="wb-comp-lib__ds-section-title">Section components</h3>
                     <p className="wb-comp-lib__template-sets-desc mb-0">
-                      Add one layer at a time (nav, hero, pricing, …). Match the Max template set above for a consistent page.
+                      Add one layer at a time (nav, hero, pricing, …). Match the complete template set above for a consistent page.
                     </p>
                   </li>
                   {visible.length === 0 ?
@@ -860,9 +863,6 @@ export function WebsiteBuilderComponentsLibrary({
                         }}
                       >
                         <div className="wb-comp-lib__card-visual">
-                          <span className="wb-comp-lib__card-tier-ribbon" aria-hidden>
-                            Pro
-                          </span>
                           <BlockPreview editor={editor} blockId={it.blockId} kind={it.preview} />
                         </div>
                         <div className="wb-comp-lib__card-body">

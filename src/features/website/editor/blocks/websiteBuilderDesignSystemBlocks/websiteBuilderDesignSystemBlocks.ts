@@ -63,8 +63,8 @@ const IMG_LIQ_G2 =
 const IMG_LIQ_G3 =
   'https://images.unsplash.com/photo-1593079831263-1a2839b31bfb?auto=format&fit=crop&w=960&q=86';
 
-/** Max tier strip next to nav brand (gradient pill + crown) — all design-system navs. */
-const DS_MAX_BADGE_ROW = `<span class="wb-sys-ds-badges" aria-hidden="true"><span class="wb-sys-tag wb-sys-tag--max">Max</span><span class="wb-sys-tag-crown">${DS_ICO.crownNav}</span></span>`;
+/** Optional strip next to nav brand; empty so previews/canvas stay free of tier pills. */
+const DS_MAX_BADGE_ROW = '';
 
 const IMG_HERO =
   'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1600&auto=format&fit=crop&q=88';

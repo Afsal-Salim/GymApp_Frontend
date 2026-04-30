@@ -16,6 +16,7 @@ import type { InspectorKind, SelectionInfo } from '@/features/website/editor/rig
 import { findOne, getDirectText, getHeroContent, setDirectText } from '@/features/website/editor/right-column/websiteBuilderInspector/websiteBuilderInspector';
 import { looksLikeGoogleMapsUrl, normalizeGoogleMapsIframeSrc } from '@/features/website/editor/blocks/websiteBuilderGoogleMapsEmbed/websiteBuilderGoogleMapsEmbed';
 import { waMeHrefFromDigits } from '@/features/website/editor/blocks/websiteBuilderBlocks/websiteBuilderBlocks';
+import { applySectionSpacingPreset } from '@/features/website/editor/tools/websiteBuilderEditorTools';
 
 export type InspectorTab = 'content' | 'design' | 'advanced';
 
@@ -32,6 +33,21 @@ type Props = {
 };
 
 const SECTION_TYPES = ['Hero', 'About', 'Services', 'Pricing', 'Contact', 'Custom'] as const;
+
+/** Font stacks for the Style tab (`font-family` on the selected block). */
+const INSPECTOR_FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Same as rest of page' },
+  { value: 'Inter, system-ui, sans-serif', label: 'Inter' },
+  { value: 'Poppins, system-ui, sans-serif', label: 'Poppins' },
+  { value: 'Montserrat, system-ui, sans-serif', label: 'Montserrat' },
+  { value: 'DM Sans, system-ui, sans-serif', label: 'DM Sans' },
+  { value: 'Playfair Display, Georgia, serif', label: 'Playfair Display' },
+  { value: 'Merriweather, Georgia, serif', label: 'Merriweather' },
+  { value: 'Oswald, system-ui, sans-serif', label: 'Oswald' },
+  { value: 'Bebas Neue, Impact, sans-serif', label: 'Bebas Neue' },
+  { value: 'monospace', label: 'Monospace' },
+];
+
 type ButtonActionChoice = 'none' | 'section' | 'page' | 'custom' | 'join' | 'visit' | 'trial' | 'enquiry';
 
 function sliceMax(s: string, max: number) {
@@ -114,6 +130,43 @@ function parseTelNumber(href: string): string {
   return href.replace(/^tel:/i, '').trim();
 }
 
+function resolveGalleryCarouselRoot(comp: Component): Component | undefined {
+  let cur: Component | null | undefined = comp;
+  while (cur && !cur.is?.('wrapper')) {
+    const attrs = cur.getAttributes?.() ?? {};
+    const cls = String(attrs.class || '');
+    if (/\bwb-gallery-carousel\b/.test(cls) || String(attrs['data-wb-gallery-carousel'] || '') === '1') {
+      return cur;
+    }
+    cur = cur.parent?.();
+  }
+  return undefined;
+}
+
+/**
+ * Accept domain-only image input (e.g. "example.com/a.jpg") by normalizing to https URL.
+ * Keep explicit relative/data/blob/protocol URLs unchanged.
+ */
+function normalizeImageSrcInput(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (
+    t.startsWith('/') ||
+    t.startsWith('./') ||
+    t.startsWith('../') ||
+    t.startsWith('data:') ||
+    t.startsWith('blob:') ||
+    t.startsWith('//') ||
+    /^https?:\/\//i.test(t)
+  ) {
+    return t;
+  }
+  if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:[/:?#].*)?$/i.test(t)) {
+    return `https://${t}`;
+  }
+  return t;
+}
+
 function inferLinkButtonAction(comp: Component, pages: BuilderPageOption[]): ButtonActionChoice {
   const attrs = comp.getAttributes?.() ?? {};
   const modal = sanitizeModalAction(String(attrs['data-wb-open'] ?? ''));
@@ -150,9 +203,10 @@ function toOnclickNavigate(url: string): string {
 function InspectorEmpty() {
   return (
     <div className="website-builder-page__inspector-empty">
-      <p className="website-builder-page__inspector-empty-title">Nothing selected</p>
+      <p className="website-builder-page__inspector-empty-title">Pick something on the page</p>
       <p className="website-builder-page__inspector-empty-text">
-        Click a section, heading, button, or block on the canvas to edit its content, design, and advanced settings here.
+        Click any heading, picture, button, or area on your site preview. Then use <strong>Basics</strong> for words and links,{' '}
+        <strong>Style</strong> for colours and layout, and <strong>Extras</strong> only when you need motion or jump links.
       </p>
     </div>
   );
@@ -161,9 +215,9 @@ function InspectorEmpty() {
 function WrapperHint() {
   return (
     <div className="website-builder-page__inspector-empty">
-      <p className="website-builder-page__inspector-empty-title">Page</p>
+      <p className="website-builder-page__inspector-empty-title">Whole page</p>
       <p className="website-builder-page__inspector-empty-text">
-        Select a specific element on the page to see section-specific controls. The page frame itself has no editable properties in this panel.
+        Click a heading, image, or block <em>inside</em> the preview — that is where you edit text and colours. The empty frame around the page has no settings here.
       </p>
     </div>
   );
@@ -220,7 +274,7 @@ export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange, b
           onClick={() => onTabChange('advanced')}
         >
           <SettingsOutlinedIcon className="website-builder-page__inspector-tab-icon" fontSize="small" />
-          <span>More</span>
+          <span>Extras</span>
         </button>
       </div>
 
@@ -242,11 +296,11 @@ export function WebsiteBuilderInspector({ editor, selection, tab, onTabChange, b
 
         {/* Grapes append targets — always mounted so the editor can bind; visibility follows tab + selection */}
         <div hidden={!showStylesDock} className="website-builder-page__gjs-dock">
-          <p className="website-builder-page__field-hint website-builder-page__gjs-dock-title">More style options</p>
+          <p className="website-builder-page__field-hint website-builder-page__gjs-dock-title">Extra colour &amp; spacing (optional)</p>
           <div id="wb-styles" className="website-builder-page__gjs-styles-host" />
         </div>
         <div hidden={!showAdvancedDock} className="website-builder-page__gjs-dock">
-          <p className="website-builder-page__field-hint">Animation presets</p>
+          <p className="website-builder-page__field-hint">Built-in motion options</p>
           <div id="wb-traits" className="website-builder-page__traits-host website-builder-page__traits-skin" />
         </div>
         {tab === 'advanced' && selection && selection.kind !== 'wrapper' ?
@@ -311,7 +365,195 @@ function ContentPanel({
   if (selection.kind === 'section') {
     return <SectionContent root={selected} />;
   }
+  if (selection.kind === 'galleryCarousel') {
+    return <GalleryCarouselContent editor={editor} comp={selected} />;
+  }
   return <GenericContent comp={selected} kind={selection.kind} />;
+}
+
+function refreshDsGalleriesInCanvas(editor: Editor | null) {
+  try {
+    const w = editor?.Canvas?.getWindow?.() as (Window & { __wbRefreshDsGalleries?: () => void }) | undefined;
+    w?.__wbRefreshDsGalleries?.();
+  } catch {
+    /* ignore */
+  }
+}
+
+function GalleryCarouselContent({
+  editor,
+  comp,
+}: {
+  editor: Editor | null;
+  comp: NonNullable<ReturnType<Editor['getSelected']>>;
+}) {
+  const root = useMemo(() => resolveGalleryCarouselRoot(comp) ?? comp, [comp]);
+  const [slides, setSlides] = useState<Array<{ src: string; alt: string; caption: string }>>([]);
+
+  const findTrack = useCallback(() => findOne(root, '.wb-sys-carousel__track'), [root]);
+
+  const readSlides = useCallback(() => {
+    const track = findTrack();
+    const out: Array<{ src: string; alt: string; caption: string }> = [];
+    if (!track) return out;
+    const ch = track.components();
+    const len = typeof ch.length === 'number' ? ch.length : 0;
+    for (let i = 0; i < len; i += 1) {
+      const slide = typeof ch.at === 'function' ? ch.at(i) : null;
+      if (!slide) continue;
+      const img = findOne(slide, 'img');
+      const cap = findOne(slide, 'figcaption');
+      const attrs = img?.getAttributes?.() ?? {};
+      out.push({
+        src: String(attrs.src ?? ''),
+        alt: String(attrs.alt ?? ''),
+        caption: cap ? getDirectText(cap) : '',
+      });
+    }
+    return out;
+  }, [findTrack]);
+
+  useEffect(() => {
+    setSlides(readSlides());
+  }, [readSlides, root]);
+
+  const writeSlideSrc = (idx: number, value: string) => {
+    setSlides((prev) => prev.map((s, i) => (i === idx ? { ...s, src: value } : s)));
+    const track = findTrack();
+    if (!track) return;
+    const coll = track.components();
+    const slide = typeof coll.at === 'function' ? coll.at(idx) : null;
+    const img = slide ? findOne(slide, 'img') : undefined;
+    if (img) img.addAttributes({ src: value });
+  };
+
+  const writeSlideAlt = (idx: number, value: string) => {
+    setSlides((prev) => prev.map((s, i) => (i === idx ? { ...s, alt: value } : s)));
+    const track = findTrack();
+    if (!track) return;
+    const coll = track.components();
+    const slide = typeof coll.at === 'function' ? coll.at(idx) : null;
+    const img = slide ? findOne(slide, 'img') : undefined;
+    if (img) img.addAttributes({ alt: value });
+  };
+
+  const writeSlideCaption = (idx: number, value: string) => {
+    setSlides((prev) => prev.map((s, i) => (i === idx ? { ...s, caption: value } : s)));
+    const track = findTrack();
+    if (!track) return;
+    const coll = track.components();
+    const slide = typeof coll.at === 'function' ? coll.at(idx) : null;
+    const cap = slide ? findOne(slide, 'figcaption') : undefined;
+    if (cap) setDirectText(cap, value);
+  };
+
+  const addSlide = () => {
+    const track = findTrack();
+    if (!track) return;
+    const coll = track.components() as unknown as {
+      add?: (value: unknown, opts?: { at?: number }) => unknown;
+      length?: number;
+    };
+    const nextN = (typeof coll.length === 'number' ? coll.length : slides.length) + 1;
+    const label = `Frame ${nextN}`;
+    const svg = encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'><rect fill='#f8fafc' width='640' height='420' rx='18'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#94a3b8' font-family='system-ui' font-size='15' font-weight='600'>${label}</text></svg>`
+    );
+    coll.add?.({
+      type: 'default',
+      tagName: 'figure',
+      classes: ['wb-sys-carousel__slide'],
+      components: [
+        {
+          type: 'image',
+          tagName: 'img',
+          attributes: { src: `data:image/svg+xml,${svg}`, alt: label },
+          style: {
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          },
+        },
+        {
+          type: 'text',
+          tagName: 'figcaption',
+          content: label,
+          style: {
+            marginTop: '0.5rem',
+            color: '#64748b',
+            fontSize: '0.8rem',
+          },
+        },
+      ],
+    });
+    window.requestAnimationFrame(() => {
+      refreshDsGalleriesInCanvas(editor);
+      setSlides(readSlides());
+    });
+  };
+
+  const removeSlide = (idx: number) => {
+    const track = findTrack();
+    if (!track || slides.length <= 1) return;
+    const coll = track.components();
+    const slide = typeof coll.at === 'function' ? coll.at(idx) : null;
+    slide?.remove?.();
+    window.requestAnimationFrame(() => {
+      refreshDsGalleriesInCanvas(editor);
+      setSlides(readSlides());
+    });
+  };
+
+  return (
+    <>
+      <div className="website-builder-page__panel-group-title">Gallery carousel</div>
+      <p className="website-builder-page__field-hint">
+        Manage slide count and images here. Next/prev stays active in canvas preview.
+      </p>
+      <div className="website-builder-page__form-block">
+        <button type="button" className="website-builder-page__save-section-btn" onClick={addSlide}>
+          Add slide
+        </button>
+      </div>
+      {slides.map((slide, idx) => (
+        <div key={`gallery-slide-${idx}`} className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label">Slide {idx + 1} image URL</label>
+          <input
+            className="website-builder-page__field-control"
+            value={slide.src}
+            placeholder="https://…"
+            onChange={(e) => writeSlideSrc(idx, e.target.value)}
+          />
+          <label className="website-builder-page__field-label" style={{ marginTop: '0.5rem' }}>
+            Alt text
+          </label>
+          <input
+            className="website-builder-page__field-control"
+            value={slide.alt}
+            onChange={(e) => writeSlideAlt(idx, e.target.value)}
+          />
+          <label className="website-builder-page__field-label" style={{ marginTop: '0.5rem' }}>
+            Caption
+          </label>
+          <input
+            className="website-builder-page__field-control"
+            value={slide.caption}
+            onChange={(e) => writeSlideCaption(idx, e.target.value)}
+          />
+          <button
+            type="button"
+            className="website-builder-page__remove-row-btn"
+            disabled={slides.length <= 1}
+            onClick={() => removeSlide(idx)}
+            style={{ marginTop: '0.5rem' }}
+          >
+            Remove slide
+          </button>
+        </div>
+      ))}
+    </>
+  );
 }
 
 function HeroContent({ root }: { root: NonNullable<ReturnType<Editor['getSelected']>> }) {
@@ -852,7 +1094,7 @@ function PushButtonContent({
           <option value="reset">reset</option>
         </select>
       </div>
-      <p className="website-builder-page__field-hint">Use Design for width, height, and opacity.</p>
+      <p className="website-builder-page__field-hint">Use <strong>Style</strong> for width, height, and fade.</p>
       <button type="button" className="website-builder-page__save-section-btn">
         Save Section
       </button>
@@ -923,7 +1165,7 @@ function IframeContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
           }}
         />
       </div>
-      <p className="website-builder-page__field-hint">Use Design for width, height, min-height, and opacity.</p>
+      <p className="website-builder-page__field-hint">Use <strong>Style</strong> for width, height, minimum height, and fade.</p>
       <button type="button" className="website-builder-page__save-section-btn">
         Save Section
       </button>
@@ -1335,6 +1577,13 @@ function ImageContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelect
             setSrc(v);
             comp.addAttributes({ src: v });
           }}
+          onBlur={() => {
+            const normalized = normalizeImageSrcInput(src);
+            if (normalized !== src) {
+              setSrc(normalized);
+              comp.addAttributes({ src: normalized });
+            }
+          }}
         />
       </div>
       <div className="website-builder-page__form-block">
@@ -1363,7 +1612,7 @@ function NavContent() {
   return (
     <div className="website-builder-page__inspector-empty">
       <p className="website-builder-page__inspector-empty-text">
-        Edit navigation links by selecting each link on the canvas, or adjust layout and colors in the Design and Advanced tabs.
+        Click each menu item on the preview to change its text and link. Use <strong>Style</strong> for colours and <strong>Extras</strong> only if you need extra options.
       </p>
     </div>
   );
@@ -1380,7 +1629,7 @@ function SectionContent({ root }: { root: NonNullable<ReturnType<Editor['getSele
     <>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-sec2">
-          Section Type
+          What this area is (your notes)
         </label>
         <select
           id="wb-ins-sec2"
@@ -1400,8 +1649,29 @@ function SectionContent({ root }: { root: NonNullable<ReturnType<Editor['getSele
         </select>
       </div>
       <p className="website-builder-page__field-hint">
-        Use Design for spacing and typography, and Advanced for HTML id/classes and animations.
+        This is only a label for you (e.g. “Pricing”). To change colours and fonts, open <strong>Style</strong>. For gentle motion or menu links, open <strong>Extras</strong>.
       </p>
+      <div className="website-builder-page__panel-group-title">Section spacing</div>
+      <p className="website-builder-page__field-hint">Quick padding presets for this block.</p>
+      <div className="website-builder-page__segmented website-builder-page__segmented--triple" style={{ marginBottom: '0.5rem' }}>
+        <button
+          type="button"
+          className="website-builder-page__segmented-btn"
+          onClick={() => applySectionSpacingPreset(root, 'tight')}
+        >
+          Tight
+        </button>
+        <button type="button" className="website-builder-page__segmented-btn" onClick={() => applySectionSpacingPreset(root, 'normal')}>
+          Normal
+        </button>
+        <button
+          type="button"
+          className="website-builder-page__segmented-btn"
+          onClick={() => applySectionSpacingPreset(root, 'airy')}
+        >
+          Airy
+        </button>
+      </div>
       <button type="button" className="website-builder-page__save-section-btn">
         Save Section
       </button>
@@ -1496,34 +1766,76 @@ function parseLinearGradientFromBackground(bg: string): { angle: number; c1: str
   return null;
 }
 
-function FillAndTextFields({ comp }: { comp: Component }) {
+function extractCssBackgroundUrl(raw: string): string {
+  const t = raw.trim();
+  if (!t || t === 'none') return '';
+  const m = t.match(/url\(\s*['"]?([^'")]+)['"]?\s*\)/);
+  return (m?.[1] ?? '').trim();
+}
+
+function inferFillMode(st: Record<string, string>): 'solid' | 'gradient' | 'image' {
+  const bg = st.background || '';
+  const bgImg = (st['background-image'] || '').trim();
+  const urlFromLayer = extractCssBackgroundUrl(bgImg);
+  const urlFromShorthand = extractCssBackgroundUrl(bg);
+  const hasUrl = Boolean(urlFromLayer || urlFromShorthand);
+  const hasGrad = /gradient/i.test(bg) || /gradient/i.test(bgImg);
+  if (hasUrl && !hasGrad) return 'image';
+  if (hasGrad) return 'gradient';
+  return 'solid';
+}
+
+function clearImageBackgroundPatch(): Record<string, string | undefined> {
+  return {
+    'background-image': undefined,
+    'background-size': undefined,
+    'background-position': undefined,
+    'background-repeat': undefined,
+  };
+}
+
+function FillAndTextFields({ comp, omitFontFamily }: { comp: Component; omitFontFamily?: boolean }) {
   const read = useCallback(() => {
     const st = (comp.getStyle?.() ?? {}) as Record<string, string>;
     const bg = st.background || '';
-    const hasGrad = bg.includes('gradient');
+    const mode = inferFillMode(st);
+    const bgImg = (st['background-image'] || '').trim();
+    const urlFromLayer = extractCssBackgroundUrl(bgImg);
+    const urlFromShorthand = extractCssBackgroundUrl(bg);
+    const imageUrl = urlFromLayer || urlFromShorthand;
+    const bgSize = (st['background-size'] || 'cover').trim() || 'cover';
     return {
       color: st.color || '',
+      fontFamily: (st['font-family'] || '').trim(),
       background: bg,
       backgroundColor: st['background-color'] || '',
-      mode: hasGrad ? ('gradient' as const) : ('solid' as const),
+      mode,
+      imageUrl,
+      backgroundSize: bgSize === 'contain' || bgSize === 'auto' ? bgSize : 'cover',
     };
   }, [comp]);
 
+  const [fontFamily, setFontFamily] = useState('');
   const [textColor, setTextColor] = useState('#0f172a');
-  const [fillMode, setFillMode] = useState<'solid' | 'gradient'>('solid');
+  const [fillMode, setFillMode] = useState<'solid' | 'gradient' | 'image'>('solid');
   const [solidBg, setSolidBg] = useState('#ffffff');
   const [g1, setG1] = useState('#2563eb');
   const [g2, setG2] = useState('#7c3aed');
   const [angle, setAngle] = useState(135);
+  const [imageUrl, setImageUrl] = useState('');
+  const [bgSizeMode, setBgSizeMode] = useState<'cover' | 'contain' | 'auto'>('cover');
 
   useEffect(() => {
     const st = read();
+    setFontFamily(st.fontFamily);
     setTextColor(st.color || '#0f172a');
     setFillMode(st.mode);
+    setImageUrl(st.imageUrl);
+    setBgSizeMode(st.backgroundSize === 'contain' || st.backgroundSize === 'auto' ? st.backgroundSize : 'cover');
     if (st.mode === 'solid') {
       const bc = st.backgroundColor;
       setSolidBg(bc ? colorStringToHexInput(bc) : '#ffffff');
-    } else {
+    } else if (st.mode === 'gradient') {
       const parsed = parseLinearGradientFromBackground(st.background);
       if (parsed) {
         setAngle(parsed.angle);
@@ -1537,12 +1849,80 @@ function FillAndTextFields({ comp }: { comp: Component }) {
     applyStylePatch(comp, {
       background: `linear-gradient(${a}deg, ${c1}, ${c2})`,
       'background-color': undefined,
+      ...clearImageBackgroundPatch(),
     });
   };
 
+  const applyImage = (url: string, size: 'cover' | 'contain' | 'auto') => {
+    const u = normalizeImageSrcInput(url);
+    if (!u) {
+      applyStylePatch(comp, {
+        ...clearImageBackgroundPatch(),
+        background: undefined,
+        'background-color': undefined,
+      });
+      return;
+    }
+    applyStylePatch(comp, {
+      background: undefined,
+      'background-color': undefined,
+      'background-image': `url("${u.replace(/"/g, '\\"')}")`,
+      'background-size': size,
+      'background-position': 'center',
+      'background-repeat': 'no-repeat',
+    });
+  };
+
+  const fontValueForSelect = useMemo(() => {
+    const f = fontFamily.trim();
+    if (!f) return '';
+    const hit = INSPECTOR_FONT_OPTIONS.find((o) => o.value === f);
+    if (hit) return hit.value;
+    return '__custom__';
+  }, [fontFamily]);
+
   return (
     <>
-      <div className="website-builder-page__panel-group-title">Text &amp; fill</div>
+      <div className="website-builder-page__panel-group-title">Text &amp; background</div>
+      {!omitFontFamily ?
+        <div className="website-builder-page__form-block">
+          <label className="website-builder-page__field-label" htmlFor="wb-fill-font">
+            Font
+          </label>
+          <select
+            id="wb-fill-font"
+            className="website-builder-page__field-control"
+            value={fontValueForSelect}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '__custom__') return;
+              setFontFamily(v);
+              applyStylePatch(comp, { 'font-family': v || undefined });
+            }}
+          >
+            {INSPECTOR_FONT_OPTIONS.map((o) => (
+              <option key={o.label + o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+            <option value="__custom__">Custom (edit below)</option>
+          </select>
+          {fontValueForSelect === '__custom__' ?
+            <input
+              type="text"
+              className="website-builder-page__field-control"
+              style={{ marginTop: 8 }}
+              value={fontFamily}
+              placeholder="e.g. Georgia, serif"
+              onChange={(e) => {
+                const v = e.target.value;
+                setFontFamily(v);
+                applyStylePatch(comp, { 'font-family': v || undefined });
+              }}
+            />
+          : null}
+        </div>
+      : null}
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-fill-tc">
           Text color
@@ -1573,13 +1953,17 @@ function FillAndTextFields({ comp }: { comp: Component }) {
       </div>
       <div className="website-builder-page__form-block">
         <span className="website-builder-page__field-label">Background</span>
-        <div className="website-builder-page__segmented website-builder-page__segmented--fill">
+        <div className="website-builder-page__segmented website-builder-page__segmented--fill website-builder-page__segmented--triple">
           <button
             type="button"
             className={`website-builder-page__segmented-btn${fillMode === 'solid' ? ' is-active' : ''}`}
             onClick={() => {
               setFillMode('solid');
-              applyStylePatch(comp, { background: undefined, 'background-color': solidBg });
+              applyStylePatch(comp, {
+                background: undefined,
+                'background-color': solidBg,
+                ...clearImageBackgroundPatch(),
+              });
             }}
           >
             Solid
@@ -1593,6 +1977,16 @@ function FillAndTextFields({ comp }: { comp: Component }) {
             }}
           >
             Gradient
+          </button>
+          <button
+            type="button"
+            className={`website-builder-page__segmented-btn${fillMode === 'image' ? ' is-active' : ''}`}
+            onClick={() => {
+              setFillMode('image');
+              applyImage(imageUrl, bgSizeMode);
+            }}
+          >
+            Image
           </button>
         </div>
       </div>
@@ -1610,7 +2004,7 @@ function FillAndTextFields({ comp }: { comp: Component }) {
               onChange={(e) => {
                 const v = e.target.value;
                 setSolidBg(v);
-                applyStylePatch(comp, { 'background-color': v, background: undefined });
+                applyStylePatch(comp, { 'background-color': v, background: undefined, ...clearImageBackgroundPatch() });
               }}
             />
             <input
@@ -1625,7 +2019,8 @@ function FillAndTextFields({ comp }: { comp: Component }) {
             />
           </div>
         </div>
-      : (
+      : null}
+      {fillMode === 'gradient' ?
         <>
           <div className="website-builder-page__form-block">
             <label className="website-builder-page__field-label">Gradient angle</label>
@@ -1676,7 +2071,50 @@ function FillAndTextFields({ comp }: { comp: Component }) {
             </div>
           </div>
         </>
-      )}
+      : null}
+      {fillMode === 'image' ?
+        <>
+          <div className="website-builder-page__form-block">
+            <label className="website-builder-page__field-label" htmlFor="wb-fill-bgimg">
+              Background image URL
+            </label>
+            <input
+              id="wb-fill-bgimg"
+              type="text"
+              className="website-builder-page__field-control"
+              value={imageUrl}
+              placeholder="https://… or /path/to/image.jpg"
+              onChange={(e) => {
+                const v = e.target.value;
+                setImageUrl(v);
+                applyImage(v, bgSizeMode);
+              }}
+            />
+            <p className="website-builder-page__field-hint">
+              Paste a link to a picture from the web, or a path your host gave you. If you are not sure, use a solid colour or gradient instead.
+            </p>
+          </div>
+          <div className="website-builder-page__form-block">
+            <label className="website-builder-page__field-label" htmlFor="wb-fill-bgsz">
+              Image fit
+            </label>
+            <select
+              id="wb-fill-bgsz"
+              className="website-builder-page__field-control"
+              value={bgSizeMode}
+              onChange={(e) => {
+                const v = e.target.value as 'cover' | 'contain' | 'auto';
+                setBgSizeMode(v);
+                applyImage(imageUrl, v);
+              }}
+            >
+              <option value="cover">Cover (fill area)</option>
+              <option value="contain">Contain (fit inside)</option>
+              <option value="auto">Original size</option>
+            </select>
+          </div>
+        </>
+      : null}
     </>
   );
 }
@@ -1717,17 +2155,19 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
 
   return (
     <>
-      <div className="website-builder-page__panel-group-title">Size &amp; visibility</div>
-      <p className="website-builder-page__field-hint">Start here. Bigger numbers make it larger. Use px or %.</p>
+      <div className="website-builder-page__panel-group-title">Size &amp; fade</div>
+      <p className="website-builder-page__field-hint">
+        How big this block is on the page. You can type a number and <code>px</code> (pixels) or <code>%</code> (percent of the row).
+      </p>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-w">
-          Block width
+          Width
         </label>
         <input
           id="wb-lay-w"
           className="website-builder-page__field-control"
           value={width}
-          placeholder="e.g. 100% or 320px"
+          placeholder="e.g. 100% or 320px wide"
           onChange={(e) => {
             const v = e.target.value;
             setWidth(v);
@@ -1737,7 +2177,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-h">
-          Block height
+          Height
         </label>
         <input
           id="wb-lay-h"
@@ -1753,7 +2193,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-mw">
-          Max width (limit)
+          Max width (stops it getting too wide)
         </label>
         <input
           id="wb-lay-mw"
@@ -1769,7 +2209,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       </div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-lay-mh">
-          Minimum height
+          Minimum height (shortest it can be)
         </label>
         <input
           id="wb-lay-mh"
@@ -1786,7 +2226,7 @@ function ElementLayoutFields({ comp }: { comp: Component }) {
       <div className="website-builder-page__form-block">
         <div className="website-builder-page__label-row">
           <label className="website-builder-page__field-label mb-0" htmlFor="wb-lay-op">
-            Visibility
+            Fade / transparency
           </label>
           <span className="website-builder-page__char-count">{opacityPct}%</span>
         </div>
@@ -1829,10 +2269,12 @@ function AnimationQuickFields({ comp }: { comp: Component }) {
 
   return (
     <>
-      <div className="website-builder-page__panel-group-title">Animation</div>
+      <p className="website-builder-page__field-hint" style={{ marginBottom: '0.45rem' }}>
+        Optional: a little movement when someone first opens the page. Leave as “No motion” for a simple, still site.
+      </p>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-anim-style">
-          Animation style
+          Effect when the page loads
         </label>
         <select
           id="wb-anim-style"
@@ -1844,19 +2286,19 @@ function AnimationQuickFields({ comp }: { comp: Component }) {
             comp.addAttributes({ 'data-wb-anim': v });
           }}
         >
-          <option value="">None</option>
-          <option value="wb-fade-up">Fade up</option>
-          <option value="wb-fade-in">Fade in</option>
-          <option value="wb-slide-left">Slide left</option>
-          <option value="wb-slide-right">Slide right</option>
-          <option value="wb-zoom-in">Zoom in</option>
-          <option value="wb-pulse">Pulse loop</option>
+          <option value="">No motion</option>
+          <option value="wb-fade-up">Gentle rise</option>
+          <option value="wb-fade-in">Soft fade in</option>
+          <option value="wb-slide-left">Slide from left</option>
+          <option value="wb-slide-right">Slide from right</option>
+          <option value="wb-zoom-in">Slight zoom in</option>
+          <option value="wb-pulse">Repeating pulse</option>
         </select>
       </div>
       <div className="website-builder-page__form-block">
         <div className="website-builder-page__label-row">
           <label className="website-builder-page__field-label mb-0" htmlFor="wb-anim-delay">
-            Start delay
+            Wait before it starts
           </label>
           <span className="website-builder-page__char-count">{delayMs}ms</span>
         </div>
@@ -1893,7 +2335,10 @@ function DesignPanel({
   if (selection.kind === 'hero') {
     return (
       <>
-        <FillAndTextFields key={selection.cid} comp={selected} />
+        <p className="website-builder-page__field-hint website-builder-page__inspector-lede">
+          Set the <strong>banner</strong> look: colours, photo or video, headline sizes, and buttons — the first thing people see.
+        </p>
+        <FillAndTextFields key={selection.cid} comp={selected} omitFontFamily />
         <HeroDesign root={selected} />
       </>
     );
@@ -1901,16 +2346,18 @@ function DesignPanel({
 
   return (
     <>
+      <p className="website-builder-page__field-hint website-builder-page__inspector-lede">
+        Change <strong>colours</strong>, <strong>font</strong>, <strong>background</strong> (solid, blend, or picture), then <strong>size</strong> and <strong>fade</strong>. On a heading or paragraph, you can also <strong>drag the blue corner handles</strong> on the canvas to grow or shrink the text.
+      </p>
       <FillAndTextFields key={selection.cid} comp={selected} />
       <ElementLayoutFields comp={selected} />
-      <AnimationQuickFields comp={selected} />
       <div className="website-builder-page__gjs-embed">
         <p className="website-builder-page__field-hint website-builder-page__gjs-embed-hint">
           {selection.kind === 'iframe' ?
-            'Iframe: set URL in Basics. Use these controls for size, color, and animation.'
+            'Put the map or video address under Basics. Use the boxes above for size and colours; use Extras if you want motion or a menu jump link.'
           : selection.kind === 'pushButton' || selection.kind === 'div' ?
-            'Use the simple controls above first. Extra fine tuning is available below.'
-          : 'Start with these simple controls. Extra fine tuning is available below.'}
+            'Optional fine controls below. For motion or a section label, open the Extras tab.'
+          : 'When this looks right, switch to Extras only if you want a menu jump link or gentle motion when the page opens.'}
         </p>
       </div>
     </>
@@ -2235,9 +2682,7 @@ function AdvancedPanelForm({
   const [pad, setPad] = useState({ t: 80, r: 80, b: 80, l: 80 });
   const [marginLock, setMarginLock] = useState(true);
   const [margin, setMargin] = useState({ t: 0, r: 0, b: 0, l: 0 });
-  const [anim, setAnim] = useState('Fade In Up');
-  const [animDur, setAnimDur] = useState(800);
-  const [animDelay, setAnimDelay] = useState(100);
+  const [sectionDisplayName, setSectionDisplayName] = useState('');
   const [customCss, setCustomCss] = useState(
     `.hero-section {\n  /* section */\n}\n.hero-section .heading {\n  /* heading */\n}`,
   );
@@ -2248,6 +2693,7 @@ function AdvancedPanelForm({
     setCssId(String(selected.getAttributes?.().id ?? ''));
     const cl = selected.getClasses?.();
     setCssClass(Array.isArray(cl) ? cl.join(' ') : String(cl ?? ''));
+    setSectionDisplayName(String(selected.getAttributes?.()['data-wb-section-name'] ?? '').trim());
   }, [selected]);
 
   const applyTag = (tag: string) => {
@@ -2285,10 +2731,47 @@ function AdvancedPanelForm({
 
   return (
     <>
-      <div className="website-builder-page__panel-group-title">More settings</div>
+      <p className="website-builder-page__field-hint website-builder-page__inspector-lede">
+        Most people only use the first section. The rest is for when you work with a web designer or know a little HTML.
+      </p>
+
+      <div className="website-builder-page__panel-group-title">Name &amp; motion</div>
+      <div className="website-builder-page__form-block">
+        <label className="website-builder-page__field-label" htmlFor="wb-ins-secname">
+          Friendly name (for you)
+        </label>
+        <input
+          id="wb-ins-secname"
+          className="website-builder-page__field-control"
+          value={sectionDisplayName}
+          placeholder="e.g. Our prices, Meet the team"
+          onChange={(e) => {
+            const v = e.target.value;
+            setSectionDisplayName(v);
+            patchAttributes(selected, { 'data-wb-section-name': v.trim() || undefined });
+          }}
+        />
+        <p className="website-builder-page__field-hint">
+          Helps you remember what this part of the page is. Customers do not usually see this text.
+        </p>
+      </div>
+      <AnimationQuickFields comp={selected} />
+
+      <div className="website-builder-page__panel-group-title">Menu jump link (optional)</div>
+      <div className="website-builder-page__form-block">
+        <label className="website-builder-page__field-label" htmlFor="wb-ins-id">
+          Short name for “scroll here” in menus
+        </label>
+        <input id="wb-ins-id" className="website-builder-page__field-control" value={cssId} onChange={(e) => applyId(e.target.value)} placeholder="pricing" />
+        <p className="website-builder-page__field-hint">
+          One word, no spaces (e.g. <code>pricing</code>). Your menu can link to <code>#pricing</code> so the page scrolls to this block.
+        </p>
+      </div>
+
+      <div className="website-builder-page__panel-group-title">Technical (skip unless you know)</div>
       <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-tag">
-          Element type (advanced)
+          Block type (HTML)
         </label>
         <select id="wb-ins-tag" className="website-builder-page__field-control" value={htmlTag} onChange={(e) => applyTag(e.target.value)}>
           <option value="section">section</option>
@@ -2306,15 +2789,8 @@ function AdvancedPanelForm({
         </select>
       </div>
       <div className="website-builder-page__form-block">
-        <label className="website-builder-page__field-label" htmlFor="wb-ins-id">
-          Section link name (optional)
-        </label>
-        <input id="wb-ins-id" className="website-builder-page__field-control" value={cssId} onChange={(e) => applyId(e.target.value)} placeholder="hero" />
-        <p className="website-builder-page__field-hint">Use this for menu jump links like #pricing or #contact.</p>
-      </div>
-      <div className="website-builder-page__form-block">
         <label className="website-builder-page__field-label" htmlFor="wb-ins-cls">
-          Extra style tags (advanced)
+          Extra labels (classes)
         </label>
         <input
           id="wb-ins-cls"
@@ -2323,26 +2799,28 @@ function AdvancedPanelForm({
           onChange={(e) => applyClasses(e.target.value)}
           placeholder="hero-section"
         />
+        <p className="website-builder-page__field-hint">Only if a designer gave you exact words to paste here.</p>
       </div>
 
-      <div className="website-builder-page__panel-group-title">Device visibility</div>
+      <div className="website-builder-page__panel-group-title">Phone &amp; tablet (coming soon)</div>
       <div className="website-builder-page__form-block">
-        <span className="website-builder-page__field-label">Show / Hide</span>
+        <span className="website-builder-page__field-label">Hide on smaller screens</span>
+        <p className="website-builder-page__field-hint">For now, use <strong>Style</strong> to make one layout that works everywhere.</p>
         <div className="website-builder-page__device-row">
-          <button type="button" className="website-builder-page__device-btn is-active" aria-label="Desktop">
+          <button type="button" className="website-builder-page__device-btn is-active" aria-label="Desktop" disabled>
             <DesktopWindowsOutlinedIcon fontSize="small" />
           </button>
-          <button type="button" className="website-builder-page__device-btn" aria-label="Tablet">
+          <button type="button" className="website-builder-page__device-btn" aria-label="Tablet" disabled>
             <TabletMacOutlinedIcon fontSize="small" />
           </button>
-          <button type="button" className="website-builder-page__device-btn" aria-label="Mobile">
+          <button type="button" className="website-builder-page__device-btn" aria-label="Mobile" disabled>
             <PhoneIphoneOutlinedIcon fontSize="small" />
           </button>
         </div>
       </div>
       <div className="website-builder-page__form-block">
         <div className="website-builder-page__label-row">
-            <span className="website-builder-page__field-label mb-0">Inner space</span>
+          <span className="website-builder-page__field-label mb-0">Space inside the block</span>
           <button type="button" className="website-builder-page__link-icon-btn" aria-label="Link padding" onClick={() => setPadLock((v) => !v)}>
             <LinkOutlinedIcon fontSize="small" />
           </button>
@@ -2370,7 +2848,7 @@ function AdvancedPanelForm({
       </div>
       <div className="website-builder-page__form-block">
         <div className="website-builder-page__label-row">
-            <span className="website-builder-page__field-label mb-0">Outer space</span>
+          <span className="website-builder-page__field-label mb-0">Space outside the block</span>
           <button type="button" className="website-builder-page__link-icon-btn" aria-label="Link margin" onClick={() => setMarginLock((v) => !v)}>
             <LinkOutlinedIcon fontSize="small" />
           </button>
@@ -2403,35 +2881,8 @@ function AdvancedPanelForm({
         </div>
       </div>
 
-      <div className="website-builder-page__panel-group-title">Animation</div>
-      <div className="website-builder-page__form-block">
-        <label className="website-builder-page__field-label">Animation style</label>
-        <select className="website-builder-page__field-control" value={anim} onChange={(e) => setAnim(e.target.value)}>
-          <option>None</option>
-          <option>Fade In Up</option>
-          <option>Fade In</option>
-          <option>Slide Left</option>
-        </select>
-      </div>
-      <div className="website-builder-page__split-input">
-        <div className="website-builder-page__form-block mb-0 website-builder-page__flex-fill">
-          <label className="website-builder-page__field-label">Speed</label>
-          <div className="website-builder-page__input-unit">
-            <input type="number" className="website-builder-page__field-control" value={animDur} onChange={(e) => setAnimDur(Number(e.target.value))} />
-            <span>ms</span>
-          </div>
-        </div>
-        <div className="website-builder-page__form-block mb-0 website-builder-page__flex-fill">
-          <label className="website-builder-page__field-label">Start delay</label>
-          <div className="website-builder-page__input-unit">
-            <input type="number" className="website-builder-page__field-control" value={animDelay} onChange={(e) => setAnimDelay(Number(e.target.value))} />
-            <span>ms</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="website-builder-page__panel-group-title">Custom code (advanced)</div>
-      <p className="website-builder-page__field-hint">Use only if you know CSS. Most users can skip this.</p>
+      <div className="website-builder-page__panel-group-title">Custom code (experts only)</div>
+      <p className="website-builder-page__field-hint">Skip this unless someone gave you CSS to paste. Wrong code can break the page.</p>
       <textarea
         className="website-builder-page__field-control website-builder-page__code-editor"
         rows={8}

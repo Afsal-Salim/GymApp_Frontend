@@ -13,10 +13,10 @@ import {
   formatPlanPrice,
   type PlanListItem,
   type BusinessFirstRechargeResponse,
-  type BusinessFirstRechargeStarter,
+  type BusinessFirstRechargeBase,
 } from '@/api';
 import { SESSION_PAYMENT_CHECKOUT_DRAFT } from '@/config/storageKeys';
-import { PRO_PLAN_FEATURE_FALLBACKS, STARTER_PLAN_FEATURE_FALLBACKS } from '../planFeatureFallbacks/planFeatureFallbacks';
+import { BASE_PLAN_FEATURE_FALLBACKS } from '../planFeatureFallbacks/planFeatureFallbacks';
 import './PlansPage.css';
 
 /** Path for the standalone plans page – used for redirects when subscription is inactive. */
@@ -35,10 +35,10 @@ type DisplayPlan = {
   currency: string;
   features: string[];
   cta: string;
-  paymentSlug: 'starter' | 'pro' | null;
+  paymentSlug: 'base' | null;
   popular: boolean;
   comingSoon: boolean;
-  /** Backend plan_id for create-order (Starter may match first-recharge block). */
+  /** Backend plan_id for create-order (Base may match first-recharge block). */
   checkoutPlanId: number;
 };
 
@@ -50,12 +50,12 @@ function mapPlanToDisplay(
   const slug = apiPlan.name.toLowerCase();
   const comingSoon = apiPlan.coming_soon === true;
   const paymentSlug =
-    comingSoon ? null : slug === 'starter' || slug === 'pro' ? (slug as 'starter' | 'pro') : null;
+    comingSoon ? null : slug === 'starter' || slug === 'base' ? 'base' : null;
 
-  const st: BusinessFirstRechargeStarter | null =
-    firstRecharge?.starter && apiPlan.id === firstRecharge.starter.plan_id ? firstRecharge.starter : null;
+  const st: BusinessFirstRechargeBase | null =
+    firstRecharge?.base && apiPlan.id === firstRecharge.base.plan_id ? firstRecharge.base : null;
 
-  const useStarterPricing = Boolean(st);
+  const useBaseFirstRechargePricing = Boolean(st);
 
   let listPriceFormatted: string;
   let firstActivationFormatted: string | null;
@@ -64,7 +64,7 @@ function mapPlanToDisplay(
   let primaryLineForCheckout: string;
   let checkoutPlanId: number;
 
-  if (useStarterPricing && st) {
+  if (useBaseFirstRechargePricing && st) {
     currency = st.currency;
     listPriceFormatted = formatPlanPrice(st.list_price, currency);
     const firstRaw = st.first_recharge_price?.trim();
@@ -102,13 +102,14 @@ function mapPlanToDisplay(
   const featureNamesFromApi = apiPlan.features?.map((f) => f.name) ?? [];
   const features =
     featureNamesFromApi.length > 0 ? featureNamesFromApi
-    : slug === 'pro' ? PRO_PLAN_FEATURE_FALLBACKS
-    : slug === 'starter' ? STARTER_PLAN_FEATURE_FALLBACKS
+    : slug === 'starter' || slug === 'base' ? BASE_PLAN_FEATURE_FALLBACKS
     : [];
+
+  const displayName = slug === 'starter' || slug === 'base' ? 'Base' : apiPlan.name;
 
   return {
     id: String(apiPlan.id),
-    name: apiPlan.name,
+    name: displayName,
     listPriceFormatted,
     firstActivationFormatted,
     showIntroPrice,
@@ -118,13 +119,10 @@ function mapPlanToDisplay(
     features,
     cta:
       comingSoon ? 'Coming soon'
-      : paymentSlug ?
-        slug === 'pro' ?
-          'Start free trial'
-        : 'Get started'
+      : paymentSlug ? 'Get started'
       : 'Contact sales',
     paymentSlug,
-    popular: slug === 'pro' && !comingSoon,
+    popular: (slug === 'starter' || slug === 'base') && !comingSoon,
     comingSoon,
     checkoutPlanId,
   };
@@ -180,10 +178,11 @@ export default function PlansPage({
   const [paymentLoginModalShow, setPaymentLoginModalShow] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState<CheckoutRedirect | null>(null);
 
-  const plans = useMemo(
-    () => [...rawPlans.map((p) => mapPlanToDisplay(p, eligibleFirstPrice, firstRecharge)), CUSTOM_PLAN],
-    [rawPlans, eligibleFirstPrice, firstRecharge]
-  );
+  const plans = useMemo(() => {
+    const excluded = new Set(['pro', 'max']);
+    const visible = rawPlans.filter((p) => !excluded.has(p.name.trim().toLowerCase()));
+    return [...visible.map((p) => mapPlanToDisplay(p, eligibleFirstPrice, firstRecharge)), CUSTOM_PLAN];
+  }, [rawPlans, eligibleFirstPrice, firstRecharge]);
 
   useEffect(() => {
     if (initialPlans.length > 0) return;
@@ -275,7 +274,7 @@ export default function PlansPage({
           <header className="plans-page__header text-center mb-5">
             <h1 className="plans-page__title">Choose your plan</h1>
             <p className="plans-page__subtitle text-muted">
-              Subscribe to access your business dashboard. Upgrade or downgrade anytime.
+              One Base plan with every feature—subscribe to access your business dashboard.
             </p>
             {plansBusinessSlug && getAccessToken() ?
               <p className="plans-page__first-price-hint text-muted small mb-0 mt-2">

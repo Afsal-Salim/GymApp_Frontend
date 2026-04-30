@@ -244,7 +244,7 @@ export type CreateWebsiteFormState = {
   footerFinePrint: string;
   /** Section heading for the horizontal gallery on the public site (non-trial). */
   gallerySectionTitle: string;
-  /** Captions keyed by image URL; Starter/Pro only — trial gyms cannot edit descriptions in the builder. */
+  /** Captions keyed by image URL; paid (Base) only — trial gyms cannot edit descriptions in the builder. */
   galleryCaptions: Record<string, string>;
   /** Gallery `image_url` order (saved in `website_content.gallery.imageOrder`). */
   galleryImageOrder: string[];

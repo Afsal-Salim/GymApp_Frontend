@@ -121,8 +121,10 @@ export function isPublicSiteSubdomainRoutingActive(): boolean {
 export const MARKETING_APP_PATH_FIRST_SEGMENTS = new Set([
   'api',
   'plans',
+  'base',
   'starter',
   'pro',
+  'max',
   'login',
   'signup',
   'forgot-password',

@@ -13,6 +13,11 @@ import {
   sendComponentPaintToBack,
   ungroupFromCanvasContext,
 } from '@/features/website/editor/blocks/websiteBuilderLayerGroup/websiteBuilderLayerGroup';
+import { applyShapePreset } from '@/features/website/editor/canvas/websiteBuilderComponentShapes/websiteBuilderComponentShapes';
+import {
+  alignSelectedCenter,
+  duplicateSelectedComponent,
+} from '@/features/website/editor/tools/websiteBuilderEditorTools';
 
 const MENU_CLASS = 'wb-canvas-ctx-menu';
 
@@ -220,7 +225,7 @@ const ctxOpts: AddEventListenerOptions = { capture: true, passive: false };
 
 export type CanvasLayerContextMenuAttachOptions = {
   /**
-   * Opens the app inspector: expand the right panel, focus the Content tab, and optionally select `comp`.
+   * Opens the app inspector: expand the right panel, focus the Basics tab, and optionally select `comp`.
    * `comp` is null when the user right-clicks empty canvas / wrapper or non-component chrome.
    */
   onOpenInspect?: (editor: Editor, comp: Component | null) => void;
@@ -326,7 +331,7 @@ export function attachCanvasLayerOrderContextMenu(
       head.className = `${MENU_CLASS}__head`;
       head.textContent = 'Canvas';
       menu.appendChild(head);
-      mkBtn('Open inspector', false, 'Open the right panel on the Content tab', () => {
+      mkBtn('Open editor panel', false, 'Open the right panel on the Basics tab', () => {
         options?.onOpenInspect?.(editor, null);
       });
       mkSep();
@@ -389,7 +394,7 @@ export function attachCanvasLayerOrderContextMenu(
       head.className = `${MENU_CLASS}__head`;
       head.textContent = 'Canvas';
       menu.appendChild(head);
-      mkBtn('Open inspector', false, 'Open the right panel on the Content tab', () => {
+      mkBtn('Open editor panel', false, 'Open the right panel on the Basics tab', () => {
         options?.onOpenInspect?.(editor, comp);
       });
       mkSep();
@@ -495,8 +500,8 @@ export function attachCanvasLayerOrderContextMenu(
           'This layer is locked.'
         : 'Nothing to reorder (only one sibling).'
       : atFront ?
-        'Already paints above every sibling (highest z-index here).'
-      : 'Raise z-index so this layer draws on top when it overlaps siblings (page flow unchanged).',
+        'Already at top of sibling layer stack.'
+      : 'Move this layer to top of sibling stack (Canva-like front order).',
       () => bringComponentPaintToFront(comp),
     );
     mkBtn(
@@ -507,8 +512,8 @@ export function attachCanvasLayerOrderContextMenu(
           'This layer is locked.'
         : 'Nothing to reorder (only one sibling).'
       : atBack ?
-        'Already paints below every sibling (lowest z-index here).'
-      : 'Lower z-index so overlapping siblings draw on top (page flow unchanged).',
+        'Already at bottom of sibling layer stack.'
+      : 'Move this layer to bottom of sibling stack.',
       () => sendComponentPaintToBack(comp),
     );
 
@@ -521,6 +526,71 @@ export function attachCanvasLayerOrderContextMenu(
       : 'Already a top-level page block.',
       () => detachComponentFromParent(editor, comp),
       { skipReselect: true },
+    );
+
+    const multiSelect = ((editor as unknown as { getSelectedAll?: () => Component[] }).getSelectedAll?.() ?? []).length > 1;
+    if (!multiSelect) {
+      mkSep();
+      mkHead('Shape');
+      mkBtn(
+        'Default',
+        false,
+        'Clear rounded corners and clip mask',
+        () => applyShapePreset(comp, 'default'),
+      );
+      mkBtn(
+        'Rounded',
+        false,
+        'Rounded rectangle (16px radius)',
+        () => applyShapePreset(comp, 'rounded'),
+      );
+      mkBtn(
+        'Pill',
+        false,
+        'Fully rounded ends',
+        () => applyShapePreset(comp, 'pill'),
+      );
+      mkBtn(
+        'Circle',
+        false,
+        'Circular mask (square aspect)',
+        () => applyShapePreset(comp, 'circle'),
+      );
+      mkBtn(
+        'Star',
+        false,
+        'Star clip (works best on square blocks)',
+        () => applyShapePreset(comp, 'star'),
+      );
+    }
+
+    mkSep();
+    mkHead('Quick edit');
+    mkBtn(
+      'Duplicate block',
+      false,
+      'Copy this block right under the original',
+      () => {
+        try {
+          editor.select(comp);
+        } catch {
+          /* ignore */
+        }
+        duplicateSelectedComponent(editor);
+      },
+    );
+    mkBtn(
+      'Center block',
+      false,
+      'Centre this block in the row (margin auto)',
+      () => {
+        try {
+          editor.select(comp);
+        } catch {
+          /* ignore */
+        }
+        alignSelectedCenter(editor);
+      },
     );
 
     document.body.appendChild(menu);

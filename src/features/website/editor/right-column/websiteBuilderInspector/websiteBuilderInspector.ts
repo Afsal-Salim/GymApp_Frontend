@@ -4,6 +4,7 @@ export type InspectorKind =
   | 'wrapper'
   | 'hero'
   | 'section'
+  | 'galleryCarousel'
   | 'heading'
   | 'text'
   | 'button'
@@ -63,6 +64,8 @@ function titleForKind(kind: InspectorKind, tag: string): string {
       return 'Edit Hero Section';
     case 'section':
       return 'Edit Section';
+    case 'galleryCarousel':
+      return 'Edit Gallery Carousel';
     case 'heading':
       return 'Edit Heading';
     case 'text':
@@ -102,6 +105,29 @@ export function describeSelection(selected: Component | undefined | null): Selec
   const href = String(attrs.href || '').trim().toLowerCase();
 
   let kind: InspectorKind = 'unknown';
+
+  /** If any selected node sits inside a gallery carousel, edit the carousel as one component. */
+  const galleryRoot = (() => {
+    let cur: Component | null | undefined = selected;
+    while (cur && !cur.is?.('wrapper')) {
+      const curAttrs = cur.getAttributes?.() ?? {};
+      const curClass = String(curAttrs.class || '');
+      if (/\bwb-gallery-carousel\b/.test(curClass) || String(curAttrs['data-wb-gallery-carousel'] || '') === '1') {
+        return cur;
+      }
+      cur = cur.parent?.();
+    }
+    return null;
+  })();
+
+  if (galleryRoot) {
+    return {
+      cid: String(galleryRoot.getId()),
+      kind: 'galleryCarousel',
+      title: titleForKind('galleryCarousel', 'section'),
+      tagName: String(galleryRoot.get('tagName') || 'section').toLowerCase(),
+    };
+  }
 
   if (tag === 'nav' || attrs.role === 'navigation') kind = 'nav';
   else if (tag === 'iframe') kind = 'iframe';
@@ -152,6 +178,32 @@ export function nameLastAddedLayer(target: Component) {
   if (last && !String(last.get('name') || '').trim()) {
     last.set('name', `Layer ${len}`);
   }
+}
+
+/** Select after the canvas DOM updates so {@link attachCanvasSelectionFocus} can smooth-scroll. */
+export function deferSelectComponent(editor: Editor, comp: Component) {
+  queueMicrotask(() => {
+    requestAnimationFrame(() => {
+      try {
+        editor.select(comp);
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+}
+
+/**
+ * After appending to `parent`, name the new layer and select it so `component:selected` runs
+ * (smooth canvas scroll via {@link attachCanvasSelectionFocus}).
+ */
+export function selectLastAddedChild(editor: Editor, parent: Component) {
+  nameLastAddedLayer(parent);
+  const ch = parent.components();
+  const len = typeof ch.length === 'number' ? ch.length : 0;
+  const last = len > 0 && typeof ch.at === 'function' ? ch.at(len - 1) : undefined;
+  if (!last) return;
+  deferSelectComponent(editor, last);
 }
 
 export function attachSelectionListener(editor: Editor, onChange: (info: SelectionInfo | null) => void) {
@@ -227,14 +279,7 @@ export function attachCanvasSelectionFocus(editor: Editor): () => void {
     const handles: FlashHandles = {};
     selectionFlashHandles.set(editor, handles);
 
-    handles.raf = requestAnimationFrame(() => {
-      handles.raf = undefined;
-      const el = comp.getEl?.();
-      if (!el) {
-        selectionFlashHandles.delete(editor);
-        return;
-      }
-
+    const scrollAndFlash = (el: HTMLElement) => {
       try {
         editor.Canvas.scrollTo(comp, {
           behavior: 'smooth',
@@ -261,7 +306,33 @@ export function attachCanvasSelectionFocus(editor: Editor): () => void {
         const cur = selectionFlashHandles.get(editor);
         if (cur === handles) selectionFlashHandles.delete(editor);
       }, 1350);
-    });
+    };
+
+    const runScroll = (retry: boolean) => {
+      handles.raf = requestAnimationFrame(() => {
+        handles.raf = undefined;
+        const el = comp.getEl?.() as HTMLElement | undefined;
+        if (!el) {
+          if (retry) {
+            handles.raf = requestAnimationFrame(() => {
+              handles.raf = undefined;
+              const el2 = comp.getEl?.() as HTMLElement | undefined;
+              if (!el2) {
+                selectionFlashHandles.delete(editor);
+                return;
+              }
+              scrollAndFlash(el2);
+            });
+          } else {
+            selectionFlashHandles.delete(editor);
+          }
+          return;
+        }
+        scrollAndFlash(el);
+      });
+    };
+
+    runScroll(true);
   };
 
   editor.on('component:selected', onSelected);

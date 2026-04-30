@@ -24,6 +24,7 @@ import {
   checkBusinessSlugAvailability,
   deleteBusinessGalleryImage,
   getActiveSubscription,
+  planTierHasFullProductAccess,
   getBusinessDetail,
   invalidateUserBusinessListCache,
   invalidateUserAnalyticsCache,
@@ -284,11 +285,6 @@ function planTierIsTrial(sub: ActiveSubscriptionResponse | null): boolean {
   return t === 'trial';
 }
 
-function planTierIsPro(sub: ActiveSubscriptionResponse | null): boolean {
-  if (!sub?.has_active_subscription) return false;
-  const t = (sub.plan_tier ?? '').toString().trim().toLowerCase();
-  return t === 'pro';
-}
 
 function isDataImageUrl(s: string): boolean {
   return s.trim().startsWith('data:image/');
@@ -1978,7 +1974,7 @@ export default function CreateWebsitePage() {
     () =>
       wantsProTemplate &&
       Boolean(galleryUploadSlug) &&
-      (!builderSubscription || !planTierIsPro(builderSubscription)),
+      (!builderSubscription || !planTierHasFullProductAccess(builderSubscription)),
     [wantsProTemplate, galleryUploadSlug, builderSubscription]
   );
 
@@ -2011,7 +2007,7 @@ export default function CreateWebsitePage() {
         showToast('Subscription status is still loading. Try again in a moment.', 'warning');
         return;
       }
-      if (!planTierIsPro(builderSubscription)) {
+      if (!planTierHasFullProductAccess(builderSubscription)) {
         setProTemplateBlockedModalOpen(true);
         return;
       }

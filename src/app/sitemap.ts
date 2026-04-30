@@ -10,8 +10,7 @@ const STATIC_PATHS: { path: string; changeFrequency: MetadataRoute.Sitemap[0]['c
     { path: '/signup', changeFrequency: 'monthly', priority: 0.75 },
     { path: '/forgot-password', changeFrequency: 'yearly', priority: 0.3 },
     { path: '/support', changeFrequency: 'monthly', priority: 0.65 },
-    { path: '/starter', changeFrequency: 'monthly', priority: 0.7 },
-    { path: '/pro', changeFrequency: 'monthly', priority: 0.7 },
+    { path: '/base', changeFrequency: 'monthly', priority: 0.7 },
     { path: '/legal/privacy', changeFrequency: 'yearly', priority: 0.35 },
     { path: '/legal/user-content', changeFrequency: 'yearly', priority: 0.35 },
   ];

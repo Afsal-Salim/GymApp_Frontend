@@ -30,7 +30,7 @@ const COLD_ROUTES = [
   ['/user', 'user_redirects_to_login'],
   ['/forgot-password', 'forgot_password'],
   ['/404', 'not_found'],
-  ['/starter', 'starter'],
+  ['/base', 'base'],
 ];
 
 function sumDuration(rows) {

@@ -5,8 +5,8 @@ import { TemplateMobileNav } from '@/app/templates/_components/TemplateMobileNav
 import { loadProTemplateCss } from '../loadProTemplateCss';
 
 export const metadata: Metadata = {
-  title: 'GrapesJS hello demo (starter)',
-  description: 'Starter adapted from DemoCanvasOnly in the GrapesJS documentation.',
+  title: 'GrapesJS hello demo (default)',
+  description: 'Sample adapted from DemoCanvasOnly in the GrapesJS documentation.',
   robots: { index: false, follow: false },
 };
 

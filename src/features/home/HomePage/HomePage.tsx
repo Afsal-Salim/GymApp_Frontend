@@ -25,10 +25,7 @@ import { useEnquiryModal } from '@/contexts/EnquiryModalContext/EnquiryModalCont
 import { buildMarketingContactRows, homepageTutorialVideoUrl } from '@/config/env';
 import { HOME_PAGE_FAQ } from '../homeFaq/homeFaq';
 import { WhatsAppLogoIcon } from '@/components';
-import {
-  PRO_PLAN_FEATURE_FALLBACKS as PRO_FEATURE_LIST,
-  STARTER_PLAN_FEATURE_FALLBACKS as STARTER_FEATURE_LIST,
-} from '../../plans/planFeatureFallbacks/planFeatureFallbacks';
+import { BASE_PLAN_FEATURE_FALLBACKS } from '../../plans/planFeatureFallbacks/planFeatureFallbacks';
 import './HomePage.css';
 
 type DisplayPlan = {
@@ -41,7 +38,7 @@ type DisplayPlan = {
   currency: string;
   features: string[];
   cta: string;
-  paymentSlug: 'starter' | 'pro' | null;
+  paymentSlug: 'base' | null;
   popular: boolean;
   comingSoon: boolean;
   /** When true, omit price UI (e.g. Pro while features are in development). */
@@ -50,32 +47,17 @@ type DisplayPlan = {
   priceStatusMessage?: string;
 };
 
-const STARTER_PLAN: DisplayPlan = {
-  id: 'starter',
+const BASE_PLAN: DisplayPlan = {
+  id: 'base',
   name: 'Base',
-  listPriceFormatted: '₹499',
-  firstActivationFormatted: '₹299',
-  showIntroPrice: true,
-  period: ' / 28 days',
-  currency: 'INR',
-  features: STARTER_FEATURE_LIST,
-  cta: 'Get now for ₹299',
-  paymentSlug: 'starter',
-  popular: false,
-  comingSoon: false,
-};
-
-const PRO_PLAN: DisplayPlan = {
-  id: 'pro',
-  name: 'Pro',
-  listPriceFormatted: '₹799',
+  listPriceFormatted: '$499',
   firstActivationFormatted: null,
   showIntroPrice: false,
-  period: ' / 28 days',
-  currency: 'INR',
-  features: PRO_FEATURE_LIST,
-  cta: 'Get Pro',
-  paymentSlug: 'pro',
+  period: ' / month',
+  currency: 'USD',
+  features: BASE_PLAN_FEATURE_FALLBACKS,
+  cta: 'Subscribe',
+  paymentSlug: 'base',
   popular: true,
   comingSoon: false,
 };
@@ -204,7 +186,7 @@ const CUSTOM_PLAN: DisplayPlan = {
   comingSoon: false,
 };
 
-const HOMEPAGE_PACKAGES: DisplayPlan[] = [STARTER_PLAN, PRO_PLAN, CUSTOM_PLAN];
+const HOMEPAGE_PACKAGES: DisplayPlan[] = [BASE_PLAN, CUSTOM_PLAN];
 
 function getYoutubeEmbedUrl(rawUrl: string): string {
   try {

@@ -1,7 +1,10 @@
 import type { Component, Editor } from 'grapesjs';
 import { nextBaseUrl } from '@/config/env';
 import { isWbLayerGroup, siblingIndex, WB_LAYER_GROUP_ATTR } from '@/features/website/editor/blocks/websiteBuilderLayerGroup/websiteBuilderLayerGroup';
-import { nameLastAddedLayer } from '@/features/website/editor/right-column/websiteBuilderInspector/websiteBuilderInspector';
+import {
+  deferSelectComponent,
+  selectLastAddedChild,
+} from '@/features/website/editor/right-column/websiteBuilderInspector/websiteBuilderInspector';
 import {
   WEBSITE_BUILDER_ANIMATION_CSS,
   WEBSITE_BUILDER_COMPONENT_ANIMATION_CSS,
@@ -22,6 +25,7 @@ import {
   ICON_COMPONENT_CATALOG_ENTRIES,
   ICON_GRID_KIT_CATALOG_ENTRY,
 } from '@/features/website/editor/blocks/websiteBuilderIconBlocks/websiteBuilderIconBlocks';
+import { scoreCatalogEntry } from './websiteBuilderComponentSearch';
 
 /**
  * Iframe `srcdoc` documents have an opaque URL (`about:srcdoc`). Root-relative
@@ -93,6 +97,8 @@ export type ComponentCatalogEntry = {
   description: string;
   filter: ComponentLibraryFilter;
   preview: ComponentLibraryPreviewKind;
+  /** Hidden search keywords / #tags — not shown in the UI; used for matching & ranking after title. */
+  searchTags?: string[];
 };
 
 export const COMPONENT_LIBRARY_FILTERS: { id: ComponentLibraryFilter; label: string }[] = [
@@ -319,7 +325,7 @@ const catalog: ComponentCatalogEntry[] = [
     preview: 'trust',
   },
   { blockId: 'wb-coaches-1', title: 'Coaches · 3 columns', description: 'Team cards in a three-column section.', filter: 'trust', preview: 'trust' },
-  { blockId: 'wb-coaches-2', title: 'Gallery · 2 images', description: 'Two-column image grid with placeholders.', filter: 'trust', preview: 'trust' },
+  { blockId: 'wb-coaches-2', title: 'Gallery · carousel', description: 'Image carousel with prev/next—add or remove slides in the inspector.', filter: 'trust', preview: 'trust' },
   {
     blockId: 'wb-gallery-hover-anim',
     title: 'Gallery (hover zoom)',
@@ -393,16 +399,14 @@ export function filterCatalog(
   filter: ComponentLibraryFilter,
   query: string,
 ): ComponentCatalogEntry[] {
-  const q = query.trim().toLowerCase();
-  return items.filter((it) => {
-    if (filter !== 'all' && it.filter !== filter) return false;
-    if (!q) return true;
-    return (
-      it.title.toLowerCase().includes(q) ||
-      it.description.toLowerCase().includes(q) ||
-      it.blockId.toLowerCase().includes(q)
-    );
-  });
+  const base = items.filter((it) => filter === 'all' || it.filter === filter);
+  const q = query.trim();
+  if (!q) return base;
+  const scored = base
+    .map((it) => ({ it, score: scoreCatalogEntry(it, q) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored.map((x) => x.it);
 }
 
 export function getBlockHtmlString(editor: Editor, blockId: string): string {
@@ -883,19 +887,11 @@ export function insertBlockByIdAtFrameClientPoint(
 
   const finishAppend = (): Component | undefined => {
     w.append(wrapped);
-    nameLastAddedLayer(w);
+    selectLastAddedChild(editor, w);
     const c2 = w.components();
     const n = typeof c2.length === 'number' ? c2.length : 0;
     if (n > 0) {
-      const last = typeof c2.at === 'function' ? c2.at(n - 1) : undefined;
-      if (last) {
-        try {
-          editor.select(last);
-        } catch {
-          /* ignore */
-        }
-        return last;
-      }
+      return typeof c2.at === 'function' ? c2.at(n - 1) : undefined;
     }
     return undefined;
   };
@@ -933,11 +929,7 @@ export function insertBlockByIdAtFrameClientPoint(
     if (!String(inserted.get('name') || '').trim()) {
       nameInsertedLayerInParentAt(w, at);
     }
-    try {
-      editor.select(inserted);
-    } catch {
-      /* ignore */
-    }
+    deferSelectComponent(editor, inserted);
     return inserted;
   }
   return finishAppend();
@@ -965,19 +957,11 @@ export function insertBlockById(editor: Editor, blockId: string): Component | un
   if (!target) return undefined;
   const wrapped = `<div class="wb-canvas-layer-group" ${WB_LAYER_GROUP_ATTR}="1">${html}</div>`;
   target.append(wrapped);
-  nameLastAddedLayer(target);
+  selectLastAddedChild(editor, target);
   const coll = target.components();
   const len = typeof coll.length === 'number' ? coll.length : 0;
   if (len > 0) {
-    const last = typeof coll.at === 'function' ? coll.at(len - 1) : undefined;
-    if (last) {
-      try {
-        editor.select(last);
-      } catch {
-        /* ignore */
-      }
-      return last;
-    }
+    return typeof coll.at === 'function' ? coll.at(len - 1) : undefined;
   }
   return undefined;
 }

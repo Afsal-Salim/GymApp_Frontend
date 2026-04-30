@@ -1,4 +1,4 @@
-import type { ProWebsiteTemplateKey } from '@/features/crystal/gymClientSiteContent/gymClientSiteContent';
+import type { DesignSystemWebsiteTemplateKey, ProWebsiteTemplateKey } from '@/features/crystal/gymClientSiteContent/gymClientSiteContent';
 import { PRO_WEBSITE_TEMPLATE_OPTIONS } from '@/features/website/setup/createWebsiteFormState/createWebsiteFormState';
 import { DESIGN_SYSTEM_SETS } from '@/features/website/editor/blocks/websiteBuilderDesignSystemBlocks/websiteBuilderDesignSystemBlocks';
 
@@ -6,14 +6,14 @@ export type ProTemplateKey = Exclude<ProWebsiteTemplateKey, ''>;
 
 const DESIGN_SYSTEM_PREVIEW_PATHS = Object.fromEntries(
   DESIGN_SYSTEM_SETS.map((s) => [`ds-${s.id}`, `/templates/design-system-preview/${s.id}`]),
-) as Record<string, string>;
+) as Record<DesignSystemWebsiteTemplateKey, string>;
 
 const DESIGN_SYSTEM_CARD_DESCRIPTIONS = Object.fromEntries(
   DESIGN_SYSTEM_SETS.map((s) => [
     `ds-${s.id}`,
     `Complete ${s.label} landing (navbar → footer): premium design system for the visual editor.`,
   ]),
-) as Record<string, string>;
+) as Record<DesignSystemWebsiteTemplateKey, string>;
 
 export const PRO_TEMPLATE_PREVIEW_PATHS: Record<ProTemplateKey, string> = {
   autopilot: '/templates/client-autopilot',
@@ -25,16 +25,16 @@ export const PRO_TEMPLATE_PREVIEW_PATHS: Record<ProTemplateKey, string> = {
   'grapes-welcome': '/templates/client-grapes-welcome',
   'grapes-hello': '/templates/client-grapes-hello',
   'grapes-cli': '/templates/client-grapes-cli',
-  ...(DESIGN_SYSTEM_PREVIEW_PATHS as Record<ProTemplateKey, string>),
+  ...DESIGN_SYSTEM_PREVIEW_PATHS,
 };
 
-/** True when the form holds a non-default Pro layout key (requires Pro subscription at save when enforced). */
+/** True when the form holds a non-default paid layout key (requires active subscription at save when enforced). */
 export function isProTemplateKey(key: string): boolean {
   const t = key.trim().toLowerCase();
   return t !== '' && t in PRO_TEMPLATE_PREVIEW_PATHS;
 }
 
-/** Design system full-page seeds (`ds-*`) — shown as Max tier in the site editor template summary. */
+/** Design system full-page seeds (`ds-*`) — full-site design system landings in the template picker. */
 export function isDesignSystemTemplateKey(key: string): boolean {
   return key.trim().toLowerCase().startsWith('ds-');
 }
@@ -48,8 +48,8 @@ export const PRO_TEMPLATE_CARD_DESCRIPTIONS: Record<ProTemplateKey, string> = {
   zen: 'Minimal calm visual language adapted for performance gyms.',
   'grapes-welcome': 'Official GrapesJS core dev seed: welcome card with logo (from packages/core).',
   'grapes-hello': 'Minimal “Hello World” canvas from the GrapesJS documentation demo.',
-  'grapes-cli': 'Plain starter block similar to the GrapesJS CLI default page.',
-  ...(DESIGN_SYSTEM_CARD_DESCRIPTIONS as Record<ProTemplateKey, string>),
+  'grapes-cli': 'Plain default block similar to the GrapesJS CLI sample page.',
+  ...DESIGN_SYSTEM_CARD_DESCRIPTIONS,
 };
 
 export function buildProTemplateCards() {
@@ -64,8 +64,8 @@ export function buildProTemplateCards() {
 }
 
 /**
- * Cards for the standalone template picker — design systems are labeled **Max** (product tier);
- * saving still uses the same **Pro** subscription check as other paid templates.
+ * Cards for the standalone template picker — design systems are full-site seeds;
+ * saving uses the same paid-template subscription check as other premium layouts.
  */
 export function buildDesignSystemSelectPageTemplateCards() {
   return DESIGN_SYSTEM_SETS.map((s) => {
