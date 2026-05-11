@@ -496,7 +496,6 @@ export function WebsiteBuilderEditorToolsMenu({
                   onClick={() => applyImgToSelection(url)}
                 >
                   <span className="wb-tools-menu__img-thumb-wrap">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} alt="" className="wb-tools-menu__img-thumb" />
                   </span>
                   <span className="wb-tools-menu__img-meta small text-truncate">{url.slice(0, 56)}…</span>

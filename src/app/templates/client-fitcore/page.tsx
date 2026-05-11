@@ -1,33 +1,24 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import type { Metadata } from 'next';
 import { TemplateMobileNav } from '@/app/templates/_components/TemplateMobileNav';
 import { loadProTemplateCss } from '../loadProTemplateCss';
-
-export const metadata: Metadata = {
-  title: 'FitCore gym template (Pro)',
-  description:
-    'Standalone gym / studio landing template. Edit HTML/CSS under src/assets/templates/fitcore.*',
-  robots: { index: false, follow: false },
-};
-
-function extractBodyInnerHtml(fullHtml: string): string {
-  const match = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  return match ? match[1]!.trim() : '';
-}
+import { extractBodyInnerHtml, loadProTemplateHtml } from '../loadProTemplateHtml';
 
 /**
  * Pro template. Edit `src/assets/templates/fitcore.html` + `fitcore.css`.
  * Route: `/templates/client-fitcore` — not linked from marketing nav.
  */
 export default function ClientFitcoreTemplatePage() {
-  const filePath = path.join(process.cwd(), 'src/assets/templates/fitcore.html');
-  const raw = fs.readFileSync(filePath, 'utf8');
+  const innerHtml = extractBodyInnerHtml(loadProTemplateHtml('fitcore.html'));
   const css = loadProTemplateCss('fitcore.css');
-  const innerHtml = extractBodyInnerHtml(raw);
-
   return (
     <>
+
+        <title>FitCore gym template (Pro)</title>
+        <meta
+          name="description"
+          content="Standalone gym / studio landing template. Edit HTML/CSS under src/assets/templates/fitcore.*"
+        />
+        <meta name="robots" content="noindex,nofollow" />
+
       <style dangerouslySetInnerHTML={{ __html: css }} />
       <TemplateMobileNav rootClass=".fitcore-pro-template" />
       <div

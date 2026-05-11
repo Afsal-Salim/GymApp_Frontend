@@ -1,5 +1,3 @@
-'use client';
-
 import { ToastProvider } from '@/contexts/ToastContext/ToastContext';
 import { EnquiryModalProvider } from '@/contexts/EnquiryModalContext/EnquiryModalContext';
 

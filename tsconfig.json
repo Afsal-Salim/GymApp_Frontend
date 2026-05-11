@@ -1,10 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
+    "strictNullChecks": true,
     "noEmit": true,
     "incremental": true,
     "module": "esnext",
@@ -12,13 +13,22 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
-    "plugins": [{ "name": "next" }],
-    "strictNullChecks": true,
+    "jsx": "react-jsx",
+    "types": ["node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "next/link": ["./src/lib/next-shim/link.tsx"],
+      "next/image": ["./src/lib/next-shim/image.tsx"],
+      "next/script": ["./src/lib/next-shim/script.tsx"],
+      "next/dynamic": ["./src/lib/next-shim/dynamic.tsx"],
+      "next/navigation": ["./src/lib/next-shim/navigation.ts"],
+      "next/headers": ["./src/lib/next-shim/headers.ts"],
+      "next/server": ["./src/lib/next-shim/server.ts"],
+      "next/font/google": ["./src/lib/next-shim/font.ts"],
+      "next/font/local": ["./src/lib/next-shim/font.ts"],
+      "next": ["./src/lib/next-shim/types.ts"]
     }
   },
-  "include": ["next-env.d.ts", "env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": ["env.d.ts", "src", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }

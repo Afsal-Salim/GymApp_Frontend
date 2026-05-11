@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { Outlet } from 'react-router-dom';
 import { Sora } from 'next/font/google';
 import ProtectedRoute from '@/components/routing/protected-route/ProtectedRoute/ProtectedRoute';
 
@@ -9,13 +10,17 @@ const sora = Sora({
   weight: ['400', '500', '600', '700', '800'],
 });
 
-/** Auth is client-only; `UserPage` uses `useSearchParams` so the segment stays dynamic without `force-dynamic`. */
-
-export default function UserLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Wraps every `/user/*` route with `ProtectedRoute` and the dashboard font scope.
+ * Used as a layout route in `src/router.tsx` (renders nested routes via `<Outlet />`).
+ */
+export default function UserLayout() {
   return (
     <Suspense fallback={null}>
       <ProtectedRoute>
-        <div className={`user-workspace-font-scope ${sora.variable}`}>{children}</div>
+        <div className={`user-workspace-font-scope ${sora.variable}`}>
+          <Outlet />
+        </div>
       </ProtectedRoute>
     </Suspense>
   );

@@ -1,13 +1,11 @@
-import type { Metadata } from 'next';
 import PrivacyPolicyPage from '@/features/legal/PrivacyPolicyPage/PrivacyPolicyPage';
 
-export const revalidate = 3600;
-
-export const metadata: Metadata = {
-  title: 'Privacy Policy — Crystal',
-  description: 'How Crystal handles your data and privacy.',
-};
-
 export default function Page() {
-  return <PrivacyPolicyPage />;
+  return (
+    <>
+      <title>Privacy Policy — Crystal</title>
+      <meta name="description" content="How Crystal handles your data and privacy." />
+      <PrivacyPolicyPage />
+    </>
+  );
 }

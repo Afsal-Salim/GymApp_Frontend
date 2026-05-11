@@ -143,12 +143,14 @@ function collectBuilderPageSnapshots(editor: Editor): GymClientVisualBuilderStat
 }
 
 async function fetchProTemplateHtmlCss(key: string): Promise<{ html: string; css: string }> {
-  /** Next-only route (not under `/api/`) so `next.config` rewrites proxying `/api/*` → Django cannot steal this request. */
-  const r = await fetch(`/gjs-pro-template/${encodeURIComponent(key)}`);
-  if (!r.ok) {
-    throw new Error(`Could not load template assets (${r.status}).`);
-  }
-  return r.json() as Promise<{ html: string; css: string }>;
+  /**
+   * The original Next route handler at `/gjs-pro-template/[key]` is now a plain function so we
+   * can read the template inline without an HTTP round-trip from the browser. The dev server
+   * still exposes the same URL via a small Vite middleware in `vite.config.ts` for parity.
+   */
+  const { fetchGjsProTemplate } = await import('@/app/gjs-pro-template/[key]/route');
+  const payload = await fetchGjsProTemplate(key);
+  return { html: payload.html, css: payload.css };
 }
 
 async function resolveTemplateHtmlFromSeed(seed: string): Promise<WebsiteBuilderResolvedLoad> {

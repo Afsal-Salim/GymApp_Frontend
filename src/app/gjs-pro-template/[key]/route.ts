@@ -1,21 +1,22 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { NextResponse } from 'next/server';
+/**
+ * Pro template seed loader for the GrapesJS builder canvas.
+ *
+ * Originally a Next.js Route Handler (`GET /gjs-pro-template/[key]`). In the Vite SPA the same
+ * logic is exposed as a plain async function (`fetchGjsProTemplate`) so consumers can call it
+ * directly — there's no HTTP round-trip in the browser. A thin `handleGjsProTemplate` wrapper
+ * keeps the original "request → JSON response" shape for the dev-only Vite middleware that
+ * preserves the legacy `/gjs-pro-template/:key` URL during local debugging.
+ */
 import { PRO_WEBSITE_TEMPLATE_KEYS } from '@/features/crystal/gymClientSiteContent/gymClientSiteContent';
 import {
   DESIGN_SYSTEM_SETS,
   getDesignSystemTemplatePayloadForBuilder,
   type DesignSystemSetId,
 } from '@/features/website/websiteBuilderDesignSystemBlocks/websiteBuilderDesignSystemBlocks';
-
-const TEMPLATES_DIR = path.join(process.cwd(), 'src/assets/templates');
+import { loadProTemplateCss } from '@/app/templates/loadProTemplateCss';
+import { extractBodyInnerHtml, loadProTemplateHtml } from '@/app/templates/loadProTemplateHtml';
 
 const ALLOWED_KEYS = new Set<string>(PRO_WEBSITE_TEMPLATE_KEYS);
-
-function extractBodyInnerHtml(fullHtml: string): string {
-  const match = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  return match ? match[1]!.trim() : fullHtml.trim();
-}
 
 /** Builder canvas expects a stable root class so scoped template CSS applies. */
 function wrapTemplateBodyForBuilder(key: string, bodyInner: string): string {
@@ -23,46 +24,66 @@ function wrapTemplateBodyForBuilder(key: string, bodyInner: string): string {
   return `<div class="wb-template-root ${scopedRootClass}">${bodyInner}</div>`;
 }
 
-function loadProTemplateCssBundle(filename: string): string {
-  const main = fs.readFileSync(path.join(TEMPLATES_DIR, filename), 'utf8');
-  const typography = fs.readFileSync(path.join(TEMPLATES_DIR, 'pro-templates-typography.css'), 'utf8');
-  return `${main}\n${typography}`;
+export interface GjsProTemplatePayload {
+  key: string;
+  html: string;
+  css: string;
 }
 
-/**
- * Serves raw Pro template body HTML + CSS for the GrapesJS builder.
- * **Path is not under `/api/`** so `next.config` rewrites that proxy `/api/*` → Django do not intercept it.
- */
-export async function GET(_request: Request, context: { params: Promise<{ key: string }> }) {
-  const { key: raw } = await context.params;
-  const key = (raw ?? '').trim().toLowerCase();
+export class GjsProTemplateError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export async function fetchGjsProTemplate(rawKey: string): Promise<GjsProTemplatePayload> {
+  const key = (rawKey ?? '').trim().toLowerCase();
   if (!ALLOWED_KEYS.has(key)) {
-    return NextResponse.json({ error: 'Unknown template key' }, { status: 400 });
+    throw new GjsProTemplateError('Unknown template key', 400);
   }
 
   if (key.startsWith('ds-')) {
     const setId = key.slice(3);
     if (!DESIGN_SYSTEM_SETS.some((s) => s.id === setId)) {
-      return NextResponse.json({ error: 'Unknown design system' }, { status: 404 });
+      throw new GjsProTemplateError('Unknown design system', 404);
     }
     const { html: inner } = getDesignSystemTemplatePayloadForBuilder(setId as DesignSystemSetId);
-    const wrappedHtml = wrapTemplateBodyForBuilder(key, inner);
-    return NextResponse.json({ key, html: wrappedHtml, css: '' });
+    return { key, html: wrapTemplateBodyForBuilder(key, inner), css: '' };
   }
 
-  const htmlPath = path.join(TEMPLATES_DIR, `${key}.html`);
-  if (!fs.existsSync(htmlPath)) {
-    return NextResponse.json({ error: 'Template HTML not found' }, { status: 404 });
-  }
-
-  const fullHtml = fs.readFileSync(htmlPath, 'utf8');
+  const fullHtml = loadProTemplateHtml(`${key}.html`);
   const bodyInner = extractBodyInnerHtml(fullHtml);
-  const wrappedHtml = wrapTemplateBodyForBuilder(key, bodyInner);
-  const css = loadProTemplateCssBundle(`${key}.css`);
-
-  return NextResponse.json({
+  const css = loadProTemplateCss(`${key}.css`);
+  return {
     key,
-    html: wrappedHtml,
+    html: wrapTemplateBodyForBuilder(key, bodyInner),
     css,
-  });
+  };
+}
+
+/** Dev-server adapter used by `vite.config.ts` to preserve the legacy `/gjs-pro-template/:key` URL. */
+export async function handleGjsProTemplate(key: string): Promise<{ status: number; body: string; contentType: string }> {
+  try {
+    const payload = await fetchGjsProTemplate(key);
+    return {
+      status: 200,
+      body: JSON.stringify(payload),
+      contentType: 'application/json',
+    };
+  } catch (err) {
+    if (err instanceof GjsProTemplateError) {
+      return {
+        status: err.status,
+        body: JSON.stringify({ error: err.message }),
+        contentType: 'application/json',
+      };
+    }
+    return {
+      status: 500,
+      body: JSON.stringify({ error: 'Internal error' }),
+      contentType: 'application/json',
+    };
+  }
 }

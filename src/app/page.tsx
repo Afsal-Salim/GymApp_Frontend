@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { Sora } from 'next/font/google';
 import HomeInitialLoaderClient from '@/app/_components/HomeInitialLoaderClient';
 import HomeInitialLoaderSsr from '@/app/_components/HomeInitialLoaderSsr';
@@ -17,36 +16,30 @@ const origin = getMarketingSiteOrigin().origin;
 const canonical = `${origin}/`;
 const ogImage = `${origin}/images/hero-bg.jpg`;
 
-export const metadata: Metadata = {
-  title: {
-    absolute:
-      'Create a gym website — Crystal | No-code gym website builder & themes',
-  },
-  description:
-    'Create a website for your gym with Crystal: no-code builder, mobile-ready themes, WhatsApp enquiries, and analytics. Launch a fitness studio site in minutes.',
-  alternates: { canonical },
-  robots: { index: true, follow: true },
-  openGraph: {
-    url: canonical,
-    title: 'Create a website for your gym — Crystal',
-    description:
-      'Gym website builder for fitness studios: professional themes, WhatsApp leads, and easy publishing. No coding required.',
-    images: [{ url: ogImage, alt: 'Gym interior — Crystal gym website builder' }],
-  },
-  twitter: {
-    title: 'Create a website for your gym — Crystal',
-    description:
-      'Build your gym or fitness website in minutes. Themes, WhatsApp, analytics—no code.',
-    images: [ogImage],
-  },
-};
-
-/** Marketing landing — ISR shell; home ships in the page bundle (no extra Suspense swap on first paint). */
-export const revalidate = 3600;
+const PAGE_TITLE = 'Create a gym website — Crystal | No-code gym website builder & themes';
+const PAGE_DESCRIPTION =
+  'Create a website for your gym with Crystal: no-code builder, mobile-ready themes, WhatsApp enquiries, and analytics. Launch a fitness studio site in minutes.';
 
 export default function Home() {
   return (
     <div className={sora.variable}>
+      <title>{PAGE_TITLE}</title>
+      <meta name="description" content={PAGE_DESCRIPTION} />
+      <link rel="canonical" href={canonical} />
+      <meta name="robots" content="index,follow" />
+      <meta property="og:url" content={canonical} />
+      <meta property="og:title" content="Create a website for your gym — Crystal" />
+      <meta
+        property="og:description"
+        content="Gym website builder for fitness studios: professional themes, WhatsApp leads, and easy publishing. No coding required."
+      />
+      <meta property="og:image" content={ogImage} />
+      <meta name="twitter:title" content="Create a website for your gym — Crystal" />
+      <meta
+        name="twitter:description"
+        content="Build your gym or fitness website in minutes. Themes, WhatsApp, analytics—no code."
+      />
+      <meta name="twitter:image" content={ogImage} />
       <HomeLandingJsonLd />
       <HomeInitialLoaderSsr />
       <HomeInitialLoaderClient />

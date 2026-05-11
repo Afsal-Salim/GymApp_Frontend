@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /user/
+Disallow: /api/
+Disallow: /gym-by-host/
+
+Sitemap: /sitemap.xml

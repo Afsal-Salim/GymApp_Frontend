@@ -8,17 +8,18 @@ const BASE = '/businesses';
 
 function businessImageFilePathSegment(): string {
   const raw =
-    typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT
-      ? process.env.NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT
-      : 'file';
+    import.meta.env.VITE_BUSINESS_IMAGE_FILE_SEGMENT ??
+    import.meta.env.NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT ??
+    'file';
   const s = raw.trim().replace(/^\/+|\/+$/g, '');
   return s || 'file';
 }
 
 function shouldUseApiFileUrlForBusinessImages(): boolean {
-  const v = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE
-    ? process.env.NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE
-    : ''
+  const v = (
+    import.meta.env.VITE_BUSINESS_IMAGE_USE_API_FILE ??
+    import.meta.env.NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE ??
+    ''
   ).trim();
   return /^true|1|yes$/i.test(v);
 }

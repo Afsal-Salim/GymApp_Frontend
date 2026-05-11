@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar, Footer } from '@/components/index/index';

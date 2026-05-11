@@ -1,33 +1,24 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import type { Metadata } from 'next';
 import { TemplateMobileNav } from '@/app/templates/_components/TemplateMobileNav';
 import { loadProTemplateCss } from '../loadProTemplateCss';
-
-export const metadata: Metadata = {
-  title: 'IronPulse gym template (Pro)',
-  description:
-    'Standalone gym landing template (SonicFlow layout). Edit HTML/CSS under src/assets/templates/sonicflow.*',
-  robots: { index: false, follow: false },
-};
-
-function extractBodyInnerHtml(fullHtml: string): string {
-  const match = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  return match ? match[1]!.trim() : '';
-}
+import { extractBodyInnerHtml, loadProTemplateHtml } from '../loadProTemplateHtml';
 
 /**
  * Pro template (sonicflow assets, gym-focused copy). Edit `sonicflow.html` + `sonicflow.css`.
  * Route: `/templates/client-sonicflow` — not linked from marketing nav.
  */
 export default function ClientSonicflowTemplatePage() {
-  const filePath = path.join(process.cwd(), 'src/assets/templates/sonicflow.html');
-  const raw = fs.readFileSync(filePath, 'utf8');
+  const innerHtml = extractBodyInnerHtml(loadProTemplateHtml('sonicflow.html'));
   const css = loadProTemplateCss('sonicflow.css');
-  const innerHtml = extractBodyInnerHtml(raw);
-
   return (
     <>
+
+        <title>IronPulse gym template (Pro)</title>
+        <meta
+          name="description"
+          content="Standalone gym landing template (SonicFlow layout). Edit HTML/CSS under src/assets/templates/sonicflow.*"
+        />
+        <meta name="robots" content="noindex,nofollow" />
+
       <style dangerouslySetInnerHTML={{ __html: css }} />
       <TemplateMobileNav rootClass=".sonicflow-pro-template" />
       <div

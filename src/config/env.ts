@@ -1,60 +1,73 @@
 /**
  * Application environment and public runtime configuration.
  *
- * Client-exposed values use `NEXT_PUBLIC_*` (inlined at build time).
- * Do not put API secrets or private keys here.
- *
- * Important: read each `NEXT_PUBLIC_*` as a **static** `process.env.NEXT_PUBLIC_*` expression.
- * Dynamic access like `process.env[key]` is not inlined in the browser bundle, which breaks SSR/client
- * hydration (server sees real env, client sees empty).
+ * Reads `import.meta.env` (Vite). Each value is read via a `VITE_*` variable, with the legacy
+ * `NEXT_PUBLIC_*` name accepted as a fallback so the existing `.env` file from the Next era keeps
+ * working without renaming every key.
  */
 
 import { SESSION_CRYSTAL_CREATE_SKIP_ON_BACK } from './storageKeys';
+
+type AnyEnv = Record<string, string | undefined>;
+
+function getEnv(): AnyEnv {
+  /* In some non-Vite runtimes (Node tests) `import.meta.env` is unavailable — fall back to `{}`. */
+  try {
+    return (import.meta as unknown as { env?: AnyEnv }).env ?? {};
+  } catch {
+    return {};
+  }
+}
 
 function trim(s: string | undefined): string {
   return (s ?? '').trim();
 }
 
-export const appMode = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+/** Reads the first defined `VITE_*` or `NEXT_PUBLIC_*` variant (trimmed). */
+function readPublicEnv(viteKey: string, nextKey?: string): string {
+  const env = getEnv();
+  return trim(env[viteKey] ?? (nextKey ? env[nextKey] : undefined));
+}
+
+export const appMode: 'production' | 'development' =
+  (getEnv().MODE as 'production' | 'development') ??
+  (getEnv().NODE_ENV === 'production' ? 'production' : 'development');
 export const isDev = appMode !== 'production';
 export const isProd = appMode === 'production';
 
-/** Next.js base path, e.g. `/` or `/app/` */
-export const nextBaseUrl = trim(process.env.NEXT_PUBLIC_BASE_PATH) || '/';
+/** Vite base path, e.g. `/` or `/app/` */
+export const nextBaseUrl = readPublicEnv('VITE_BASE_PATH', 'NEXT_PUBLIC_BASE_PATH') || '/';
 
 /** REST API base URL (scheme + host + optional path prefix). Set in `.env`. */
 export const apiBaseUrl =
-  trim(process.env.NEXT_PUBLIC_API_BASE_URL) || trim(process.env.VITE_API_BASE_URL);
+  readPublicEnv('VITE_API_BASE_URL', 'NEXT_PUBLIC_API_BASE_URL');
 
-/** Google Identity Services client ID (optional). */
-export const googleOAuthClientId = trim(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+export const googleOAuthClientId = readPublicEnv('VITE_GOOGLE_CLIENT_ID', 'NEXT_PUBLIC_GOOGLE_CLIENT_ID');
 
-/** Marketing / contact: WhatsApp E.164 or display number (optional). */
-export const whatsappPhone = trim(process.env.NEXT_PUBLIC_WHATSAPP_PHONE);
+export const whatsappPhone = readPublicEnv('VITE_WHATSAPP_PHONE', 'NEXT_PUBLIC_WHATSAPP_PHONE');
 
-export const whatsappDefaultMessage = trim(process.env.NEXT_PUBLIC_WHATSAPP_MESSAGE);
+export const whatsappDefaultMessage = readPublicEnv('VITE_WHATSAPP_MESSAGE', 'NEXT_PUBLIC_WHATSAPP_MESSAGE');
 
-export const homepageTutorialVideoUrl = trim(process.env.NEXT_PUBLIC_HOMEPAGE_TUTORIAL_VIDEO_URL);
+export const homepageTutorialVideoUrl = readPublicEnv(
+  'VITE_HOMEPAGE_TUTORIAL_VIDEO_URL',
+  'NEXT_PUBLIC_HOMEPAGE_TUTORIAL_VIDEO_URL',
+);
 
-export const marketingEnquiryPath =
-  trim(process.env.NEXT_PUBLIC_MARKETING_ENQUIRY_PATH) ||
-  trim(process.env.VITE_MARKETING_ENQUIRY_PATH);
+export const marketingEnquiryPath = readPublicEnv(
+  'VITE_MARKETING_ENQUIRY_PATH',
+  'NEXT_PUBLIC_MARKETING_ENQUIRY_PATH',
+);
 
-export const serviceEnquiryPath =
-  trim(process.env.NEXT_PUBLIC_SERVICE_ENQUIRY_PATH) ||
-  trim(process.env.VITE_SERVICE_ENQUIRY_PATH);
+export const serviceEnquiryPath = readPublicEnv(
+  'VITE_SERVICE_ENQUIRY_PATH',
+  'NEXT_PUBLIC_SERVICE_ENQUIRY_PATH',
+);
 
-/** Marketing “Contact us” email (homepage, service enquiry sidebar). */
-export const contactEmail = trim(process.env.NEXT_PUBLIC_CONTACT_EMAIL);
+export const contactEmail = readPublicEnv('VITE_CONTACT_EMAIL', 'NEXT_PUBLIC_CONTACT_EMAIL');
 
-/** Human-readable phone line shown in contact UI. */
-export const contactPhoneDisplay = trim(process.env.NEXT_PUBLIC_CONTACT_PHONE);
+export const contactPhoneDisplay = readPublicEnv('VITE_CONTACT_PHONE', 'NEXT_PUBLIC_CONTACT_PHONE');
 
-/**
- * Optional dial string for `tel:` (e.g. `+918137951793`). If unset, digits are taken from
- * `NEXT_PUBLIC_CONTACT_PHONE` when possible.
- */
-export const contactPhoneTelRaw = trim(process.env.NEXT_PUBLIC_CONTACT_PHONE_TEL);
+export const contactPhoneTelRaw = readPublicEnv('VITE_CONTACT_PHONE_TEL', 'NEXT_PUBLIC_CONTACT_PHONE_TEL');
 
 export function contactMailtoHref(): string {
   return contactEmail ? `mailto:${contactEmail}` : '';
@@ -77,7 +90,6 @@ export type MarketingContactRow = {
   href: string;
 };
 
-/** Homepage cards + service enquiry sidebar: email/phone from env; WhatsApp always last. */
 export function buildMarketingContactRows(): MarketingContactRow[] {
   const waHref = whatsappPhone
     ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappDefaultMessage)}`
@@ -95,9 +107,6 @@ export function buildMarketingContactRows(): MarketingContactRow[] {
 
 export const authRefreshPath = '/auth/refresh/' as const;
 
-/**
- * Absolute URL for the Crystal site preview (same tab / window).
- */
 export function crystalPreviewAbsoluteUrl(): string {
   const base = nextBaseUrl.endsWith('/') ? nextBaseUrl : `${nextBaseUrl}/`;
   if (typeof window === 'undefined') {
@@ -106,7 +115,10 @@ export function crystalPreviewAbsoluteUrl(): string {
   return new URL('preview', window.location.origin + base).href;
 }
 
-export const publicSiteDomain = trim(process.env.NEXT_PUBLIC_PUBLIC_SITE_DOMAIN).toLowerCase();
+export const publicSiteDomain = readPublicEnv(
+  'VITE_PUBLIC_SITE_DOMAIN',
+  'NEXT_PUBLIC_PUBLIC_SITE_DOMAIN',
+).toLowerCase();
 
 export function isLocalDevelopmentHost(): boolean {
   if (typeof window === 'undefined') return false;
@@ -166,9 +178,6 @@ export function getPublicGymSlugFromHost(): string | null {
   return sub;
 }
 
-/**
- * Server/middleware: extract gym slug from Host header (no `window`).
- */
 export function getPublicGymSlugFromHostHeader(hostHeader: string | null): string | null {
   if (!publicSiteDomain || !hostHeader) return null;
   const host = hostHeader.split(':')[0]?.toLowerCase() ?? '';
@@ -218,7 +227,6 @@ export function crystalMarketingAbsoluteUrl(path = '/'): string {
   return new URL(raw, base).href;
 }
 
-/** Matches client router `push` / `replace` for string paths. */
 type NavigatePathFn = (to: string, opts?: { replace?: boolean }) => void;
 
 export function visitPublicGymSite(slug: string, navigate: NavigatePathFn, options?: { replace?: boolean }): void {

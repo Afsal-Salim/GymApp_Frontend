@@ -1,17 +1,36 @@
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import PlansPage from '@/features/plans/PlansPage/PlansPage';
 import { fetchPlanListForServer } from '@/lib/plansServer';
+import type { PlanListItem } from '@/api/plans';
+import PlansLoading from '../loading';
 
-export const revalidate = 60;
+export default function Page() {
+  const { businessSlug = '' } = useParams<{ businessSlug: string }>();
+  const [initialPlans, setInitialPlans] = useState<PlanListItem[] | null>(null);
+  const [plansServerError, setPlansServerError] = useState<string | null>(null);
 
-export default async function Page({ params }: { params: Promise<{ businessSlug: string }> }) {
-  const { businessSlug } = await params;
-  let initialPlans: Awaited<ReturnType<typeof fetchPlanListForServer>> = [];
-  let plansServerError: string | null = null;
-  try {
-    initialPlans = await fetchPlanListForServer();
-  } catch {
-    plansServerError = 'Failed to load plans.';
+  useEffect(() => {
+    let cancelled = false;
+    fetchPlanListForServer()
+      .then((plans) => {
+        if (!cancelled) setInitialPlans(plans);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setInitialPlans([]);
+          setPlansServerError('Failed to load plans.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (initialPlans === null) {
+    return <PlansLoading />;
   }
+
   return (
     <PlansPage
       key={businessSlug}

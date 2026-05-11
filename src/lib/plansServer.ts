@@ -1,20 +1,21 @@
 import type { PlanListApiResponse, PlanListItem } from '@/api/plans';
+import { apiBaseUrl } from '@/config/env';
 
 /**
- * Server-only plan list fetch with Next.js Data Cache (ISR).
- * Uses absolute API URL — same env as `publicApi` (`NEXT_PUBLIC_API_BASE_URL` / `VITE_API_BASE_URL`).
+ * Client-side plan list fetch.
+ *
+ * Originally a server function with Next.js ISR caching; in the Vite SPA it's a regular
+ * `fetch()` to the same backend URL, and pages call it during render (the React component then
+ * caches the result in state).
  */
 export async function fetchPlanListForServer(): Promise<PlanListItem[]> {
-  const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.VITE_API_BASE_URL ?? '')
-    .trim()
-    .replace(/\/$/, '');
+  const base = apiBaseUrl.replace(/\/$/, '');
   if (!base) {
     return [];
   }
 
   const url = `${base}/plans/plan_list/`;
   const res = await fetch(url, {
-    next: { revalidate: 60 },
     headers: { Accept: 'application/json' },
   });
 
