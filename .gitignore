@@ -12,8 +12,6 @@ dist
 # Next.js build output & cache — never commit (large binaries; breaks GitHub push)
 .next/
 out
-.env
-.env.local
 dist-ssr
 *.local
 
