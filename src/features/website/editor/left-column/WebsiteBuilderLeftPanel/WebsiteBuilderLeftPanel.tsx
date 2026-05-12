@@ -49,8 +49,9 @@ import { scorePaletteCard } from '@/features/website/editor/core/websiteBuilderC
 import type { DesignSystemSetId } from '@/features/website/editor/blocks/websiteBuilderDesignSystemBlocks/websiteBuilderDesignSystemBlocks';
 import { isWbLayerGroup } from '@/features/website/editor/blocks/websiteBuilderLayerGroup/websiteBuilderLayerGroup';
 import { WebsiteBuilderEditorToolsMenu } from '@/features/website/editor/tools/WebsiteBuilderEditorToolsMenu';
+import { WebsiteBuilderTextStylesPanel } from '@/features/website/editor/left-column/WebsiteBuilderTextStylesPanel/WebsiteBuilderTextStylesPanel';
 
-export type LeftPanelTab = 'pages' | 'structure' | 'components' | 'tools' | 'add';
+export type LeftPanelTab = 'pages' | 'structure' | 'components' | 'tools' | 'add' | 'textStyles';
 
 type PageItem = { id: string; name: string };
 
@@ -1250,6 +1251,11 @@ function leftRailHeading(tab: LeftPanelTab): { title: string; subtitle: string }
       return { title: 'Tools', subtitle: 'Find text, check links, spacing, gym blocks, brand, and images.' };
     case 'add':
       return { title: 'Quick add', subtitle: 'Insert basic blocks onto the current page.' };
+    case 'textStyles':
+      return {
+        title: 'Text styles',
+        subtitle: 'Apply a designed look — gradient, rainbow, outline, neon and more.',
+      };
     case 'components':
     default:
       return { title: 'Add elements', subtitle: 'Drag tiles onto the canvas or use search.' };
@@ -1469,6 +1475,8 @@ export function WebsiteBuilderLeftPanel({
                 </button>
               ))}
             </div>
+          : tab === 'textStyles' ?
+            <WebsiteBuilderTextStylesPanel editor={editor} />
           : editor ?
             <ComponentsPalette
               editor={editor}

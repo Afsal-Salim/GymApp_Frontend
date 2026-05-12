@@ -24,7 +24,6 @@ import {
   checkBusinessSlugAvailability,
   deleteBusinessGalleryImage,
   getActiveSubscription,
-  planTierHasFullProductAccess,
   getBusinessDetail,
   invalidateUserBusinessListCache,
   invalidateUserAnalyticsCache,
@@ -57,7 +56,6 @@ import {
   buildDesignSystemSelectPageTemplateCards,
   buildProTemplateCards,
   isDesignSystemTemplateKey,
-  isProTemplateKey,
   PRO_TEMPLATE_PREVIEW_PATHS,
   type ProTemplateKey,
 } from '@/features/website/templates/websiteProTemplateCards/websiteProTemplateCards';
@@ -1131,8 +1129,6 @@ export default function CreateWebsitePage() {
 
   /** After first-time save: modal prompts recharge (pricing) instead of a toast. */
   const [postSaveRechargeModalSlug, setPostSaveRechargeModalSlug] = useState<string | null>(null);
-  /** Edit flow: user selected a Pro template but subscription is not Pro. */
-  const [proTemplateBlockedModalOpen, setProTemplateBlockedModalOpen] = useState(false);
   /** In-page template preview modal (no new tab). */
   const [templatePreviewKey, setTemplatePreviewKey] = useState<ProTemplateKey | null>(null);
   /** Create flow: business slug exists after first successful save (enables S3 gallery uploads). */
@@ -1968,16 +1964,6 @@ export default function CreateWebsitePage() {
       allTemplatePickerCards.find((c) => c.key === form.proTemplateKey)?.label ?? 'Selected template'
     : 'Crystal default theme';
 
-  const wantsProTemplate = useMemo(() => isProTemplateKey(form.proTemplateKey), [form.proTemplateKey]);
-  /** When we can load subscription for this site (`galleryUploadSlug`), block save unless Pro is active. */
-  const proTemplateBlocksSave = useMemo(
-    () =>
-      wantsProTemplate &&
-      Boolean(galleryUploadSlug) &&
-      (!builderSubscription || !planTierHasFullProductAccess(builderSubscription)),
-    [wantsProTemplate, galleryUploadSlug, builderSubscription]
-  );
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const slug = form.slug.trim().toLowerCase();
@@ -1999,16 +1985,6 @@ export default function CreateWebsitePage() {
     if (addr || phoneDigits) {
       if (!mapRaw || !isValidHttpLocationUrl(mapRaw)) {
         showToast('Add a valid maps link (https://…) when you include an address or phone number.');
-        return;
-      }
-    }
-    if (wantsProTemplate && galleryUploadSlug) {
-      if (!builderSubscription) {
-        showToast('Subscription status is still loading. Try again in a moment.', 'warning');
-        return;
-      }
-      if (!planTierHasFullProductAccess(builderSubscription)) {
-        setProTemplateBlockedModalOpen(true);
         return;
       }
     }
@@ -3423,17 +3399,11 @@ export default function CreateWebsitePage() {
 
                 <div className="create-website__actions mt-4 d-flex flex-wrap gap-2 justify-content-end align-items-center">
                   <div className="d-flex flex-column align-items-end gap-2">
-                    {proTemplateBlocksSave ?
-                      <p className="form-text text-muted small mb-0 text-end" role="status">
-                        Pro templates require an active Pro subscription. Upgrade your plan, or choose Crystal default theme
-                        via <strong>Select template</strong> — then you can save.
-                      </p>
-                    : null}
                     <div className="d-flex flex-wrap gap-2">
                     <Button
                       type="submit"
                       variant="primary"
-                      disabled={slugStatus !== 'available' || saving || proTemplateBlocksSave}
+                      disabled={slugStatus !== 'available' || saving}
                     >
                       {saving ? (
                         <>
@@ -3568,40 +3538,6 @@ export default function CreateWebsitePage() {
             />
           : null}
         </Modal.Body>
-      </Modal>
-
-      <Modal
-        show={proTemplateBlockedModalOpen}
-        onHide={() => setProTemplateBlockedModalOpen(false)}
-        centered
-        aria-labelledby="create-website-pro-template-modal-title"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title id="create-website-pro-template-modal-title">Pro subscription required</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p className="mb-0">
-            Full-page Pro templates need an active <strong>Pro</strong> subscription — your save stays disabled until you
-            upgrade, or switch to <strong>Crystal default theme</strong> under <strong>Select template</strong> and save
-            again.
-          </p>
-        </Modal.Body>
-        <Modal.Footer className="border-0 pt-0">
-          <Button type="button" variant="outline-secondary" onClick={() => setProTemplateBlockedModalOpen(false)}>
-            OK
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            onClick={() => {
-              setProTemplateBlockedModalOpen(false);
-              const s = (editBaselineSlug ?? editRouteSlug ?? '').trim().toLowerCase();
-              if (s) router.push(`${PLANS_PAGE_PATH}/${encodeURIComponent(s)}`);
-            }}
-          >
-            View plans
-          </Button>
-        </Modal.Footer>
       </Modal>
 
       <Modal

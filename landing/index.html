@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#0d0d10" />
+
+  <!--
+    Fast-redirect bootstrap for the apex / www host.
+    1. <link rel="preconnect"> warms the TLS + HTTP/2 connection to the app subdomain
+       so the navigation that follows feels instant.
+    2. The inline script fires the redirect immediately while the rest of <head> is
+       still being parsed. It preserves path + query + hash so deep links keep working
+       (e.g. https://www.crystal-co.in/plans?ref=x  ->  https://home.crystal-co.in/plans?ref=x).
+    3. The <noscript> meta-refresh covers crawlers / browsers without JS.
+    4. The visible <body> below is what search engines index — it carries the same
+       title, description, and JSON-LD as the React app so SEO signals are preserved
+       even though humans never see it.
+  -->
+  <link rel="preconnect" href="https://home.crystal-co.in" crossorigin />
+  <link rel="dns-prefetch" href="//home.crystal-co.in" />
+  <script>
+    (function () {
+      try {
+        var target =
+          'https://home.crystal-co.in' +
+          (window.location.pathname || '/') +
+          (window.location.search || '') +
+          (window.location.hash || '');
+        if (window.location.replace) {
+          window.location.replace(target);
+        } else {
+          window.location.href = target;
+        }
+      } catch (e) {
+        window.location.href = 'https://home.crystal-co.in/';
+      }
+    })();
+  </script>
+  <noscript>
+    <meta http-equiv="refresh" content="0; url=https://home.crystal-co.in/" />
+  </noscript>
+
+  <title>Create a gym website — Crystal | No-code gym website builder &amp; themes</title>
+  <meta
+    name="description"
+    content="Create a website for your gym with Crystal: no-code builder, mobile-ready themes, WhatsApp enquiries, and analytics. Launch a fitness studio site in minutes."
+  />
+  <meta name="keywords" content="gym website builder, fitness website, gym management software, no-code gym site, fitness studio website, WhatsApp leads, gym landing page" />
+  <meta name="author" content="Crystal" />
+  <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1" />
+  <meta name="googlebot" content="index,follow" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+  <link rel="canonical" href="https://www.crystal-co.in/" />
+  <link rel="alternate" hreflang="en" href="https://www.crystal-co.in/" />
+  <link rel="alternate" hreflang="x-default" href="https://www.crystal-co.in/" />
+  <link rel="icon" type="image/svg+xml" href="https://home.crystal-co.in/favicon.svg" />
+  <link rel="apple-touch-icon" href="https://home.crystal-co.in/favicon.svg" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Crystal" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:url" content="https://www.crystal-co.in/" />
+  <meta property="og:title" content="Create a website for your gym — Crystal" />
+  <meta property="og:description" content="Gym website builder for fitness studios: professional themes, WhatsApp leads, and easy publishing. No coding required." />
+  <meta property="og:image" content="https://home.crystal-co.in/images/hero-bg.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Crystal — no-code gym website builder" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Create a website for your gym — Crystal" />
+  <meta name="twitter:description" content="Build your gym or fitness website in minutes. Themes, WhatsApp, analytics — no code." />
+  <meta name="twitter:image" content="https://home.crystal-co.in/images/hero-bg.jpg" />
+  <meta name="twitter:image:alt" content="Crystal — no-code gym website builder" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.crystal-co.in/#organization",
+        "name": "Crystal",
+        "url": "https://www.crystal-co.in/",
+        "logo": "https://home.crystal-co.in/favicon.svg",
+        "description": "Crystal helps gyms and fitness studios create a professional website, capture WhatsApp leads, and grow online — no coding required.",
+        "sameAs": []
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://www.crystal-co.in/#website",
+        "name": "Crystal — Gym website builder",
+        "url": "https://www.crystal-co.in/",
+        "description": "Create a website for your gym in minutes. Themes, WhatsApp leads, and analytics for fitness businesses.",
+        "publisher": { "@id": "https://www.crystal-co.in/#organization" },
+        "inLanguage": "en",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://home.crystal-co.in/?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://www.crystal-co.in/#webpage",
+        "url": "https://www.crystal-co.in/",
+        "name": "Create a gym website — Crystal",
+        "isPartOf": { "@id": "https://www.crystal-co.in/#website" },
+        "about": { "@id": "https://www.crystal-co.in/#organization" },
+        "description": "Build and launch a gym or fitness studio website with Crystal. No-code builder, mobile-ready themes, and member-ready pages.",
+        "primaryImageOfPage": "https://home.crystal-co.in/images/hero-bg.jpg"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "Crystal gym website builder",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web browser",
+        "description": "Software to create a website for your gym: guided setup, themes, WhatsApp integration, and analytics.",
+        "url": "https://home.crystal-co.in/",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "INR",
+          "availability": "https://schema.org/InStock"
+        },
+        "provider": { "@id": "https://www.crystal-co.in/#organization" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How do I create a website for my gym?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sign up for Crystal, add your gym details, choose a theme, and publish. You can preview your site before going live — no coding or web designer required."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I create a fitness or gym website without coding?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Crystal is built for gym owners: you fill in your business information, classes, and pricing, and the platform generates a professional, mobile-friendly website."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Crystal include WhatsApp and lead capture?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Your gym website can connect visitors to WhatsApp and capture enquiries so you can follow up with new members quickly."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+      color:#1a1a1f;background:#fafafa;line-height:1.5;
+      -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    }
+    main{max-width:760px;margin:0 auto;padding:48px 24px}
+    h1{font-size:1.75rem;line-height:1.25;margin:0 0 12px;font-weight:700;letter-spacing:-0.01em}
+    h2{font-size:1.15rem;line-height:1.3;margin:32px 0 8px;font-weight:600}
+    p{margin:0 0 12px}
+    ul{padding-left:1.25rem;margin:0 0 16px}
+    a{color:#2253ff;text-decoration:none}
+    a:hover,a:focus{text-decoration:underline}
+    .cta{
+      display:inline-block;margin-top:8px;padding:10px 16px;
+      background:#0d0d10;color:#fff;border-radius:8px;font-weight:600;
+    }
+    .cta:hover,.cta:focus{text-decoration:none;background:#1a1a22}
+    .muted{color:#5a5a66;font-size:0.95rem}
+    .faq dt{font-weight:600;margin-top:14px}
+    .faq dd{margin:4px 0 0;color:#3a3a44}
+    @media (prefers-color-scheme:dark){
+      body{background:#0d0d10;color:#eaeaef}
+      h1,h2{color:#fff}
+      .muted{color:#9da0a8}
+      .faq dd{color:#c8cad2}
+      a{color:#8aa9ff}
+      .cta{background:#fff;color:#0d0d10}
+      .cta:hover,.cta:focus{background:#eaeaef}
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Everything below is rendered as a fallback for clients that don't run JS
+    (and is what crawlers parse before they decide whether to follow the redirect).
+    Keep the copy aligned with the React homepage so SEO signals stay consistent.
+  -->
+  <main>
+    <h1>Create a website for your gym — Crystal</h1>
+    <p class="muted">
+      Crystal is a no-code <strong>gym website builder</strong> for fitness studios:
+      professional mobile-ready themes, WhatsApp enquiries, and analytics. Launch your
+      fitness business website in minutes.
+    </p>
+
+    <p>
+      <a class="cta" href="https://home.crystal-co.in/" rel="noopener">Open the Crystal app</a>
+    </p>
+
+    <h2>What you can do with Crystal</h2>
+    <ul>
+      <li>Build a gym or fitness studio website without writing code.</li>
+      <li>Pick a designer theme, edit your content, and publish to your own URL.</li>
+      <li>Capture leads through WhatsApp and enquiry forms.</li>
+      <li>See visits, conversions, and member growth in a built-in analytics panel.</li>
+    </ul>
+
+    <h2 id="faq">Frequently asked questions</h2>
+    <dl class="faq">
+      <dt>How do I create a website for my gym?</dt>
+      <dd>
+        Sign up for Crystal, add your gym details, choose a theme, and publish. You can
+        preview your site before going live — no coding or web designer required.
+      </dd>
+      <dt>Can I create a fitness or gym website without coding?</dt>
+      <dd>
+        Yes. Crystal is built for gym owners: you fill in your business information,
+        classes, and pricing, and the platform generates a professional, mobile-friendly
+        website.
+      </dd>
+      <dt>Does Crystal include WhatsApp and lead capture?</dt>
+      <dd>
+        Yes. Your gym website can connect visitors to WhatsApp and capture enquiries so
+        you can follow up with new members quickly.
+      </dd>
+    </dl>
+
+    <p class="muted">
+      Continuing to <a href="https://home.crystal-co.in/">home.crystal-co.in</a>…
+    </p>
+  </main>
+</body>
+</html>

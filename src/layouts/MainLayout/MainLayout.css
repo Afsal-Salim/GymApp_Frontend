@@ -39,13 +39,21 @@
   min-height: 100%;
 }
 
+/**
+ * `animation-fill-mode: backwards` (not `both`) so the `from` state applies during the brief
+ * pre-animation frame but the `to` state is NOT retained after the animation ends. Retaining
+ * `transform: translateY(0)` would leave a non-`none` transform on `.main-layout__page` for
+ * the lifetime of the route, which turns it into a containing block for any descendant
+ * `position: fixed` / `position: sticky` element — breaking the sticky header on the website
+ * templates page (and any other page that relies on sticking to the viewport).
+ */
 .main-layout__page--route-enter {
-  animation: main-layout-page-in 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: main-layout-page-in 0.48s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .main-layout__page--route-enter {
-    animation: main-layout-page-in-reduced 0.2s ease-out both;
+    animation: main-layout-page-in-reduced 0.2s ease-out backwards;
   }
 }
 

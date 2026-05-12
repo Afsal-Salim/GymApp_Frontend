@@ -1604,7 +1604,7 @@ a.wb-sys-btn {
   color: #2563eb;
 }
 .wb-sys--elite .wb-sys-btn {
-  background: linear-gradient(135deg, #0052cc, var(--wb-eli-blue) 52%, var(--wb-eli-blue-soft));
+  background: linear-gradient(135deg, #0052cc, #0066ff 52%, #3385ff);
   color: #fff;
   border-color: rgba(0, 102, 255, 0.25);
   box-shadow: 0 8px 26px rgba(0, 102, 255, 0.32);
@@ -1814,8 +1814,8 @@ a.wb-sys-btn {
   color: var(--wb-foc-lime-bright);
 }
 .wb-sys--focus .wb-sys-btn {
-  background: linear-gradient(135deg, var(--wb-foc-lime-deep), var(--wb-foc-lime) 52%, var(--wb-foc-lime-bright));
-  color: var(--wb-foc-ink);
+  background: linear-gradient(135deg, #6a9a2e, #9ccf3f 52%, #c8e877);
+  color: #0a0f06;
   border-color: rgba(200, 232, 119, 0.45);
   box-shadow: 0 10px 32px rgba(156, 207, 63, 0.32);
   font-weight: 800;
@@ -2332,7 +2332,7 @@ a.wb-sys-btn {
   color: var(--wb-eng-orange);
 }
 .wb-sys--energy .wb-sys-btn {
-  background: linear-gradient(135deg, var(--wb-eng-orange-deep), var(--wb-eng-orange) 50%, #ff8533);
+  background: linear-gradient(135deg, #e65c00, #ff6600 50%, #ff8533);
   color: #fff;
   border-color: rgba(255, 102, 0, 0.35);
   box-shadow: 0 8px 26px rgba(255, 102, 0, 0.32);
@@ -2737,7 +2737,7 @@ a.wb-sys-btn {
   color: var(--wb-prm-glow);
 }
 .wb-sys--prime .wb-sys-btn {
-  background: linear-gradient(135deg, #6b21a8, var(--wb-prm-violet) 48%, #d8b4fe);
+  background: linear-gradient(135deg, #6b21a8, #a855f7 48%, #d8b4fe);
   color: #fff;
   border-color: rgba(233, 213, 254, 0.45);
   box-shadow: 0 10px 32px rgba(109, 40, 217, 0.42);
@@ -3168,7 +3168,7 @@ a.wb-sys-btn {
   color: var(--wb-spo-teal);
 }
 .wb-sys--sporty .wb-sys-btn {
-  background: linear-gradient(135deg, var(--wb-spo-teal-deep), var(--wb-spo-teal) 52%, #33b8c0);
+  background: linear-gradient(135deg, #00838b, #00a3ad 52%, #33b8c0);
   color: #fff;
   border-color: rgba(0, 163, 173, 0.35);
   box-shadow: 0 8px 26px rgba(0, 163, 173, 0.28);
@@ -3445,7 +3445,7 @@ a.wb-sys-btn {
 .wb-sys--cyberfit .wb-sys-btn,
 .wb-sys--cyberfit button.wb-sys-btn:not(.wb-sys-btn--ghost),
 .wb-sys--cyberfit a.wb-sys-btn:not(.wb-sys-btn--ghost) {
-  background: linear-gradient(90deg, var(--wb-cyb-magenta-deep) 0%, var(--wb-cyb-magenta-hot) 55%, #c026d3 100%);
+  background: linear-gradient(90deg, #9c0084 0%, #ff00ff 55%, #c026d3 100%);
   color: #fff !important;
   -webkit-text-fill-color: #fff;
   border: 1px solid rgba(255, 0, 255, 0.45);
@@ -3470,7 +3470,7 @@ a.wb-sys-btn {
 /* Pricing CTAs: per-tier neon (default magenta above is for nav/hero/contact). */
 .wb-sys-cyb-price__tier--cyan button.wb-sys-btn:not(.wb-sys-btn--ghost),
 .wb-sys-cyb-price__tier--cyan a.wb-sys-btn:not(.wb-sys-btn--ghost) {
-  background: linear-gradient(90deg, #155e75 0%, #0e7490 35%, var(--wb-cyb-cyan) 70%, #22d3ee 100%) !important;
+  background: linear-gradient(90deg, #155e75 0%, #0e7490 35%, #00f0ff 70%, #22d3ee 100%) !important;
   color: #f0fdfa !important;
   -webkit-text-fill-color: #f0fdfa;
   border-color: rgba(0, 240, 255, 0.55) !important;
@@ -3488,7 +3488,7 @@ a.wb-sys-btn {
 
 .wb-sys-cyb-price__tier--magenta button.wb-sys-btn:not(.wb-sys-btn--ghost),
 .wb-sys-cyb-price__tier--magenta a.wb-sys-btn:not(.wb-sys-btn--ghost) {
-  background: linear-gradient(90deg, var(--wb-cyb-magenta-deep) 0%, var(--wb-cyb-magenta-hot) 55%, #c026d3 100%) !important;
+  background: linear-gradient(90deg, #9c0084 0%, #ff00ff 55%, #c026d3 100%) !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff;
   border-color: rgba(255, 0, 255, 0.5) !important;
@@ -3506,7 +3506,7 @@ a.wb-sys-btn {
 
 .wb-sys-cyb-price__tier--violet button.wb-sys-btn:not(.wb-sys-btn--ghost),
 .wb-sys-cyb-price__tier--violet a.wb-sys-btn:not(.wb-sys-btn--ghost) {
-  background: linear-gradient(90deg, #4c1d95 0%, var(--wb-cyb-violet) 48%, #a78bfa 100%) !important;
+  background: linear-gradient(90deg, #4c1d95 0%, #6b21a8 48%, #a78bfa 100%) !important;
   color: #faf5ff !important;
   -webkit-text-fill-color: #faf5ff;
   border-color: rgba(167, 139, 250, 0.6) !important;
@@ -4402,7 +4402,7 @@ a.wb-sys-btn {
 .wb-sys--junglebeast button.wb-sys-btn--jng-pill {
   border-radius: 999px !important;
   padding-inline: 1.35rem !important;
-  background: linear-gradient(180deg, var(--wb-jng-lime-hot) 0%, var(--wb-jng-lime) 45%, var(--wb-jng-lime-deep) 100%) !important;
+  background: linear-gradient(180deg, #d9f99d 0%, #bef264 45%, #84cc16 100%) !important;
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a;
   border: 1px solid rgba(190, 242, 100, 0.65) !important;
@@ -4421,7 +4421,7 @@ a.wb-sys-btn {
 .wb-sys--junglebeast .wb-sys-btn:not(.wb-sys-btn--ghost):not(.wb-sys-btn--jng-pill),
 .wb-sys--junglebeast button.wb-sys-btn:not(.wb-sys-btn--ghost):not(.wb-sys-btn--jng-pill),
 .wb-sys--junglebeast a.wb-sys-btn:not(.wb-sys-btn--ghost):not(.wb-sys-btn--jng-pill) {
-  background: linear-gradient(180deg, var(--wb-jng-lime-hot) 0%, var(--wb-jng-lime) 40%, var(--wb-jng-lime-deep) 100%) !important;
+  background: linear-gradient(180deg, #d9f99d 0%, #bef264 40%, #84cc16 100%) !important;
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a;
   border: 1px solid rgba(132, 204, 22, 0.75) !important;
@@ -5330,7 +5330,7 @@ a.wb-sys-btn {
 .wb-sys-btn--liq-gradient {
   border-radius: 999px !important;
   border: none !important;
-  background: linear-gradient(90deg, #2563eb, var(--wb-liq-violet), var(--wb-liq-magenta)) !important;
+  background: linear-gradient(90deg, #2563eb, #a855f7, #d946ef) !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff;
   font-weight: 700;
@@ -5600,7 +5600,7 @@ a.wb-sys-btn {
 .wb-sys-btn--vin-bronze,
 .wb-sys--vintageiron button.wb-sys-btn--vin-bronze:not(.wb-sys-btn--ghost),
 .wb-sys--vintageiron a.wb-sys-btn--vin-bronze:not(.wb-sys-btn--ghost) {
-  background: linear-gradient(180deg, #e3bc5c 0%, var(--wb-vin-bronze) 45%, var(--wb-vin-bronze-deep) 100%) !important;
+  background: linear-gradient(180deg, #e3bc5c 0%, #b8860b 45%, #8a6a1f 100%) !important;
   color: #1a1208 !important;
   -webkit-text-fill-color: #1a1208;
   border: 1px solid rgba(90, 70, 35, 0.85) !important;

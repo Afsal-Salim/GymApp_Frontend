@@ -166,6 +166,18 @@ export function WebsiteBuilderEditorToolsMenu({
       if (tag === 'img') {
         const prevAlt = String(sel?.getAttributes?.().alt ?? '').trim();
         sel?.addAttributes({ src: url });
+        /**
+         * GrapesJS' built-in `ComponentImage.getAttrToHTML()` overwrites the serialized `src`
+         * attribute with the value of the model property (`this.get('src')`). If we only call
+         * `addAttributes({ src })`, the canvas updates but `editor.getHtml()` — used by the
+         * preview window and the persisted HTML snapshot — still emits the OLD src. Mirror the
+         * new value onto the model property so canvas, preview, and persistence stay in sync.
+         */
+        try {
+          (sel as unknown as { set?: (k: string, v: unknown) => void } | null)?.set?.('src', url);
+        } catch {
+          /* ignore — `set` may be missing on unusual component types */
+        }
         if (!prevAlt) {
           setToast('Image updated — add a short description (Basics) for accessibility.');
         } else {

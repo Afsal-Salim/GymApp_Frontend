@@ -1135,7 +1135,7 @@ export type { CrystalWebsiteSetupPayload };
 /**
  * Save the full Crystal website builder payload for the logged-in user.
  *
- * **POST** `/api/businesses/website-setup/` (see `NEXT_PUBLIC_API_BASE_URL`) — **Authorization: Bearer** required.
+ * **POST** `/api/businesses/website-setup/` (see `API_BASE_URL`) — **Authorization: Bearer** required.
  * Request JSON body: {@link CrystalWebsiteSetupPayload}. Optional `content.layout.heroTextColor` (`#rrggbb`) tints hero copy.
  */
 export async function submitWebsiteSetupDraft(payload: CrystalWebsiteSetupPayload): Promise<void> {

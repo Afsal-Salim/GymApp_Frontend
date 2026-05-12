@@ -1,73 +1,46 @@
 /**
  * Application environment and public runtime configuration.
  *
- * Reads `import.meta.env` (Vite). Each value is read via a `VITE_*` variable, with the legacy
- * `NEXT_PUBLIC_*` name accepted as a fallback so the existing `.env` file from the Next era keeps
- * working without renaming every key.
+ * All values are read via `import.meta.env.<KEY>`. The set of keys exposed to the browser bundle
+ * is whitelisted in `vite.config.ts` (`PUBLIC_ENV_KEYS`) and inlined at build time via Vite's
+ * `define`. Don't put API secrets here.
  */
 
 import { SESSION_CRYSTAL_CREATE_SKIP_ON_BACK } from './storageKeys';
-
-type AnyEnv = Record<string, string | undefined>;
-
-function getEnv(): AnyEnv {
-  /* In some non-Vite runtimes (Node tests) `import.meta.env` is unavailable — fall back to `{}`. */
-  try {
-    return (import.meta as unknown as { env?: AnyEnv }).env ?? {};
-  } catch {
-    return {};
-  }
-}
 
 function trim(s: string | undefined): string {
   return (s ?? '').trim();
 }
 
-/** Reads the first defined `VITE_*` or `NEXT_PUBLIC_*` variant (trimmed). */
-function readPublicEnv(viteKey: string, nextKey?: string): string {
-  const env = getEnv();
-  return trim(env[viteKey] ?? (nextKey ? env[nextKey] : undefined));
-}
-
 export const appMode: 'production' | 'development' =
-  (getEnv().MODE as 'production' | 'development') ??
-  (getEnv().NODE_ENV === 'production' ? 'production' : 'development');
+  (import.meta.env.MODE as 'production' | 'development') ??
+  (import.meta.env.NODE_ENV === 'production' ? 'production' : 'development');
 export const isDev = appMode !== 'production';
 export const isProd = appMode === 'production';
 
-/** Vite base path, e.g. `/` or `/app/` */
-export const nextBaseUrl = readPublicEnv('VITE_BASE_PATH', 'NEXT_PUBLIC_BASE_PATH') || '/';
+/** App base path, e.g. `/` or `/app/`. */
+export const nextBaseUrl = trim(import.meta.env.BASE_PATH) || '/';
 
 /** REST API base URL (scheme + host + optional path prefix). Set in `.env`. */
-export const apiBaseUrl =
-  readPublicEnv('VITE_API_BASE_URL', 'NEXT_PUBLIC_API_BASE_URL');
+export const apiBaseUrl = trim(import.meta.env.API_BASE_URL);
 
-export const googleOAuthClientId = readPublicEnv('VITE_GOOGLE_CLIENT_ID', 'NEXT_PUBLIC_GOOGLE_CLIENT_ID');
+export const googleOAuthClientId = trim(import.meta.env.GOOGLE_CLIENT_ID);
 
-export const whatsappPhone = readPublicEnv('VITE_WHATSAPP_PHONE', 'NEXT_PUBLIC_WHATSAPP_PHONE');
+export const whatsappPhone = trim(import.meta.env.WHATSAPP_PHONE);
 
-export const whatsappDefaultMessage = readPublicEnv('VITE_WHATSAPP_MESSAGE', 'NEXT_PUBLIC_WHATSAPP_MESSAGE');
+export const whatsappDefaultMessage = trim(import.meta.env.WHATSAPP_MESSAGE);
 
-export const homepageTutorialVideoUrl = readPublicEnv(
-  'VITE_HOMEPAGE_TUTORIAL_VIDEO_URL',
-  'NEXT_PUBLIC_HOMEPAGE_TUTORIAL_VIDEO_URL',
-);
+export const homepageTutorialVideoUrl = trim(import.meta.env.HOMEPAGE_TUTORIAL_VIDEO_URL);
 
-export const marketingEnquiryPath = readPublicEnv(
-  'VITE_MARKETING_ENQUIRY_PATH',
-  'NEXT_PUBLIC_MARKETING_ENQUIRY_PATH',
-);
+export const marketingEnquiryPath = trim(import.meta.env.MARKETING_ENQUIRY_PATH);
 
-export const serviceEnquiryPath = readPublicEnv(
-  'VITE_SERVICE_ENQUIRY_PATH',
-  'NEXT_PUBLIC_SERVICE_ENQUIRY_PATH',
-);
+export const serviceEnquiryPath = trim(import.meta.env.SERVICE_ENQUIRY_PATH);
 
-export const contactEmail = readPublicEnv('VITE_CONTACT_EMAIL', 'NEXT_PUBLIC_CONTACT_EMAIL');
+export const contactEmail = trim(import.meta.env.CONTACT_EMAIL);
 
-export const contactPhoneDisplay = readPublicEnv('VITE_CONTACT_PHONE', 'NEXT_PUBLIC_CONTACT_PHONE');
+export const contactPhoneDisplay = trim(import.meta.env.CONTACT_PHONE);
 
-export const contactPhoneTelRaw = readPublicEnv('VITE_CONTACT_PHONE_TEL', 'NEXT_PUBLIC_CONTACT_PHONE_TEL');
+export const contactPhoneTelRaw = trim(import.meta.env.CONTACT_PHONE_TEL);
 
 export function contactMailtoHref(): string {
   return contactEmail ? `mailto:${contactEmail}` : '';
@@ -115,10 +88,7 @@ export function crystalPreviewAbsoluteUrl(): string {
   return new URL('preview', window.location.origin + base).href;
 }
 
-export const publicSiteDomain = readPublicEnv(
-  'VITE_PUBLIC_SITE_DOMAIN',
-  'NEXT_PUBLIC_PUBLIC_SITE_DOMAIN',
-).toLowerCase();
+export const publicSiteDomain = trim(import.meta.env.PUBLIC_SITE_DOMAIN).toLowerCase();
 
 export function isLocalDevelopmentHost(): boolean {
   if (typeof window === 'undefined') return false;

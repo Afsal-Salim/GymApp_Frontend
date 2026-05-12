@@ -81,9 +81,16 @@ declare module 'js-beautify' {
 }
 
 /**
- * Public env vars exposed by Vite (must be prefixed with `VITE_`).
- * Legacy `NEXT_PUBLIC_*` names are also accepted at runtime as a fallback in `src/config/env.ts`
- * so we can keep using the same `.env` file from the Next.js era during the migration.
+ * Public env vars inlined into the browser bundle.
+ *
+ * Source: `.env` at the project root. The whitelist of keys that actually get exposed is
+ * `PUBLIC_ENV_KEYS` in `vite.config.ts`; at build time Vite's `define` replaces each
+ * `import.meta.env.<KEY>` access with the literal value.
+ *
+ * To add a new public env var:
+ *   1. Add the key to `PUBLIC_ENV_KEYS` in `vite.config.ts`.
+ *   2. Declare it below so TypeScript accepts `import.meta.env.<KEY>`.
+ *   3. Put a value in `.env` (or document a default in `.env.example`).
  */
 interface ImportMetaEnv {
   readonly MODE: string;
@@ -93,37 +100,21 @@ interface ImportMetaEnv {
   readonly SSR: boolean;
   readonly NODE_ENV?: string;
 
-  readonly VITE_API_BASE_URL?: string;
-  readonly VITE_MARKETING_ENQUIRY_PATH?: string;
-  readonly VITE_SERVICE_ENQUIRY_PATH?: string;
-  readonly VITE_GOOGLE_CLIENT_ID?: string;
-  readonly VITE_WHATSAPP_PHONE?: string;
-  readonly VITE_WHATSAPP_MESSAGE?: string;
-  readonly VITE_CONTACT_EMAIL?: string;
-  readonly VITE_CONTACT_PHONE?: string;
-  readonly VITE_CONTACT_PHONE_TEL?: string;
-  readonly VITE_HOMEPAGE_TUTORIAL_VIDEO_URL?: string;
-  readonly VITE_PUBLIC_SITE_DOMAIN?: string;
-  readonly VITE_SITE_URL?: string;
-  readonly VITE_BASE_PATH?: string;
-  readonly VITE_BUSINESS_IMAGE_FILE_SEGMENT?: string;
-  readonly VITE_BUSINESS_IMAGE_USE_API_FILE?: string;
-  /** Legacy NEXT_PUBLIC_* fallbacks for the same values (kept for the migration window). */
-  readonly NEXT_PUBLIC_API_BASE_URL?: string;
-  readonly NEXT_PUBLIC_GOOGLE_CLIENT_ID?: string;
-  readonly NEXT_PUBLIC_WHATSAPP_PHONE?: string;
-  readonly NEXT_PUBLIC_WHATSAPP_MESSAGE?: string;
-  readonly NEXT_PUBLIC_CONTACT_EMAIL?: string;
-  readonly NEXT_PUBLIC_CONTACT_PHONE?: string;
-  readonly NEXT_PUBLIC_CONTACT_PHONE_TEL?: string;
-  readonly NEXT_PUBLIC_HOMEPAGE_TUTORIAL_VIDEO_URL?: string;
-  readonly NEXT_PUBLIC_PUBLIC_SITE_DOMAIN?: string;
-  readonly NEXT_PUBLIC_SITE_URL?: string;
-  readonly NEXT_PUBLIC_MARKETING_ENQUIRY_PATH?: string;
-  readonly NEXT_PUBLIC_SERVICE_ENQUIRY_PATH?: string;
-  readonly NEXT_PUBLIC_BASE_PATH?: string;
-  readonly NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT?: string;
-  readonly NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE?: string;
+  readonly API_BASE_URL?: string;
+  readonly PUBLIC_SITE_DOMAIN?: string;
+  readonly SITE_URL?: string;
+  readonly BASE_PATH?: string;
+  readonly HOMEPAGE_TUTORIAL_VIDEO_URL?: string;
+  readonly GOOGLE_CLIENT_ID?: string;
+  readonly CONTACT_EMAIL?: string;
+  readonly CONTACT_PHONE?: string;
+  readonly CONTACT_PHONE_TEL?: string;
+  readonly WHATSAPP_PHONE?: string;
+  readonly WHATSAPP_MESSAGE?: string;
+  readonly MARKETING_ENQUIRY_PATH?: string;
+  readonly SERVICE_ENQUIRY_PATH?: string;
+  readonly BUSINESS_IMAGE_FILE_SEGMENT?: string;
+  readonly BUSINESS_IMAGE_USE_API_FILE?: string;
 }
 
 interface ImportMeta {

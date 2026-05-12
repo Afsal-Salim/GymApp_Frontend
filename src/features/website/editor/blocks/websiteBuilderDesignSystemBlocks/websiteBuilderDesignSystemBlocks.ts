@@ -118,6 +118,87 @@ function dsSection(layerName: string, innerHtml: string): string {
   return `<div class="wb-ds-root wb-add-el wb-fade-in" data-gjs-name="${layerName}">${innerHtml.trim()}</div>`;
 }
 
+/**
+ * Inline styles for `.wb-sys-btn` primary (non-ghost) CTAs per theme.
+ * Inline styles always beat per-cid `<style>` rules Grapes can emit in canvas (same defensive
+ * strategy as the WhatsApp CTA in `wb-cta-whatsapp` block — see `websiteBuilderBlocks.ts`).
+ * Mirrors the gradients in `.wb-sys--<theme> .wb-sys-btn` from `websiteBuilderDesignSystems.css.ts`.
+ */
+function wbSysBtnPrimaryStyle(set: DesignSetId): string {
+  switch (set) {
+    case 'power':
+      return 'background:linear-gradient(135deg,#b91c1c,#dc2626 55%,#ef4444);color:#fff;border:1px solid rgba(248,113,113,0.35);box-shadow:0 8px 28px rgba(220,38,38,0.4);';
+    case 'elite':
+      return 'background:linear-gradient(135deg,#0052cc,#0066ff 52%,#3385ff);color:#fff;border:1px solid rgba(0,102,255,0.25);box-shadow:0 8px 26px rgba(0,102,255,0.32);';
+    case 'focus':
+      return 'background:linear-gradient(135deg,#6a9a2e,#9ccf3f 52%,#c8e877);color:#0a0f06;border:1px solid rgba(200,232,119,0.45);box-shadow:0 10px 32px rgba(156,207,63,0.32);';
+    case 'energy':
+      return 'background:linear-gradient(135deg,#e65c00,#ff6600 50%,#ff8533);color:#fff;border:1px solid rgba(255,102,0,0.35);box-shadow:0 8px 26px rgba(255,102,0,0.32);';
+    case 'prime':
+      return 'background:linear-gradient(135deg,#6b21a8,#a855f7 48%,#d8b4fe);color:#fff;border:1px solid rgba(233,213,254,0.45);box-shadow:0 10px 32px rgba(109,40,217,0.42);';
+    case 'sporty':
+      return 'background:linear-gradient(135deg,#00838b,#00a3ad 52%,#33b8c0);color:#fff;border:1px solid rgba(0,163,173,0.35);box-shadow:0 8px 26px rgba(0,163,173,0.28);';
+    case 'cyberfit':
+      return 'background:linear-gradient(90deg,#9c0084 0%,#ff00ff 55%,#c026d3 100%);color:#fff;border:1px solid rgba(255,0,255,0.45);box-shadow:0 0 18px rgba(255,0,255,0.35),0 8px 28px rgba(156,0,132,0.35);';
+    case 'glassmorph':
+      return 'background:linear-gradient(135deg,#6f8cff 0%,#79bcff 100%);color:#fff;border:1px solid rgba(89,130,246,0.48);box-shadow:0 10px 24px rgba(92,132,235,0.35);';
+    case 'junglebeast':
+      return 'background:linear-gradient(180deg,#d9f99d 0%,#bef264 40%,#84cc16 100%);color:#0f172a;-webkit-text-fill-color:#0f172a;border:1px solid rgba(132,204,22,0.75);box-shadow:0 0 18px rgba(190,242,100,0.28),0 6px 20px rgba(0,0,0,0.5);';
+    case 'liquidfit':
+      return 'background:linear-gradient(90deg,#2563eb,#a855f7,#d946ef);color:#fff;border:none;box-shadow:0 0 28px rgba(168,85,247,0.35);';
+    case 'vintageiron':
+      return 'background:linear-gradient(180deg,#e3bc5c 0%,#b8860b 45%,#8a6a1f 100%);color:#1a1208;-webkit-text-fill-color:#1a1208;border:1px solid rgba(90,70,35,0.85);box-shadow:0 0 14px rgba(201,162,39,0.35),inset 0 1px 0 rgba(255,255,255,0.35);';
+  }
+}
+
+/** Inline styles for theme-specific button variants (vin-bronze, liq-*, jng-pill, vin-outline). */
+const WB_VARIANT_STYLES = {
+  vinBronze:
+    'background:linear-gradient(180deg,#e3bc5c 0%,#b8860b 45%,#8a6a1f 100%);color:#1a1208;-webkit-text-fill-color:#1a1208;border:1px solid rgba(90,70,35,0.85);box-shadow:0 0 14px rgba(201,162,39,0.35),inset 0 1px 0 rgba(255,255,255,0.35);',
+  vinOutline:
+    'background:transparent;color:#f5eeda;-webkit-text-fill-color:#f5eeda;border:2px solid rgba(212,168,75,0.75);',
+  liqPill:
+    'border-radius:999px;background:#fff;color:#0f172a;-webkit-text-fill-color:#0f172a;border:1px solid rgba(148,163,184,0.35);',
+  liqSolid:
+    'border-radius:999px;background:#fff;color:#0f172a;-webkit-text-fill-color:#0f172a;border:1px solid rgba(148,163,184,0.35);',
+  liqOutline:
+    'border-radius:999px;background:transparent;color:#fff;-webkit-text-fill-color:#fff;border:1px solid rgba(255,255,255,0.55);',
+  liqGhost:
+    'background:rgba(255,255,255,0.06);color:#fff;-webkit-text-fill-color:#fff;border:1px solid rgba(148,163,184,0.35);border-radius:999px;',
+  liqGradient:
+    'border-radius:999px;border:none;background:linear-gradient(90deg,#2563eb,#a855f7,#d946ef);color:#fff;-webkit-text-fill-color:#fff;box-shadow:0 0 28px rgba(168,85,247,0.35);',
+  jngPill:
+    'border-radius:999px;padding-inline:1.35rem;background:linear-gradient(180deg,#d9f99d 0%,#bef264 45%,#84cc16 100%);color:#0f172a;-webkit-text-fill-color:#0f172a;border:1px solid rgba(132,204,22,0.75);',
+} as const;
+
+/** Inline styles for `.wb-sys-btn--ghost` (transparent / outline) variants per theme. */
+function wbSysBtnGhostStyle(set: DesignSetId): string {
+  switch (set) {
+    case 'power':
+      return 'background:transparent;color:#fecaca;border:1px solid rgba(248,113,113,0.45);';
+    case 'elite':
+      return 'background:transparent;color:#1d4ed8;border:1px solid rgba(37,99,235,0.28);';
+    case 'focus':
+      return 'background:rgba(255,255,255,0.03);color:#f8fafc;-webkit-text-fill-color:#f8fafc;border:1px solid rgba(248,250,252,0.45);';
+    case 'energy':
+      return 'background:#fff;color:#1c1917;border:1px solid rgba(214,211,209,0.95);';
+    case 'prime':
+      return 'background:rgba(255,255,255,0.04);color:#faf5ff;border:1px solid rgba(233,213,254,0.42);';
+    case 'sporty':
+      return 'background:#fff;color:#00838b;border:1px solid rgba(0,163,173,0.45);';
+    case 'cyberfit':
+      return 'background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.35);box-shadow:0 0 14px rgba(0,240,255,0.12);';
+    case 'glassmorph':
+      return 'background:rgba(255,255,255,0.62);color:#4567d5;border:1px solid rgba(113,149,255,0.38);';
+    case 'junglebeast':
+      return 'background:transparent;color:#fff;-webkit-text-fill-color:#fff;border:2px solid rgba(255,255,255,0.55);';
+    case 'liquidfit':
+      return 'background:rgba(255,255,255,0.06);color:#fff;border:1px solid rgba(148,163,184,0.35);';
+    case 'vintageiron':
+      return 'background:transparent;color:#f5eeda;-webkit-text-fill-color:#f5eeda;border:2px solid rgba(212,168,75,0.75);';
+  }
+}
+
 function navHtml(set: DesignSetId): string {
   if (set === 'power') {
     return dsSection(
@@ -138,7 +219,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('power')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -163,7 +244,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('focus')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -188,7 +269,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('prime')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -213,7 +294,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#gallery">Gallery</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('elite')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -238,7 +319,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('energy')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -263,7 +344,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('sporty')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -289,7 +370,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('cyberfit')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -315,7 +396,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('glassmorph')}">Join Now</button>
           </div>
         </div>
       </nav>`,
@@ -341,7 +422,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--vin-bronze" data-wb-open="join" style="${WB_VARIANT_STYLES.vinBronze}">Join now</button>
           </div>
         </div>
       </nav>`,
@@ -367,7 +448,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn wb-sys-btn--liq-pill" data-wb-open="join">Join now</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--liq-pill" data-wb-open="join" style="${WB_VARIANT_STYLES.liqPill}">Join now</button>
           </div>
         </div>
       </nav>`,
@@ -393,7 +474,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn wb-sys-btn--jng-pill" data-wb-open="join">Join now</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--jng-pill" data-wb-open="join" style="${WB_VARIANT_STYLES.jngPill}">Join now</button>
           </div>
         </div>
       </nav>`,
@@ -415,7 +496,7 @@ function navHtml(set: DesignSetId): string {
             <a href="#contact">Contact</a>
           </div>
           <div class="wb-sys-nav__cta">
-            <button type="button" class="wb-sys-btn" data-wb-open="join">Join now</button>
+            <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle(set)}">Join now</button>
           </div>
         </div>
       </nav>`,
@@ -433,8 +514,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--impact wb-ds-reveal wb-ds-reveal--d2">Build strength that lasts</h1>
             <p class="wb-sys-lead wb-ds-reveal wb-ds-reveal--d3">Premium iron, coaches who care about form, and programming that respects recovery—built for members who train like it matters.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Explore Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('power')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('power')}">Explore Programs</a>
             </div>
           </div>
           <div class="wb-sys-pwr-hero__imgCol" aria-hidden="true">
@@ -454,8 +535,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--impact wb-ds-reveal wb-ds-reveal--d2">Focus commit succeed.</h1>
             <p class="wb-sys-lead wb-ds-reveal wb-ds-reveal--d3">Disciplined today, strength tomorrow—coaching, programming, and a floor built for members who train with intent.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Explore Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('focus')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('focus')}">Explore Programs</a>
             </div>
           </div>
           <div class="wb-sys-foc-hero__imgCol" aria-hidden="true">
@@ -475,8 +556,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--impact wb-ds-reveal wb-ds-reveal--d2">Better stronger together</h1>
             <p class="wb-sys-lead wb-ds-reveal wb-ds-reveal--d3">Join our community that pushes you every day—premium coaching, intelligent programming, and a floor that feels electric.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Explore Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('prime')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('prime')}">Explore Programs</a>
             </div>
           </div>
           <div class="wb-sys-prm-hero__imgCol" aria-hidden="true">
@@ -496,8 +577,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--impact wb-ds-reveal wb-ds-reveal--d2">Train transform achieve</h1>
             <p class="wb-sys-lead wb-ds-reveal wb-ds-reveal--d3">Take your training to the next level—smart programming, world-class equipment, and coaches who help you stack wins week after week.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Explore Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('elite')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('elite')}">Explore Programs</a>
             </div>
           </div>
           <div class="wb-sys-eli-hero__imgCol" aria-hidden="true">
@@ -523,8 +604,8 @@ function heroHtml(set: DesignSetId): string {
             </h1>
             <p class="wb-sys-lead wb-ds-reveal wb-ds-reveal--d3">Feel the power. Live the energy. Be your best—coaching, classes, and a floor that keeps every session electric.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Explore Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('energy')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('energy')}">Explore Programs</a>
             </div>
           </div>
           <div class="wb-sys-eng-hero__imgCol" aria-hidden="true">
@@ -544,8 +625,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--spo-display wb-ds-reveal wb-ds-reveal--d2">Start your fitness journey</h1>
             <p class="wb-sys-lead wb-ds-reveal wb-ds-reveal--d3">Train with purpose in a bright, modern space—coached sessions, open gym blocks, and programming that meets you where you are.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Explore Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('sporty')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('sporty')}">Explore Programs</a>
             </div>
           </div>
           <div class="wb-sys-spo-hero__imgCol" aria-hidden="true">
@@ -570,8 +651,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--cyb wb-ds-reveal wb-ds-reveal--d2">Train beyond limits</h1>
             <p class="wb-sys-lead wb-sys-lead--cyb wb-ds-reveal wb-ds-reveal--d3">High-voltage coaching, biometric-aware programming, and a floor lit for PRs—where discipline meets synthwave energy.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">View Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('cyberfit')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('cyberfit')}">View Programs</a>
             </div>
           </div>
         </div>
@@ -592,8 +673,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--vin">Old school iron. <span class="wb-sys-h1__vin-accent">Real results.</span></h1>
             <p class="wb-sys-lead wb-sys-lead--vin">Build on discipline. Backed by legacy.</p>
             <div class="wb-sys-actions">
-              <button type="button" class="wb-sys-btn wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--vin-outline">Our programs</a>
+              <button type="button" class="wb-sys-btn wb-sys-btn--vin-bronze" data-wb-open="join" style="${WB_VARIANT_STYLES.vinBronze}">Join now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--vin-outline" style="${WB_VARIANT_STYLES.vinOutline}">Our programs</a>
             </div>
           </div>
         </div>
@@ -619,8 +700,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--liq wb-ds-reveal wb-ds-reveal--d2">Flow into strength.</h1>
             <p class="wb-sys-lead wb-sys-lead--liq wb-ds-reveal wb-ds-reveal--d3">Move better. Feel stronger. Live healthier.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn wb-sys-btn--liq-solid" data-wb-open="join">Join now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--liq-outline">Explore programs</a>
+              <button type="button" class="wb-sys-btn wb-sys-btn--liq-solid" data-wb-open="join" style="${WB_VARIANT_STYLES.liqSolid}">Join now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--liq-outline" style="${WB_VARIANT_STYLES.liqOutline}">Explore programs</a>
             </div>
           </div>
           <div class="wb-sys-liq-hero__visual" aria-hidden="true">
@@ -646,8 +727,8 @@ function heroHtml(set: DesignSetId): string {
             </h1>
             <p class="wb-sys-lead wb-sys-lead--jng wb-ds-reveal wb-ds-reveal--d3">Train wild. Live bold. Stay untamed.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join the pack</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">Our programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('junglebeast')}">Join the pack</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('junglebeast')}">Our programs</a>
             </div>
             <div class="wb-sys-jng-hero__stats" aria-label="Club stats">
               <div class="wb-sys-jng-hero__stat"><span class="wb-sys-jng-hero__stat-num">8+</span><span class="wb-sys-jng-hero__stat-lbl">Years</span></div>
@@ -682,8 +763,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--gls-display wb-ds-reveal wb-ds-reveal--d2">Elevate your every move</h1>
             <p class="wb-sys-lead wb-sys-lead--gls wb-ds-reveal wb-ds-reveal--d3">A premium glass-style fitness experience with structured coaching, clear progress tracking, and calm energy built into every session.</p>
             <div class="wb-sys-actions wb-ds-reveal wb-ds-reveal--d4">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join Now</button>
-              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost">View Programs</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle('glassmorph')}">Join Now</button>
+              <a href="#programs" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle('glassmorph')}">View Programs</a>
             </div>
           </div>
           <div class="wb-sys-gls-hero__imgCol wb-sys-gls-imgfx" aria-hidden="true">
@@ -702,8 +783,8 @@ function heroHtml(set: DesignSetId): string {
             <h1 class="wb-sys-h1 wb-sys-h1--impact">Build strength that lasts</h1>
             <p class="wb-sys-lead">Premium equipment, expert coaches, and programming built for real results—whether you are new to the floor or chasing your next PR.</p>
             <div class="wb-sys-actions">
-              <button type="button" class="wb-sys-btn" data-wb-open="join">Join now</button>
-              <a href="#pricing" class="wb-sys-btn wb-sys-btn--ghost">View plans</a>
+              <button type="button" class="wb-sys-btn" data-wb-open="join" style="${wbSysBtnPrimaryStyle(set)}">Join now</button>
+              <a href="#pricing" class="wb-sys-btn wb-sys-btn--ghost" style="${wbSysBtnGhostStyle(set)}">View plans</a>
             </div>
           </div>
           <div class="wb-sys-hero__media">
@@ -1498,7 +1579,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Locker + scan-in</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>App telemetry</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="background:linear-gradient(90deg,#155e75 0%,#0e7490 35%,#00f0ff 70%,#22d3ee 100%);color:#f0fdfa;-webkit-text-fill-color:#f0fdfa;border:1px solid rgba(0,240,255,0.55);box-shadow:0 0 20px rgba(0,240,255,0.45),0 8px 26px rgba(8,145,178,0.35);">Get started</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-cyb-price__tier--magenta fade-up hover-scale">
             <span class="wb-sys-price__badge wb-sys-price__badge--cyb">Recommended</span>
@@ -1510,7 +1591,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Priority booking</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>Quarterly review</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="background:linear-gradient(90deg,#9c0084 0%,#ff00ff 55%,#c026d3 100%);color:#fff;-webkit-text-fill-color:#fff;border:1px solid rgba(255,0,255,0.5);box-shadow:0 0 20px rgba(255,0,255,0.42),0 8px 28px rgba(156,0,132,0.38);">Get started</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-cyb-price__tier--violet fade-up hover-scale">
             <span class="wb-sys-eyebrow">Elite</span>
@@ -1521,7 +1602,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Nutrition sync</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>Concierge scheduling</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="background:linear-gradient(90deg,#4c1d95 0%,#6b21a8 48%,#a78bfa 100%);color:#faf5ff;-webkit-text-fill-color:#faf5ff;border:1px solid rgba(167,139,250,0.55);box-shadow:0 0 22px rgba(124,58,237,0.45),0 8px 28px rgba(76,29,149,0.4);">Get started</button>
           </article>
         </div>
       </section>`;
@@ -1546,7 +1627,7 @@ function pricingHtml(set: DesignSetId): string {
                 <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Locker access</li>
                 <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Starter programs</li>
               </ul>
-              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join" style="${WB_VARIANT_STYLES.vinBronze}">Join now</button>
             </article>
             <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-vin-price__tier wb-sys-vin-price__tier--hit fade-up hover-scale">
               <span class="wb-sys-price__badge wb-sys-price__badge--vin">Best seller</span>
@@ -1558,7 +1639,7 @@ function pricingHtml(set: DesignSetId): string {
                 <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Priority booking</li>
                 <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Monthly check-in</li>
               </ul>
-              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join" style="${WB_VARIANT_STYLES.vinBronze}">Join now</button>
             </article>
             <article class="wb-sys-price__tier wb-sys-vin-price__tier fade-up hover-scale">
               <span class="wb-sys-eyebrow">Premium</span>
@@ -1569,7 +1650,7 @@ function pricingHtml(set: DesignSetId): string {
                 <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Nutrition support</li>
                 <li><span class="wb-sys-check wb-sys-check--vin" aria-hidden="true"></span>Concierge scheduling</li>
               </ul>
-              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join">Join now</button>
+              <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" data-wb-open="join" style="${WB_VARIANT_STYLES.vinBronze}">Join now</button>
             </article>
           </div>
         </div>
@@ -1595,7 +1676,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Locker + app</li>
               <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Starter programs</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-ghost" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-ghost" data-wb-open="join" style="${WB_VARIANT_STYLES.liqGhost}">Get started</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-liq-price__tier wb-sys-liq-price__tier--hit fade-up hover-scale">
             <span class="wb-sys-price__badge wb-sys-price__badge--liq">Most popular</span>
@@ -1607,7 +1688,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Priority booking</li>
               <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Monthly review</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-gradient" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-gradient" data-wb-open="join" style="${WB_VARIANT_STYLES.liqGradient}">Get started</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-liq-price__tier fade-up hover-scale">
             <span class="wb-sys-eyebrow">Elite</span>
@@ -1618,7 +1699,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Nutrition sync</li>
               <li><span class="wb-sys-check wb-sys-check--liq" aria-hidden="true"></span>Concierge scheduling</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-ghost" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-ghost" data-wb-open="join" style="${WB_VARIANT_STYLES.liqGhost}">Get started</button>
           </article>
         </div>
       </section>`;
@@ -1643,7 +1724,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Locker + scan-in</li>
               <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>App access</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--ghost" data-wb-open="join">Join now</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--ghost" data-wb-open="join" style="${wbSysBtnGhostStyle('junglebeast')}">Join now</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-jng-price__tier wb-sys-jng-price__tier--hit fade-up hover-scale">
             <span class="wb-sys-price__badge wb-sys-price__badge--jng">Most popular</span>
@@ -1655,7 +1736,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Priority booking</li>
               <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Monthly check-in</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Join now</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="${wbSysBtnPrimaryStyle('junglebeast')}">Join now</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-jng-price__tier fade-up hover-scale">
             <span class="wb-sys-eyebrow">Alpha</span>
@@ -1666,7 +1747,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Nutrition sync</li>
               <li><span class="wb-sys-check wb-sys-check--jng" aria-hidden="true"></span>Concierge scheduling</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--ghost" data-wb-open="join">Upgrade</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--ghost" data-wb-open="join" style="${wbSysBtnGhostStyle('junglebeast')}">Upgrade</button>
           </article>
         </div>
       </section>`;
@@ -1690,7 +1771,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Locker room access</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>App check-ins</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="${wbSysBtnPrimaryStyle('glassmorph')}">Get started</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-price__tier--hit wb-sys-price__tier--gls wb-sys-price__tier--gls-hit fade-up hover-scale">
             <span class="wb-sys-price__badge wb-sys-price__badge--gls">Most popular</span>
@@ -1702,7 +1783,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Priority booking</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>Monthly check-in</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="${wbSysBtnPrimaryStyle('glassmorph')}">Get started</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-price__tier--gls fade-up hover-scale">
             <span class="wb-sys-eyebrow">Premium</span>
@@ -1713,7 +1794,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Nutrition support</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>Dedicated support</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="${wbSysBtnPrimaryStyle('glassmorph')}">Get started</button>
           </article>
         </div>
       </section>`;
@@ -1785,7 +1866,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Locker access</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>App check-ins</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="${wbSysBtnPrimaryStyle(set)}">Get started</button>
           </article>
           <article class="wb-sys-price__tier wb-sys-price__tier--hit fade-up hover-scale">
             ${hitBadge}
@@ -1797,7 +1878,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Priority booking</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>Quarterly review</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="${wbSysBtnPrimaryStyle(set)}">Get started</button>
           </article>
           <article class="wb-sys-price__tier fade-up hover-scale">
             <span class="wb-sys-eyebrow">Premium</span>
@@ -1808,7 +1889,7 @@ function pricingHtml(set: DesignSetId): string {
               <li><span class="wb-sys-check" aria-hidden="true"></span>Nutrition check-ins</li>
               <li><span class="wb-sys-check" aria-hidden="true"></span>Concierge scheduling</li>
             </ul>
-            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join">Get started</button>
+            <button type="button" class="wb-sys-btn wb-sys-btn--block" data-wb-open="join" style="${wbSysBtnPrimaryStyle(set)}">Get started</button>
           </article>
         </div>
       </section>`;
@@ -2094,7 +2175,7 @@ function contactHtml(set: DesignSetId): string {
               <input type="text" name="name" placeholder="Name" autocomplete="name" />
               <input type="email" name="email" placeholder="Email" autocomplete="email" />
               <textarea name="message" rows="4" placeholder="Message"></textarea>
-              <button type="submit" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze">Send message</button>
+              <button type="submit" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--vin-bronze" style="${WB_VARIANT_STYLES.vinBronze}">Send message</button>
             </form>
           </div>
         </div>
@@ -2130,7 +2211,7 @@ function contactHtml(set: DesignSetId): string {
             <input type="text" name="name" placeholder="Name" autocomplete="name" />
             <input type="email" name="email" placeholder="Email" autocomplete="email" />
             <textarea name="message" rows="4" placeholder="Message"></textarea>
-            <button type="submit" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-gradient">Send message</button>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block wb-sys-btn--liq-gradient" style="${WB_VARIANT_STYLES.liqGradient}">Send message</button>
           </form>
         </div>
       </section>`;
@@ -2166,7 +2247,7 @@ function contactHtml(set: DesignSetId): string {
             <input type="email" name="email" placeholder="Email" autocomplete="email" />
             <input type="tel" name="phone" placeholder="Phone" inputmode="tel" autocomplete="tel" />
             <textarea name="message" rows="4" placeholder="Message"></textarea>
-            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block" style="${wbSysBtnPrimaryStyle('junglebeast')}">Send message</button>
           </form>
         </div>
       </section>`;
@@ -2202,7 +2283,7 @@ function contactHtml(set: DesignSetId): string {
             <input type="email" name="email" placeholder="Email" autocomplete="email" />
             <input type="tel" name="phone" placeholder="Phone (10 digits)" inputmode="numeric" autocomplete="tel" />
             <textarea name="message" rows="4" placeholder="Message"></textarea>
-            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block" style="${wbSysBtnPrimaryStyle('cyberfit')}">Send message</button>
           </form>
         </div>
       </section>`;
@@ -2238,7 +2319,7 @@ function contactHtml(set: DesignSetId): string {
             <input type="email" name="email" placeholder="Email" autocomplete="email" />
             <input type="tel" name="phone" placeholder="Phone (10 digits)" inputmode="numeric" autocomplete="tel" />
             <textarea name="message" rows="4" placeholder="Message"></textarea>
-            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block" style="${wbSysBtnPrimaryStyle('glassmorph')}">Send message</button>
           </form>
         </div>
       </section>`;
@@ -2333,7 +2414,7 @@ function contactHtml(set: DesignSetId): string {
             <input type="email" name="email" placeholder="Email" autocomplete="email" />
             <input type="tel" name="phone" placeholder="Phone (10 digits)" inputmode="numeric" autocomplete="tel" />
             <textarea name="message" rows="4" placeholder="Message"></textarea>
-            <button type="submit" class="wb-sys-btn wb-sys-btn--block">Send message</button>
+            <button type="submit" class="wb-sys-btn wb-sys-btn--block" style="${wbSysBtnPrimaryStyle(set)}">Send message</button>
           </form>
         </div>
       </section>`;

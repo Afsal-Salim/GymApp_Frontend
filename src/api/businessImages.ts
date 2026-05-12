@@ -7,29 +7,22 @@ import { getAxiosErrorMessage } from './http/axiosErrorMessage';
 const BASE = '/businesses';
 
 function businessImageFilePathSegment(): string {
-  const raw =
-    import.meta.env.VITE_BUSINESS_IMAGE_FILE_SEGMENT ??
-    import.meta.env.NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT ??
-    'file';
+  const raw = import.meta.env.BUSINESS_IMAGE_FILE_SEGMENT ?? 'file';
   const s = raw.trim().replace(/^\/+|\/+$/g, '');
   return s || 'file';
 }
 
 function shouldUseApiFileUrlForBusinessImages(): boolean {
-  const v = (
-    import.meta.env.VITE_BUSINESS_IMAGE_USE_API_FILE ??
-    import.meta.env.NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE ??
-    ''
-  ).trim();
+  const v = (import.meta.env.BUSINESS_IMAGE_USE_API_FILE ?? '').trim();
   return /^true|1|yes$/i.test(v);
 }
 
 /**
  * `<img src>` / gallery strip URL. By default uses **`image_url` from the API** (e.g. time-limited **signed S3 URLs**).
  *
- * Set `NEXT_PUBLIC_BUSINESS_IMAGE_USE_API_FILE=true` to use `GET {apiBaseUrl}/businesses/{slug}/images/{id}/{segment}/` instead
+ * Set `BUSINESS_IMAGE_USE_API_FILE=true` to use `GET {apiBaseUrl}/businesses/{slug}/images/{id}/{segment}/` instead
  * when raw `image_url` is private and fails in the browser. Segment defaults to `file`; override with
- * `NEXT_PUBLIC_BUSINESS_IMAGE_FILE_SEGMENT`.
+ * `BUSINESS_IMAGE_FILE_SEGMENT`.
  */
 export function resolveBusinessImageDisplayUrl(
   slug: string,

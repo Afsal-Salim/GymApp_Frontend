@@ -1,13 +1,12 @@
 /**
  * Canonical marketing site origin for SEO metadata, sitemap, and JSON-LD.
  *
- * Set `VITE_SITE_URL` in production (e.g. `https://www.crystal-co.in`). Falls back to
- * `VITE_PUBLIC_SITE_DOMAIN` (or the legacy `NEXT_PUBLIC_*` aliases) with https, then the current
- * `window.location.origin`, and finally `http://localhost:3000` for dev.
+ * Set `SITE_URL` in production (e.g. `https://www.crystal-co.in`). Falls back to
+ * `PUBLIC_SITE_DOMAIN` with https, then the current `window.location.origin`, and finally
+ * `http://localhost:3000` for dev.
  */
 export function getMarketingSiteOrigin(): URL {
-  const env = import.meta.env;
-  const explicit = (env.VITE_SITE_URL ?? env.NEXT_PUBLIC_SITE_URL ?? '').trim();
+  const explicit = (import.meta.env.SITE_URL ?? '').trim();
   if (explicit) {
     try {
       return new URL(explicit.includes('://') ? explicit : `https://${explicit}`);
@@ -15,7 +14,7 @@ export function getMarketingSiteOrigin(): URL {
       /* fall through */
     }
   }
-  const domain = (env.VITE_PUBLIC_SITE_DOMAIN ?? env.NEXT_PUBLIC_PUBLIC_SITE_DOMAIN ?? '').trim();
+  const domain = (import.meta.env.PUBLIC_SITE_DOMAIN ?? '').trim();
   if (domain) {
     const host = domain.replace(/^https?:\/\//i, '').split('/')[0];
     try {

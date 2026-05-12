@@ -108,34 +108,36 @@ a.component-btn[download]:not(.wb-wa-btn):hover {
 `;
 
 /**
- * Design-system templates (ELITE/FOCUS/ENERGY/PRIME/SPORTY/GLASSMORPH/CYBERFIT) mostly use
- * `.wb-sys-btn` instead of `.component-btn`. Grapes can inject per-node `background-color` rules
- * that flatten these themed gradients in canvas. Mirror key themed button backgrounds with
- * `!important`, same strategy as component CTA coercion above.
+ * Design-system templates (ELITE/FOCUS/ENERGY/PRIME/SPORTY/POWER/GLASSMORPH/CYBERFIT/JUNGLEBEAST/LIQUIDFIT/VINTAGEIRON)
+ * mostly use `.wb-sys-btn` instead of `.component-btn`. Grapes can inject per-node `background-color` rules
+ * that flatten these themed gradients in canvas (a `#cid` rule beats normal class selectors).
+ * Mirror key themed button backgrounds with `!important`, same strategy as `component-btn` coercion above —
+ * this is the same defensive pattern used for `.wb-wa-btn` WhatsApp CTAs (see comments at the top of this file).
  */
 const WB_CANVAS_DS_SYS_BTN_COERCION = `
 .wb-ds-root .wb-sys--elite .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
-  background: linear-gradient(135deg, #0052cc, var(--wb-eli-blue, #0066ff) 52%, var(--wb-eli-blue-soft, #60a5fa)) !important;
+  background: linear-gradient(135deg, #0052cc, #0066ff 52%, #3385ff) !important;
   border-color: rgba(0, 102, 255, 0.25) !important;
   box-shadow: 0 8px 26px rgba(0, 102, 255, 0.32) !important;
 }
 .wb-ds-root .wb-sys--focus .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
-  background: linear-gradient(135deg, var(--wb-foc-lime-deep, #65a30d), var(--wb-foc-lime, #84cc16) 52%, var(--wb-foc-lime-bright, #bef264)) !important;
+  background: linear-gradient(135deg, #6a9a2e, #9ccf3f 52%, #c8e877) !important;
+  color: #0a0f06 !important;
   border-color: rgba(200, 232, 119, 0.45) !important;
   box-shadow: 0 10px 32px rgba(156, 207, 63, 0.32) !important;
 }
 .wb-ds-root .wb-sys--energy .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
-  background: linear-gradient(135deg, var(--wb-eng-orange-deep, #c2410c), var(--wb-eng-orange, #ea580c) 50%, #ff8533) !important;
+  background: linear-gradient(135deg, #e65c00, #ff6600 50%, #ff8533) !important;
   border-color: rgba(255, 102, 0, 0.35) !important;
   box-shadow: 0 8px 26px rgba(255, 102, 0, 0.32) !important;
 }
 .wb-ds-root .wb-sys--prime .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
-  background: linear-gradient(135deg, #6b21a8, var(--wb-prm-violet, #7c3aed) 48%, #d8b4fe) !important;
+  background: linear-gradient(135deg, #6b21a8, #a855f7 48%, #d8b4fe) !important;
   border-color: rgba(233, 213, 254, 0.45) !important;
   box-shadow: 0 10px 32px rgba(109, 40, 217, 0.42) !important;
 }
 .wb-ds-root .wb-sys--sporty .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
-  background: linear-gradient(135deg, var(--wb-spo-teal-deep, #0f766e), var(--wb-spo-teal, #14b8a6) 52%, #33b8c0) !important;
+  background: linear-gradient(135deg, #00838b, #00a3ad 52%, #33b8c0) !important;
   border-color: rgba(0, 163, 173, 0.35) !important;
   box-shadow: 0 8px 26px rgba(0, 163, 173, 0.28) !important;
 }
@@ -145,9 +147,48 @@ const WB_CANVAS_DS_SYS_BTN_COERCION = `
   box-shadow: 0 10px 24px rgba(92, 132, 235, 0.35) !important;
 }
 .wb-ds-root .wb-sys--cyberfit .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
-  background: linear-gradient(90deg, var(--wb-cyb-magenta-deep, #7e22ce) 0%, var(--wb-cyb-magenta-hot, #db2777) 55%, #c026d3 100%) !important;
+  background: linear-gradient(90deg, #9c0084 0%, #ff00ff 55%, #c026d3 100%) !important;
   border-color: rgba(255, 0, 255, 0.45) !important;
   box-shadow: 0 0 18px rgba(255, 0, 255, 0.35), 0 8px 28px rgba(156, 0, 132, 0.35) !important;
+}
+.wb-ds-root .wb-sys--power .wb-sys-btn:not(.wb-sys-btn--ghost)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(135deg, #b91c1c, #dc2626 55%, #ef4444) !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+  box-shadow: 0 8px 28px rgba(220, 38, 38, 0.4) !important;
+}
+.wb-ds-root .wb-sys--junglebeast .wb-sys-btn:not(.wb-sys-btn--ghost):not(.wb-sys-btn--jng-pill)${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(180deg, #d9f99d 0%, #bef264 40%, #84cc16 100%) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border-color: rgba(132, 204, 22, 0.75) !important;
+  box-shadow: 0 0 18px rgba(190, 242, 100, 0.28), 0 6px 20px rgba(0, 0, 0, 0.5) !important;
+}
+.wb-ds-root .wb-sys--junglebeast .wb-sys-btn--jng-pill${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(180deg, #d9f99d 0%, #bef264 45%, #84cc16 100%) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border-color: rgba(190, 242, 100, 0.65) !important;
+  box-shadow: 0 0 20px rgba(190, 242, 100, 0.35), 0 8px 22px rgba(0, 0, 0, 0.45) !important;
+}
+.wb-ds-root .wb-sys--liquidfit .wb-sys-btn:not(.wb-sys-btn--ghost):not(.wb-sys-btn--liq-ghost):not(.wb-sys-btn--liq-solid):not(.wb-sys-btn--liq-outline)${WB_SKIP_OWN_BG_SHORTHAND},
+.wb-ds-root .wb-sys--liquidfit .wb-sys-btn--liq-gradient${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(90deg, #2563eb, #a855f7, #d946ef) !important;
+  border-color: transparent !important;
+  box-shadow: 0 0 28px rgba(168, 85, 247, 0.35) !important;
+}
+.wb-ds-root .wb-sys--liquidfit .wb-sys-btn--liq-solid${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: #fff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+}
+.wb-ds-root .wb-sys--vintageiron .wb-sys-btn:not(.wb-sys-btn--ghost):not(.wb-sys-btn--vin-outline)${WB_SKIP_OWN_BG_SHORTHAND},
+.wb-ds-root .wb-sys--vintageiron .wb-sys-btn--vin-bronze${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: linear-gradient(180deg, #e3bc5c 0%, #b8860b 45%, #8a6a1f 100%) !important;
+  color: #1a1208 !important;
+  -webkit-text-fill-color: #1a1208 !important;
+  border-color: rgba(90, 70, 35, 0.85) !important;
+  box-shadow: 0 0 14px rgba(201, 162, 39, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
 
 .wb-ds-root .wb-sys--elite .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
@@ -178,6 +219,28 @@ const WB_CANVAS_DS_SYS_BTN_COERCION = `
   background: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.35) !important;
   box-shadow: 0 0 14px rgba(0, 240, 255, 0.12) !important;
+}
+.wb-ds-root .wb-sys--power .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: transparent !important;
+  border-color: rgba(248, 113, 113, 0.45) !important;
+}
+.wb-ds-root .wb-sys--junglebeast .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+.wb-ds-root .wb-sys--liquidfit .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND},
+.wb-ds-root .wb-sys--liquidfit .wb-sys-btn--liq-ghost${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+.wb-ds-root .wb-sys--liquidfit .wb-sys-btn--liq-outline${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+.wb-ds-root .wb-sys--vintageiron .wb-sys-btn--ghost${WB_SKIP_OWN_BG_SHORTHAND},
+.wb-ds-root .wb-sys--vintageiron .wb-sys-btn--vin-outline${WB_SKIP_OWN_BG_SHORTHAND} {
+  background: transparent !important;
+  border-color: rgba(212, 168, 75, 0.75) !important;
 }
 `;
 

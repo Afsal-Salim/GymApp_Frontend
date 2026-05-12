@@ -106,13 +106,28 @@ export function describeSelection(selected: Component | undefined | null): Selec
 
   let kind: InspectorKind = 'unknown';
 
-  /** If any selected node sits inside a gallery carousel, edit the carousel as one component. */
+  /**
+   * If any selected node sits inside a gallery carousel, edit the carousel as one component.
+   *
+   * Two markup variants resolve to the same gallery editor:
+   *   - Generic gallery block (`websiteBuilderBlocks.ts`): `.wb-gallery-carousel[data-wb-gallery-carousel="1"]`
+   *   - Design-system gallery (`websiteBuilderDesignSystemBlocks.ts`): `.wb-sys-carousel[data-wb-ds-gallery="1"]`
+   *
+   * Without this, clicking a slide / track inside a DS gallery falls through to the generic
+   * "Edit Section" inspector and the user has no way to add / remove / reorder slides.
+   */
   const galleryRoot = (() => {
     let cur: Component | null | undefined = selected;
     while (cur && !cur.is?.('wrapper')) {
       const curAttrs = cur.getAttributes?.() ?? {};
       const curClass = String(curAttrs.class || '');
-      if (/\bwb-gallery-carousel\b/.test(curClass) || String(curAttrs['data-wb-gallery-carousel'] || '') === '1') {
+      const isGenericGallery =
+        /\bwb-gallery-carousel\b/.test(curClass) ||
+        String(curAttrs['data-wb-gallery-carousel'] || '') === '1';
+      const isDsGallery =
+        String(curAttrs['data-wb-ds-gallery'] || '') === '1' &&
+        /\bwb-sys-carousel\b/.test(curClass);
+      if (isGenericGallery || isDsGallery) {
         return cur;
       }
       cur = cur.parent?.();

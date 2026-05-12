@@ -11,12 +11,36 @@ import react from '@vitejs/plugin-react';
  *   without touching every file.
  * - `/api/*` dev proxy preserves the old `next.config.ts` `rewrites()` behaviour so the
  *   frontend can keep calling `/api/...` and hit Django on a separate port without CORS.
+ * - **Env vars**: instead of relying on Vite's default `VITE_*` prefix, we explicitly whitelist
+ *   the public keys in `PUBLIC_ENV_KEYS` below and inline them via `define` as
+ *   `import.meta.env.<KEY>`. The `.env` file therefore uses plain names (e.g. `API_BASE_URL`).
+ *   Anything not in the whitelist (e.g. `ADMIN`) stays server-side.
  */
 
+/**
+ * Keys from `.env` that get exposed to the browser bundle.
+ * Add a key here AND declare it on `ImportMetaEnv` in `env.d.ts` before reading it from app code.
+ */
+const PUBLIC_ENV_KEYS = [
+  'API_BASE_URL',
+  'PUBLIC_SITE_DOMAIN',
+  'SITE_URL',
+  'BASE_PATH',
+  'HOMEPAGE_TUTORIAL_VIDEO_URL',
+  'GOOGLE_CLIENT_ID',
+  'CONTACT_EMAIL',
+  'CONTACT_PHONE',
+  'CONTACT_PHONE_TEL',
+  'WHATSAPP_PHONE',
+  'WHATSAPP_MESSAGE',
+  'MARKETING_ENQUIRY_PATH',
+  'SERVICE_ENQUIRY_PATH',
+  'BUSINESS_IMAGE_FILE_SEGMENT',
+  'BUSINESS_IMAGE_USE_API_FILE',
+] as const;
+
 function resolvedApiBase(env: Record<string, string>): string {
-  return (env.VITE_API_BASE_URL ?? env.NEXT_PUBLIC_API_BASE_URL ?? '')
-    .trim()
-    .replace(/\/$/, '');
+  return (env.API_BASE_URL ?? '').trim().replace(/\/$/, '');
 }
 
 function shouldEnableApiProxy(base: string, devPort: number): boolean {
@@ -54,8 +78,18 @@ export default defineConfig(({ mode }) => {
   const apiBase = resolvedApiBase(env);
   const useProxy = shouldEnableApiProxy(apiBase, DEV_PORT);
 
+  /**
+   * Vite's `define` performs literal text replacement at build time. Each whitelisted key gets
+   * its current value baked into the bundle wherever `import.meta.env.<KEY>` appears in source.
+   */
+  const publicEnvDefines: Record<string, string> = {};
+  for (const key of PUBLIC_ENV_KEYS) {
+    publicEnvDefines[`import.meta.env.${key}`] = JSON.stringify(env[key] ?? '');
+  }
+
   return {
     plugins: [react()],
+    define: publicEnvDefines,
     server: {
       port: DEV_PORT,
       proxy: useProxy

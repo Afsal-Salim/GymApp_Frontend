@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button, Container, Modal, Spinner } from 'react-bootstrap';
 import { PageContainer } from '@/components/index/index';
-import { getActiveSubscription, getBusinessDetail, type ActiveSubscriptionResponse } from '@/api';
+import { getBusinessDetail } from '@/api';
 import { useToast } from '@/contexts/ToastContext/ToastContext';
 import { createWebsiteFormFromBusinessDetail } from '@/features/website/setup/createWebsiteFormState/createWebsiteFormState';
 import {
@@ -25,12 +24,6 @@ import {
   setPendingProTemplateKey,
 } from '@/features/website/templates/websiteTemplateGate/websiteTemplateGate';
 import './SelectWebsiteTemplatePage.css';
-
-function planTierIsPro(sub: ActiveSubscriptionResponse | null): boolean {
-  if (!sub?.has_active_subscription) return false;
-  const t = (sub.plan_tier ?? '').toString().trim().toLowerCase();
-  return t === 'pro';
-}
 
 type Mode = 'create' | 'edit';
 
@@ -54,37 +47,16 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
   const [selectedKey, setSelectedKey] = useState<SelectPageChoice>('');
   const [editLoading, setEditLoading] = useState(mode === 'edit');
   const [templatePreviewKey, setTemplatePreviewKey] = useState<ProTemplateKey | null>(null);
-  const [builderSubscription, setBuilderSubscription] = useState<Awaited<
-    ReturnType<typeof getActiveSubscription>
-  > | null>(null);
 
   const slugNorm = mode === 'edit' ? routeSlugRaw.toLowerCase() : '';
 
   const proTemplateCards = useMemo(() => buildProTemplateCards(), []);
   const designSystemTemplateCards = useMemo(() => buildDesignSystemSelectPageTemplateCards(), []);
-  const allSelectableTemplateCards = useMemo(
+  /** All styled templates rendered alongside the Crystal default, in display order. */
+  const styledTemplateCards = useMemo(
     () => [...proTemplateCards, ...designSystemTemplateCards],
     [proTemplateCards, designSystemTemplateCards],
   );
-  const isProOnBuilder = planTierIsPro(builderSubscription);
-
-  useEffect(() => {
-    if (mode !== 'edit' || !slugNorm) {
-      setBuilderSubscription(null);
-      return;
-    }
-    let cancelled = false;
-    getActiveSubscription(slugNorm)
-      .then((s) => {
-        if (!cancelled) setBuilderSubscription(s);
-      })
-      .catch(() => {
-        if (!cancelled) setBuilderSubscription(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, slugNorm]);
 
   useEffect(() => {
     const stashed = consumeInitialTemplateForSelectPage();
@@ -168,19 +140,22 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
               <p className="create-website__content-policy-hint small text-muted mb-0">{lead}</p>
             </div>
             <div className="create-website__head-side">
-              {!isProOnBuilder ?
-                <div className="create-website__templates-tip" role="status" aria-live="polite">
-                  <InfoOutlinedIcon className="create-website__templates-tip-icon" fontSize="small" aria-hidden />
-                  <span>
-                    Browse every template here. Saving any <strong>Pro</strong> layout or <strong>Max</strong> design-system
-                    page still requires an active <strong>Pro</strong> subscription (tiers: Base → Pro → Max).
-                  </span>
-                </div>
-              : null}
               <div className="create-website__head-actions">
                 <Link href="/user" className="btn btn-outline-secondary btn-sm">
                   ← Back to profile
                 </Link>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  className="create-website__select-template-continue d-inline-flex align-items-center justify-content-center gap-2"
+                  onClick={handleContinue}
+                  aria-label="Continue to site editor"
+                  disabled={mode === 'edit' && editLoading}
+                >
+                  <span>Continue</span>
+                  <ArrowForwardOutlinedIcon sx={{ fontSize: '1.35rem' }} aria-hidden />
+                </Button>
               </div>
             </div>
           </div>
@@ -204,19 +179,15 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                     </span>
                     <span className="create-website__template-card-title-row">
                       <span className="create-website__template-card-title">Crystal default theme</span>
-                      <span className="badge text-bg-success">Base</span>
                     </span>
                     <span className="create-website__template-card-desc">
                       Keep the standard Crystal client page layout and your custom brand/content configuration.
                     </span>
                   </button>
-                  {/** Spacer matches Pro template preview buttons so columns align */}
+                  {/** Spacer matches preview buttons on styled-template cards so the grid columns align. */}
                   <div className="create-website__template-card-shell-actions" aria-hidden="true" />
                 </div>
-                <h2 className="create-website__template-section-head h6 text-uppercase text-muted mb-0 mt-1">
-                  Pro layouts
-                </h2>
-                {proTemplateCards.map((template) => {
+                {styledTemplateCards.map((template) => {
                   const selected = selectedKey === template.key;
                   return (
                     <div key={template.key} className="create-website__template-card-shell">
@@ -237,64 +208,6 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                         </span>
                         <span className="create-website__template-card-title-row">
                           <span className="create-website__template-card-title">{template.label}</span>
-                          <span className="badge text-bg-warning">Pro</span>
-                        </span>
-                        <span className="create-website__template-card-desc">{template.description}</span>
-                      </button>
-                      <div className="create-website__template-card-shell-actions">
-                        <Button
-                          type="button"
-                          variant="outline-secondary"
-                          size="sm"
-                          className="create-website__template-preview-btn"
-                          onClick={() => setTemplatePreviewKey(template.key)}
-                        >
-                          <VisibilityOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
-                          Preview
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="light"
-                          size="sm"
-                          className="create-website__template-preview-btn"
-                          onClick={() => window.open(template.previewPath, '_blank', 'noopener,noreferrer')}
-                        >
-                          <OpenInNewOutlinedIcon className="create-website__template-preview-btn-icon" fontSize="small" aria-hidden />
-                          Preview in new tab
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <h2 className="create-website__template-section-head h6 text-uppercase text-muted mb-0 mt-1">
-                  Max · Design system templates
-                </h2>
-                <p className="small text-muted mb-2 mt-1 px-1">
-                  Full-page design packs (navbar → footer). Same save rule as Pro layouts: active <strong>Pro</strong>{' '}
-                  subscription required to publish.
-                </p>
-                {designSystemTemplateCards.map((template) => {
-                  const selected = selectedKey === template.key;
-                  return (
-                    <div key={template.key} className="create-website__template-card-shell">
-                      <button
-                        type="button"
-                        className={`create-website__template-card${selected ? ' create-website__template-card--selected' : ''}`}
-                        onClick={() => setSelectedKey(template.key)}
-                        aria-pressed={selected}
-                      >
-                        <span className="create-website__template-card-visual create-website__template-card-visual--live">
-                          <iframe
-                            src={template.previewPath}
-                            title={`${template.label} card preview`}
-                            loading="lazy"
-                            tabIndex={-1}
-                            className="create-website__template-card-frame"
-                          />
-                        </span>
-                        <span className="create-website__template-card-title-row">
-                          <span className="create-website__template-card-title">{template.label}</span>
-                          <span className="badge text-bg-dark">Max</span>
                         </span>
                         <span className="create-website__template-card-desc">{template.description}</span>
                       </button>
@@ -341,23 +254,9 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
                       Start from scratch with the visual builder and compose your own sections and pages.
                     </span>
                   </button>
-                  {/** Spacer aligns with Pro rows (preview buttons only). */}
+                  {/** Spacer aligns with styled-template rows (preview buttons only). */}
                   <div className="create-website__template-card-shell-actions" aria-hidden="true" />
                 </div>
-              </div>
-
-              <div className="create-website__select-template-continue-wrap d-flex flex-wrap gap-2 justify-content-end mt-4 pt-3 border-top">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="lg"
-                  className="create-website__select-template-continue d-inline-flex align-items-center gap-2"
-                  onClick={handleContinue}
-                  aria-label="Continue to site editor"
-                >
-                  <span>Continue</span>
-                  <ArrowForwardOutlinedIcon sx={{ fontSize: '1.35rem' }} aria-hidden />
-                </Button>
               </div>
             </>
           }
@@ -374,7 +273,7 @@ export default function SelectWebsiteTemplatePage({ mode }: Props) {
         <Modal.Header closeButton>
           <Modal.Title id="select-template-preview-title" as="h2" className="h5 mb-0">
             {templatePreviewKey ?
-              `${allSelectableTemplateCards.find((c) => c.key === templatePreviewKey)?.label ?? 'Template'} preview`
+              `${styledTemplateCards.find((c) => c.key === templatePreviewKey)?.label ?? 'Template'} preview`
             : 'Preview'}
           </Modal.Title>
         </Modal.Header>

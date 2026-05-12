@@ -1,0 +1,175 @@
+.wb-text-styles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem 1rem;
+}
+
+.wb-text-styles__intro {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: var(--wb-accent-soft, rgba(37, 99, 235, 0.08));
+  color: var(--wb-text-strong, #0f172a);
+  /*
+    Stays pinned to the top of the scroll area so the "Clear" button and the
+    target description remain available no matter how deep the user scrolls
+    through 115+ presets.
+  */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.wb-text-styles__intro-text {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.wb-text-styles__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--wb-border-soft, rgba(15, 23, 42, 0.12));
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.72rem;
+  color: var(--wb-text-strong, #0f172a);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.wb-text-styles__reset:hover {
+  background: var(--wb-accent-soft, rgba(37, 99, 235, 0.08));
+  border-color: var(--wb-border-focus, rgba(37, 99, 235, 0.45));
+  color: var(--wb-accent-strong, #1d4ed8);
+}
+
+.wb-text-styles__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.wb-text-styles__section + .wb-text-styles__section {
+  margin-top: 0.35rem;
+}
+
+.wb-text-styles__section-label {
+  margin: 0.25rem 0 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--wb-text-muted, #64748b);
+}
+
+.wb-text-styles__grid {
+  display: grid;
+  /*
+    auto-fill keeps tiles a comfortable size whether the left panel is narrow
+    (2 cols at ~220px wide) or stretched out to 360px+ (3+ cols).
+  */
+  grid-template-columns: repeat(auto-fill, minmax(98px, 1fr));
+  gap: 0.5rem;
+}
+
+.wb-text-styles__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.7rem 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--wb-border-soft, rgba(15, 23, 42, 0.1));
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  cursor: pointer;
+  text-align: center;
+  min-height: 78px;
+  transition:
+    transform 0.12s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.wb-text-styles__tile:hover {
+  border-color: var(--wb-border-focus, rgba(37, 99, 235, 0.45));
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.wb-text-styles__tile:active {
+  transform: translateY(0);
+}
+
+.wb-text-styles__tile:focus-visible {
+  outline: 2px solid var(--wb-border-focus, rgba(37, 99, 235, 0.65));
+  outline-offset: 2px;
+}
+
+.wb-text-styles__tile-preview {
+  display: inline-block;
+  font-size: 1.35rem;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  /*
+    Preview tiles use `display:inline-block` so background-clip:text gradients
+    work the same way they will once applied to the canvas <p>/<h*> element.
+  */
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.wb-text-styles__tile-label {
+  font-size: 0.66rem;
+  color: var(--wb-text-muted, #475569);
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-text-styles__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  padding: 1.5rem 1rem;
+  color: var(--wb-text-muted, #475569);
+}
+
+.wb-text-styles__empty-ico {
+  font-size: 2rem !important;
+  color: var(--wb-accent-strong, #2563eb);
+  opacity: 0.85;
+}
+
+.wb-text-styles__empty-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--wb-text-strong, #0f172a);
+}
+
+.wb-text-styles__empty-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}

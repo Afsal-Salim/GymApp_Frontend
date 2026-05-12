@@ -10,6 +10,7 @@ import {
 } from 'react';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import ChevronLeftOutlinedIcon from '@mui/icons-material/ChevronLeftOutlined';
 import ChevronRightOutlinedIcon from '@mui/icons-material/ChevronRightOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
@@ -97,6 +98,7 @@ import {
   WebsiteBuilderLeftPanel,
   type LeftPanelTab,
 } from '@/features/website/editor/left-column/WebsiteBuilderLeftPanel/WebsiteBuilderLeftPanel';
+import { isTextStyleableTagName } from '@/features/website/editor/left-column/WebsiteBuilderTextStylesPanel/WebsiteBuilderTextStylesPanel';
 import { WebsiteBuilderInspector, type InspectorTab } from '@/features/website/editor/right-column/WebsiteBuilderInspector/WebsiteBuilderInspector';
 
 type BuilderPageTab = {
@@ -1949,6 +1951,43 @@ ${html}
     [expandLeftPanel],
   );
 
+  /**
+   * The "Text styles" rail entry is meaningful for any inline / phrasing text
+   * tag — `<p>`, `<h1>`–`<h6>`, `<span>`, `<strong>`, `<em>`, `<li>`, etc.
+   * `inspectorSelection.kind` collapses many of these to `'block'`, so we detect
+   * by `tagName` via the same allowlist the panel itself uses.
+   *
+   * If the user opened the panel and then selected a non-text element (image,
+   * button, container), drop them back on Layers so they don't sit looking at
+   * an empty-state panel they can't act on.
+   */
+  const isTextLikeSelection = isTextStyleableTagName(inspectorSelection?.tagName);
+  useEffect(() => {
+    if (leftPanelTab === 'textStyles' && !isTextLikeSelection) {
+      setLeftPanelTab('structure');
+    }
+  }, [leftPanelTab, isTextLikeSelection]);
+
+  /**
+   * Auto-open the Text styles panel whenever the user *selects* a text
+   * element on the canvas. We key off the selected component's `cid` so the
+   * switch only fires when the selection actually changes — not on every
+   * `component:update` (otherwise typing into the inline editor would yank
+   * the user out of whatever panel they're using).
+   *
+   * The `prev` ref also means that once a user manually navigates away from
+   * Text styles while *the same* text stays selected, we don't keep forcing
+   * them back; they'll only be re-opened on a fresh text selection.
+   */
+  const lastAutoOpenedTextCidRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cid = isTextLikeSelection ? (inspectorSelection?.cid ?? null) : null;
+    if (cid && cid !== lastAutoOpenedTextCidRef.current) {
+      activateLeftRailPanel('textStyles');
+    }
+    lastAutoOpenedTextCidRef.current = cid;
+  }, [isTextLikeSelection, inspectorSelection?.cid, activateLeftRailPanel]);
+
   openInspectFromCanvasRef.current = (ed, comp) => {
     expandRightPanel();
     setInspectorTab('content');
@@ -2625,6 +2664,19 @@ ${html}
                 <TuneOutlinedIcon aria-hidden />
                 <span className="visually-hidden">Tools</span>
               </button>
+              {isTextLikeSelection ?
+                <button
+                  type="button"
+                  className={`website-builder-page__primary-rail-btn website-builder-page__primary-rail-btn--text-styles${leftPanelTab === 'textStyles' ? ' is-active' : ''}`}
+                  disabled={builderChromeDisabled}
+                  aria-current={leftPanelTab === 'textStyles' ? 'true' : undefined}
+                  title="Text styles — gradient, rainbow, outline, neon and more"
+                  onClick={() => activateLeftRailPanel('textStyles')}
+                >
+                  <AutoAwesomeOutlinedIcon aria-hidden />
+                  <span className="visually-hidden">Text styles</span>
+                </button>
+              : null}
               <div className="website-builder-page__primary-rail-spacer" aria-hidden />
               <button
                 type="button"

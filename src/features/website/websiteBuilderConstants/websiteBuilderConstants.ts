@@ -257,9 +257,10 @@ a.component-btn {
 }
 
 /* Guard against template-level button resets (example: button background and text both forced to white). */
+/* color is intentionally non-!important so user-set Style Manager colors override this default. */
 .component-card button.component-btn:not([style*='background']),
 .component-card a.component-btn:not([style*='background']) {
-  color: #fff !important;
+  color: #fff;
   text-decoration: none !important;
   background: linear-gradient(135deg, var(--primary-deep, #1d4ed8) 0%, var(--primary, #2563eb) 42%, var(--accent-indigo, #4f46e5) 100%) !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
@@ -395,9 +396,10 @@ a.component-btn[download]:not(.wb-wa-btn):hover {
 }
 
 /* Safety layer: keep CTA contrast stable inside design-system wrappers (some templates define broad button/link styles). */
+/* color is intentionally non-!important so user-set Style Manager colors override this default. */
 .wb-ds-root .component-card button.component-btn,
 .wb-ds-root .component-card a.component-btn {
-  color: #fff !important;
+  color: #fff;
   text-decoration: none !important;
   background: linear-gradient(135deg, var(--primary-deep, #1d4ed8) 0%, var(--primary, #2563eb) 42%, var(--accent-indigo, #4f46e5) 100%) !important;
   border-color: rgba(255, 255, 255, 0.12) !important;

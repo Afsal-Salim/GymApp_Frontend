@@ -53,7 +53,17 @@ export function findReplaceOnCurrentPage(editor: Editor, search: string, replace
       }
       const src = String(attrs.src ?? '');
       if (src && src.includes(q)) {
-        comp.addAttributes({ src: src.split(q).join(replace) });
+        const next = src.split(q).join(replace);
+        comp.addAttributes({ src: next });
+        /* GrapesJS' built-in ComponentImage.getAttrToHTML overwrites the serialized src with
+           `this.get('src')` on every getHtml(), so we have to mirror the new value onto the
+           model property — otherwise find-and-replace updates the canvas but the preview /
+           persisted HTML keeps the old src. Safe no-op for non-image components. */
+        try {
+          (comp as unknown as { set?: (k: string, v: unknown) => void }).set?.('src', next);
+        } catch {
+          /* ignore */
+        }
         count += 1;
       }
       const tag = String(comp.get('tagName') ?? '').toLowerCase();

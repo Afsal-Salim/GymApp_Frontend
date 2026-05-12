@@ -520,6 +520,49 @@
   font-size: 1.35rem;
 }
 
+/*
+  Selection-driven rail entry. Mounted/unmounted as the user selects/deselects
+  a text-like component, so we play a short fade+pulse on appearance to make
+  the new button obvious without nagging on every selection bump.
+*/
+.website-builder-page__primary-rail-btn--text-styles {
+  color: #7c3aed;
+  animation: wb-text-styles-rail-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.website-builder-page__primary-rail-btn--text-styles:hover:not(:disabled) {
+  color: #6d28d9;
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.35);
+}
+
+.website-builder-page__primary-rail-btn--text-styles.is-active {
+  color: #6d28d9;
+  background: rgba(124, 58, 237, 0.14);
+  border-color: rgba(124, 58, 237, 0.55);
+}
+
+@keyframes wb-text-styles-rail-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .website-builder-page__primary-rail-btn--text-styles {
+    animation: none;
+  }
+}
+
 /* Grid cell: allow shrinking; align start so the artboard isn’t letterboxed L/R inside the slot */
 .website-builder-page__canvas-slot {
   position: relative;
@@ -713,7 +756,11 @@
 
 /*
  * Desktop: Grapes iframe fills the canvas width so full-bleed sections match preview (no fixed artboard).
- * Tablet/mobile: forcing 100% on those breakpoints was overriding Grapes device widths, so toggles had no effect.
+ * Tablet / mobile: let GrapesJS' DeviceManager set the iframe width (820px / 390px) — we only
+ *   center the device frame inside the canvas and add a tasteful drop-shadow so it reads as a
+ *   device preview. The previous version was forcing width: 100% !important on .gjs-frame-wrapper
+ *   and .gjs-frame for non-desktop modes, which overrode Grapes' inline device width and made the
+ *   tablet / mobile toggle buttons appear to do nothing.
  */
 .website-builder-page__editor[data-wb-device='desktop'] .gjs-cv-canvas,
 .website-builder-page__editor[data-wb-device='desktop'] .gjs-cv-canvas .gjs-frame-wrapper,
@@ -722,18 +769,40 @@
   max-width: 100% !important;
 }
 
-.website-builder-page__editor:not([data-wb-device='desktop']) .gjs-canvas__frames {
-  display: flex !important;
-  justify-content: flex-start !important;
-  align-items: flex-start !important;
-  width: 100% !important;
+.website-builder-page__editor:not([data-wb-device='desktop']) .gjs-cv-canvas {
+  /* Allow horizontal scroll if the user resizes the canvas pane narrower than the device width. */
+  overflow: auto;
 }
 
-.website-builder-page__editor:not([data-wb-device='desktop']) .gjs-cv-canvas .gjs-frame-wrapper,
-.website-builder-page__editor:not([data-wb-device='desktop']) .gjs-cv-canvas .gjs-frame {
+.website-builder-page__editor:not([data-wb-device='desktop']) .gjs-canvas__frames {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
   width: 100% !important;
+  padding: 1.25rem 1rem 2.25rem !important;
+  box-sizing: border-box !important;
+}
+
+.website-builder-page__editor:not([data-wb-device='desktop']) .gjs-cv-canvas .gjs-frame-wrapper {
+  /* GrapesJS sets the iframe width inline via DeviceManager; keep the wrapper shrink-to-fit and
+     do NOT override width — using `width: auto !important` here would beat Grapes' inline width
+     (since !important class wins over non-!important inline) and silently revert the toggles. */
+  flex: 0 0 auto !important;
   max-width: 100% !important;
   margin: 0 !important;
+  border-radius: 12px;
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.04),
+    0 24px 60px -16px rgba(15, 23, 42, 0.28);
+  background: #fff;
+  overflow: hidden;
+}
+
+.website-builder-page__editor:not([data-wb-device='desktop']) .gjs-cv-canvas .gjs-frame {
+  /* Same rule as the wrapper: never force width here, Grapes sets it inline per active device. */
+  max-width: 100% !important;
+  margin: 0 !important;
+  display: block !important;
 }
 
 /* On-canvas element resize handles (selected component) */
@@ -3307,6 +3376,290 @@
 
 .website-builder-page__traits-live {
   display: none;
+}
+
+/* —— Inspector: gallery carousel ——
+ * Cards-based slide editor: thumbnail (click to replace), reorder, caption + alt fields,
+ * and an optional URL row. Scoped to the right inspector panel; intentionally narrow
+ * (≈260–320px container) so layout favours stacked content over wide columns.
+ */
+.wb-gallery-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  margin: 0.25rem 0 0.5rem;
+  border: 1px solid var(--wb-border-soft);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f1f5f9 0%, #ffffff 100%);
+}
+
+.wb-gallery-panel__header-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wb-gallery-panel__title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.wb-gallery-panel__subtitle {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
+.wb-gallery-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  color: #fff;
+  font-size: 0.73rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    0 4px 14px rgba(37, 99, 235, 0.32),
+    0 1px 0 rgba(255, 255, 255, 0.18) inset;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease;
+}
+
+.wb-gallery-panel__add-btn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.wb-gallery-panel__add-btn:active {
+  transform: translateY(0);
+}
+
+.wb-gallery-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-bottom: 0.5rem;
+}
+
+.wb-gallery-slide {
+  border: 1px solid var(--wb-border-soft);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.wb-gallery-slide:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.wb-gallery-slide__main {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 0.55rem;
+  align-items: start;
+}
+
+.wb-gallery-slide__thumb-wrap {
+  position: relative;
+}
+
+.wb-gallery-slide__thumb {
+  position: relative;
+  display: block;
+  width: 70px;
+  height: 70px;
+  border: 1px solid var(--wb-border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  background: #f8fafc;
+  transition:
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.wb-gallery-slide__thumb:hover {
+  border-color: #3b82f6;
+}
+
+.wb-gallery-slide__thumb:focus-visible {
+  outline: none;
+  border-color: var(--wb-border-focus);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.wb-gallery-slide__thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.wb-gallery-slide__thumb-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #94a3b8;
+}
+
+.wb-gallery-slide__thumb-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.wb-gallery-slide__thumb:hover .wb-gallery-slide__thumb-overlay,
+.wb-gallery-slide__thumb:focus-visible .wb-gallery-slide__thumb-overlay {
+  opacity: 1;
+}
+
+.wb-gallery-slide__badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.25);
+  pointer-events: none;
+}
+
+.wb-gallery-slide__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.wb-gallery-slide__caption-input,
+.wb-gallery-slide__alt-input,
+.wb-gallery-slide__url-input {
+  font-size: 0.74rem;
+}
+
+.wb-gallery-slide__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.wb-gallery-slide__actions-spacer {
+  flex: 1 1 auto;
+}
+
+.wb-gallery-slide__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  border: 1px solid var(--wb-border-soft);
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.wb-gallery-slide__action-btn:hover {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.wb-gallery-slide__action-btn.is-active {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #dbeafe;
+}
+
+.wb-gallery-slide__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 1px solid var(--wb-border-soft);
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.wb-gallery-slide__icon-btn:hover:not(:disabled) {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.wb-gallery-slide__icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wb-gallery-slide__icon-btn--danger:hover:not(:disabled) {
+  color: #b91c1c;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.wb-gallery-slide__url-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--wb-border-soft);
+}
+
+.wb-gallery-slide__url-note {
+  font-size: 0.66rem;
+  color: #64748b;
+  line-height: 1.3;
 }
 
 /* —— Left panel: premium shell —— */

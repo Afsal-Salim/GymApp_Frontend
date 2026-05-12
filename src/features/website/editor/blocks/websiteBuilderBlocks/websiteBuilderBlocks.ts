@@ -4,6 +4,28 @@ import { registerIconBlocks } from '@/features/website/editor/blocks/websiteBuil
 
 const WB_ANIM_CLASSES = ['wb-fade-up', 'wb-fade-in', 'wb-slide-left', 'wb-slide-right', 'wb-zoom-in', 'wb-pulse'];
 
+/**
+ * Inline CTA gradients for `.component-btn` variants.
+ * Inlined directly on the HTML so they always beat per-cid `<style>` rules Grapes can emit in the
+ * canvas — matches the existing defensive strategy used on the WhatsApp / cta library buttons.
+ * Mirrors the class-based gradients defined in `WEBSITE_BUILDER_COMPONENT_LIBRARY_CSS` (component-btn
+ * + `[data-wb-open=...]`, `[href^="tel:"]`, `[href^="mailto:"]`, `[download]`).
+ */
+const WB_CMP_BTN_INLINE = {
+  join: 'background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 42%,#4f46e5 100%);color:#fff;border:1px solid rgba(255,255,255,0.12);box-shadow:0 4px 16px rgba(37,99,235,0.32),0 1px 0 rgba(255,255,255,0.18) inset;',
+  visit:
+    'background:linear-gradient(135deg,#0f766e 0%,#0e7490 38%,#06b6d4 100%);color:#fff;border:1px solid rgba(255,255,255,0.16);box-shadow:0 4px 18px rgba(6,182,212,0.35),0 1px 0 rgba(255,255,255,0.2) inset;',
+  trial:
+    'background:linear-gradient(135deg,#c2410c 0%,#ea580c 45%,#f59e0b 100%);color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(234,88,12,0.38),0 1px 0 rgba(255,255,255,0.2) inset;',
+  enquiry:
+    'background:linear-gradient(135deg,#6d28d9 0%,#7c3aed 48%,#a855f7 100%);color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(124,58,237,0.38),0 1px 0 rgba(255,255,255,0.2) inset;',
+  tel: 'background:linear-gradient(135deg,#c2410c 0%,#ea580c 40%,#f97316 100%);color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(234,88,12,0.38),0 1px 0 rgba(255,255,255,0.18) inset;',
+  mailto:
+    'background:linear-gradient(135deg,#3730a3 0%,#4f46e5 42%,#6366f1 100%);color:#fff;border:1px solid rgba(255,255,255,0.14);box-shadow:0 4px 18px rgba(79,70,229,0.35),0 1px 0 rgba(255,255,255,0.2) inset;',
+  download:
+    'background:linear-gradient(135deg,#334155 0%,#475569 55%,#64748b 100%);color:#f8fafc;border:1px solid rgba(255,255,255,0.12);box-shadow:0 4px 16px rgba(15,23,42,0.22),0 1px 0 rgba(255,255,255,0.14) inset;',
+} as const;
+
 function syncAnimationClasses(component: {
   getAttributes: () => Record<string, string>;
   removeClass: (c: string) => void;
@@ -216,16 +238,124 @@ function walkComponentTree(root: Component | undefined, visit: (c: Component) =>
   }
 }
 
-/** Fix CTAs already stored as Grapes `text` (see `registerComponentBtnDomType` / `registerComponentBtnAnchorDomType`). */
+/**
+ * Stored Grapes styles for `.component-btn` elements often carry stale `background-color: #efefef`
+ * etc. from when Grapes misclassified them as `text` and applied text-block chrome. Even after we
+ * fix the type, those long-hand background properties beat our `background:` shorthand (long-hand
+ * wins same-importance ties) and the buttons render as flat greys. This map mirrors the inline
+ * gradient set we apply to fresh drops (`WB_CMP_BTN_INLINE`) so we can re-stamp the right look
+ * onto legacy components based on their classes / attributes.
+ */
+type ComponentBtnVariant = keyof typeof WB_CMP_BTN_INLINE;
+
+function pickComponentBtnVariant(
+  attrs: Record<string, string>,
+  cls: string,
+): ComponentBtnVariant {
+  const wbOpen = String(attrs['data-wb-open'] ?? '').toLowerCase();
+  if (wbOpen === 'visit') return 'visit';
+  if (wbOpen === 'trial') return 'trial';
+  if (wbOpen === 'enquiry') return 'enquiry';
+  const href = String(attrs.href ?? '').toLowerCase();
+  if (href.startsWith('tel:')) return 'tel';
+  if (href.startsWith('mailto:')) return 'mailto';
+  if (typeof attrs.download === 'string' || /\bdownload\b/i.test(cls)) return 'download';
+  return 'join';
+}
+
+const WB_CMP_BTN_BACKGROUND_KEYS = [
+  'background',
+  'background-color',
+  'background-image',
+  'background-position',
+  'background-size',
+  'background-repeat',
+  'background-attachment',
+  'background-origin',
+  'background-clip',
+] as const;
+
+function inlineStyleStringToObject(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  raw
+    .split(';')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .forEach((p) => {
+      const idx = p.indexOf(':');
+      if (idx <= 0) return;
+      const key = p.slice(0, idx).trim().toLowerCase();
+      const value = p.slice(idx + 1).trim();
+      if (key) out[key] = value;
+    });
+  return out;
+}
+
+/**
+ * Fix CTAs already stored as Grapes `text` (see `registerComponentBtnDomType` / `registerComponentBtnAnchorDomType`)
+ * and re-apply the correct gradient + border + shadow on every legacy `.component-btn` so old saved
+ * projects render the same as fresh drops. We replace any stored `background*` long-hand stale styles with
+ * the canonical shorthand from `WB_CMP_BTN_INLINE` (the white fill / flat grey leftover from text-block chrome).
+ *
+ * Each component is normalised at most **once** per session — a `data-wb-btn-normalized="1"` marker is
+ * stamped after the first pass so subsequent `load` / `project:loaded` / `component:add` ticks do not
+ * undo user customisations (e.g. someone recolouring text or the gradient via the Style Manager).
+ */
+const WB_BTN_NORMALIZED_ATTR = 'data-wb-btn-normalized';
+
 export function normalizeMisclassifiedComponentButtons(editor: Editor) {
   walkComponentTree(editor.getWrapper() ?? undefined, (c) => {
     const tag = String(c.get('tagName') || '').toLowerCase();
     if (tag !== 'button' && tag !== 'a') return;
-    const cls = String(c.getAttributes?.()?.class ?? '');
+    const attrs = c.getAttributes?.() ?? {};
+    const cls = String(attrs.class ?? '');
     if (!/\bcomponent-btn\b/.test(cls)) return;
     if (tag === 'a' && (/\bwb-link-btn\b/.test(cls) || /\bwb-wa-btn\b/.test(cls) || /\bwb-wa-float\b/.test(cls))) return;
-    if (String(c.get('type') || '') !== 'text') return;
-    c.set('type', tag === 'button' ? 'wb-component-btn' : 'wb-component-btn-a');
+    if (String(c.get('type') || '') === 'text') {
+      c.set('type', tag === 'button' ? 'wb-component-btn' : 'wb-component-btn-a');
+    }
+
+    if (String(attrs[WB_BTN_NORMALIZED_ATTR] ?? '') === '1') return;
+
+    const variant = pickComponentBtnVariant(attrs as Record<string, string>, cls);
+    const canonical = inlineStyleStringToObject(WB_CMP_BTN_INLINE[variant]);
+
+    const current =
+      typeof (c as unknown as { getStyle?: () => Record<string, string> }).getStyle === 'function'
+        ? ((c as unknown as { getStyle: () => Record<string, string> }).getStyle() ?? {})
+        : {};
+
+    let needsUpdate = false;
+    const next: Record<string, string> = { ...current };
+
+    WB_CMP_BTN_BACKGROUND_KEYS.forEach((k) => {
+      if (k in next) {
+        delete next[k];
+        needsUpdate = true;
+      }
+    });
+
+    (['border', 'box-shadow'] as const).forEach((k) => {
+      const desired = canonical[k];
+      if (desired && next[k] !== desired) {
+        next[k] = desired;
+        needsUpdate = true;
+      }
+    });
+    if (canonical.background && next.background !== canonical.background) {
+      next.background = canonical.background;
+      needsUpdate = true;
+    }
+
+    if (needsUpdate && typeof (c as unknown as { setStyle?: (s: Record<string, string>) => void }).setStyle === 'function') {
+      (c as unknown as { setStyle: (s: Record<string, string>) => void }).setStyle(next);
+    }
+
+    if (typeof (c as unknown as { addAttributes?: (a: Record<string, string>) => void }).addAttributes === 'function') {
+      (c as unknown as { addAttributes: (a: Record<string, string>) => void }).addAttributes({
+        [WB_BTN_NORMALIZED_ATTR]: '1',
+      });
+    }
   });
 }
 
@@ -240,7 +370,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Resource</span>
         <div class="component-title">Download brochure</div>
         <div class="component-desc">A polished PDF drop-in for timetables, pricing, and FAQs—set your file URL on the button after adding.</div>
-        <a class="component-btn" href="#" download>Download PDF</a>
+        <a class="component-btn" href="#" download style="${WB_CMP_BTN_INLINE.download}">Download PDF</a>
       </div>
     `,
   });
@@ -254,7 +384,7 @@ export function registerSectionBlocks(editor: Editor) {
           <span class="component-eyebrow" style="color: rgba(226, 232, 240, 0.88);">Performance training</span>
           <h1 style="margin:0 0 0.65rem; font-size:clamp(2rem, 4.5vw, 2.85rem); font-weight:800; letter-spacing:-0.03em; line-height:1.1;">Build strength that lasts</h1>
           <p style="margin:0 0 1.35rem; font-size:1.05rem; line-height:1.58; color:#cbd5e1; opacity:0.95;">Premium coaching, smart programming, and a community that keeps members accountable—built for people who expect more from their gym.</p>
-          <button type="button" class="component-btn" data-wb-open="join">Join now</button>
+          <button type="button" class="component-btn" data-wb-open="join" style="${WB_CMP_BTN_INLINE.join}">Join now</button>
         </div>
       </section>
     `,
@@ -271,7 +401,7 @@ export function registerSectionBlocks(editor: Editor) {
             <h1 style="font-size:clamp(2rem,4vw,2.65rem); margin:0 0 0.65rem; font-weight:800; letter-spacing:-0.03em; line-height:1.08;">Stronger, together</h1>
             <p style="margin:0 0 1.25rem; font-size:1.05rem; line-height:1.58; color:#cbd5e1;">Coaching depth, community energy, and a floor tuned for measurable progress—not busywork.</p>
             <div style="display:flex; flex-wrap:wrap; gap:0.65rem; align-items:center;">
-              <button type="button" class="component-btn" data-wb-open="join" style="border:0; cursor:pointer; font:inherit;">Join now</button>
+              <button type="button" class="component-btn" data-wb-open="join" style="cursor:pointer;font:inherit;${WB_CMP_BTN_INLINE.join}">Join now</button>
               <a href="#pricing" style="color:#bfdbfe; font-weight:600; text-decoration:none; padding:0.5rem 0.15rem; border-bottom:1px solid rgba(191,219,254,0.45);">View plans</a>
             </div>
           </div>
@@ -293,7 +423,7 @@ export function registerSectionBlocks(editor: Editor) {
           <span class="component-eyebrow">Editorial</span>
           <h1 style="margin:0.35rem 0 0.55rem; font-size:clamp(1.85rem,4vw,2.45rem); font-weight:800; letter-spacing:-0.035em; line-height:1.1;">Train with purpose</h1>
           <p style="margin:0 1.25rem; font-size:1rem; line-height:1.62; color:#64748b;">Quiet confidence: one headline, one line of proof, one decisive action—how premium SaaS opens a story.</p>
-          <button type="button" class="component-btn" data-wb-open="visit" style="margin-top:1.15rem; border:0; cursor:pointer; font:inherit;">Plan a visit</button>
+          <button type="button" class="component-btn" data-wb-open="visit" style="margin-top:1.15rem;cursor:pointer;font:inherit;${WB_CMP_BTN_INLINE.visit}">Plan a visit</button>
         </div>
       </header>
     `,
@@ -482,7 +612,7 @@ export function registerSectionBlocks(editor: Editor) {
             <h3 class="component-title" style="font-size:1.05rem; margin-top:0.15rem;">Starter</h3>
             <p style="margin:0.35rem 0 0.85rem; font-size:1.85rem; font-weight:800; letter-spacing:-0.02em; color:var(--primary,#2563eb);">$29<span style="font-size:0.75rem; font-weight:600; color:#64748b;">/mo</span></p>
             <p class="component-desc" style="font-size:0.82rem; margin-bottom:1rem;">Baseline access for a steady training habit.</p>
-            <a class="component-btn" href="#" style="display:inline-flex; width:100%; justify-content:center; box-sizing:border-box;">Choose Starter</a>
+            <a class="component-btn" href="#" style="display:inline-flex;width:100%;justify-content:center;box-sizing:border-box;${WB_CMP_BTN_INLINE.join}">Choose Starter</a>
           </article>
           <article class="wb-pulse component-card" style="padding:1.35rem 1.25rem; background:linear-gradient(165deg,#0f172a 0%,#1e293b 100%); color:#fff; border-color:rgba(255,255,255,0.12); box-shadow:0 20px 50px rgba(15,23,42,0.35); transform:translateY(-4px);">
             <span class="component-eyebrow" style="color:#93c5fd;">Most popular</span>
@@ -496,7 +626,7 @@ export function registerSectionBlocks(editor: Editor) {
             <h3 class="component-title" style="font-size:1.05rem; margin-top:0.15rem;">Elite</h3>
             <p style="margin:0.35rem 0 0.85rem; font-size:1.85rem; font-weight:800; letter-spacing:-0.02em; color:var(--primary,#2563eb);">$89<span style="font-size:0.75rem; font-weight:600; color:#64748b;">/mo</span></p>
             <p class="component-desc" style="font-size:0.82rem; margin-bottom:1rem;">1:1 programming and concierge support.</p>
-            <a class="component-btn" href="#" style="display:inline-flex; width:100%; justify-content:center; box-sizing:border-box;">Choose Elite</a>
+            <a class="component-btn" href="#" style="display:inline-flex;width:100%;justify-content:center;box-sizing:border-box;${WB_CMP_BTN_INLINE.join}">Choose Elite</a>
           </article>
         </div>
       </section>
@@ -519,14 +649,14 @@ export function registerSectionBlocks(editor: Editor) {
             <h3 class="component-title" style="font-size:1.15rem;">Essentials access</h3>
             <p style="margin:0 0 0.75rem; font-weight:800; font-size:1.35rem; letter-spacing:-0.02em; color:var(--primary);">₹999<span style="font-size:0.75rem; font-weight:600; color:var(--muted);">/mo</span></p>
             <p class="component-desc" style="margin-bottom:0.75rem;">Perfect for a consistent training rhythm.</p>
-            <button type="button" class="component-btn" data-wb-open="join">Choose</button>
+            <button type="button" class="component-btn" data-wb-open="join" style="${WB_CMP_BTN_INLINE.join}">Choose</button>
           </div>
           <div class="component-card">
             <span class="component-eyebrow">Most popular</span>
             <h3 class="component-title" style="font-size:1.15rem;">Unlimited coaching</h3>
             <p style="margin:0 0 0.75rem; font-weight:800; font-size:1.35rem; letter-spacing:-0.02em; color:var(--primary);">₹1999<span style="font-size:0.75rem; font-weight:600; color:var(--muted);">/mo</span></p>
             <p class="component-desc" style="margin-bottom:0.75rem;">Priority scheduling and deeper programming.</p>
-            <button type="button" class="component-btn" data-wb-open="join">Choose</button>
+            <button type="button" class="component-btn" data-wb-open="join" style="${WB_CMP_BTN_INLINE.join}">Choose</button>
           </div>
         </div>
       </section>
@@ -629,7 +759,7 @@ export function registerSectionBlocks(editor: Editor) {
           <span class="component-eyebrow" style="color:#3b82f6;">Limited offer</span>
           <div class="component-title" style="color:#1e3a8a;">50% off founding memberships</div>
           <div class="component-desc" style="color:#334155;">Create urgency with a crisp headline—then route visitors to your pricing section.</div>
-          <a class="component-btn" href="#pricing">View plans</a>
+          <a class="component-btn" href="#pricing" style="${WB_CMP_BTN_INLINE.join}">View plans</a>
         </div>
       </section>
     `,
@@ -805,8 +935,8 @@ export function registerSectionBlocks(editor: Editor) {
         <div class="component-title">Crystal lead modals</div>
         <div class="component-desc">Four actions wired to the published-site script: join, visit, trial, and service enquiry. Styling matches the default component library cards.</div>
         <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.65rem;">
-          <button type="button" class="component-btn" data-wb-open="join" style="border:0; cursor:pointer; font:inherit;">Join now</button>
-          <button type="button" class="component-btn" data-wb-open="visit" style="border:0; cursor:pointer; font:inherit; background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff;">Plan visit</button>
+          <button type="button" class="component-btn" data-wb-open="join" style="cursor:pointer;font:inherit;${WB_CMP_BTN_INLINE.join}">Join now</button>
+          <button type="button" class="component-btn" data-wb-open="visit" style="cursor:pointer;font:inherit;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border:1px solid rgba(255,255,255,0.16);box-shadow:0 4px 18px rgba(15,23,42,0.45),0 1px 0 rgba(255,255,255,0.18) inset;">Plan visit</button>
           <button type="button" class="component-btn" data-wb-open="trial" style="border:0; cursor:pointer; font:inherit; background:linear-gradient(135deg,#fb923c,#ea580c); color:#fff;">Free trial</button>
           <button type="button" class="component-btn" data-wb-open="enquiry" style="border:0; cursor:pointer; font:inherit; background:linear-gradient(135deg,#ecfdf5,#bbf7d0); color:#166534;">Enquiry</button>
         </div>
@@ -1024,13 +1154,13 @@ export function registerSectionBlocks(editor: Editor) {
             <span class="component-eyebrow">This week</span>
             <h4 class="component-title" style="font-size:1rem; margin-top:0.15rem;">Join with a starter plan</h4>
             <p class="component-desc" style="margin-bottom:1rem;">Onboarding that feels concierge, not chaotic.</p>
-            <button type="button" class="component-btn" data-wb-open="join" style="border:0; cursor:pointer; font:inherit;">Join now</button>
+            <button type="button" class="component-btn" data-wb-open="join" style="cursor:pointer;font:inherit;${WB_CMP_BTN_INLINE.join}">Join now</button>
           </article>
           <article class="component-card" style="margin:0;">
             <span class="component-eyebrow">Qualified tour</span>
             <h4 class="component-title" style="font-size:1rem; margin-top:0.15rem;">Visit before you commit</h4>
             <p class="component-desc" style="margin-bottom:1rem;">Meet coaches, feel the floor, leave with clarity.</p>
-            <button type="button" class="component-btn" data-wb-open="visit" style="border:0; cursor:pointer; font:inherit;">Plan a visit</button>
+            <button type="button" class="component-btn" data-wb-open="visit" style="cursor:pointer;font:inherit;${WB_CMP_BTN_INLINE.visit}">Plan a visit</button>
           </article>
         </div>
       </section>
@@ -1116,7 +1246,7 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Motion CTA</span>
         <div class="component-title">Join now · animated</div>
         <div class="component-desc">Scroll reveal, depth hover, shimmer CTA, and a soft glow pulse—still routes to your live join modal.</div>
-        <button type="button" class="component-btn glow-btn pulse" data-wb-open="join">Start membership</button>
+        <button type="button" class="component-btn glow-btn pulse" data-wb-open="join" style="${WB_CMP_BTN_INLINE.join}">Start membership</button>
       </div>
     `,
   });
@@ -1136,7 +1266,7 @@ export function registerSectionBlocks(editor: Editor) {
     category: 'Modals',
     content: `
       <div class="wb-add-el wb-enquiry-slide" data-wb-enquiry-slide>
-        <button type="button" class="component-btn wb-enquiry-slide__toggle">Quick enquiry</button>
+        <button type="button" class="component-btn wb-enquiry-slide__toggle" style="${WB_CMP_BTN_INLINE.enquiry}">Quick enquiry</button>
         <div class="wb-enquiry-slide__backdrop" aria-hidden="true"></div>
         <aside class="wb-enquiry-slide__drawer">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:1rem;">
@@ -1148,7 +1278,7 @@ export function registerSectionBlocks(editor: Editor) {
             <button type="button" class="wb-drawer-close" data-wb-enquiry-slide-close aria-label="Close">&times;</button>
           </div>
           <input class="wb-enquiry-slide__field" type="tel" placeholder="Best number to reach you" autocomplete="tel" />
-          <button type="button" class="component-btn" data-wb-open="enquiry">Submit enquiry</button>
+          <button type="button" class="component-btn" data-wb-open="enquiry" style="${WB_CMP_BTN_INLINE.enquiry}">Submit enquiry</button>
         </aside>
       </div>
     `,
@@ -1162,13 +1292,13 @@ export function registerSectionBlocks(editor: Editor) {
         <span class="component-eyebrow">Custom</span>
         <div class="component-title">Modal you edit in place</div>
         <div class="component-desc">Change the headline, body, and buttons inside the dialog. Open uses the browser dialog API (no Crystal lead script required).</div>
-        <button type="button" class="component-btn" data-wb-dialog-open>Open modal</button>
+        <button type="button" class="component-btn" data-wb-dialog-open style="${WB_CMP_BTN_INLINE.join}">Open modal</button>
         <dialog class="wb-custom-dialog-panel" data-wb-dialog-panel>
           <div style="padding:1.35rem 1.45rem 1.25rem;">
             <h3 class="component-title" style="margin:0 0 0.45rem;">Headline</h3>
             <p class="component-desc" style="margin-bottom:1rem;">Replace this copy, add images, or extra buttons—everything here is normal layout.</p>
             <form method="dialog" style="margin:0;display:flex;gap:0.5rem;flex-wrap:wrap;">
-              <button type="submit" class="component-btn">Close</button>
+              <button type="submit" class="component-btn" style="${WB_CMP_BTN_INLINE.join}">Close</button>
             </form>
           </div>
         </dialog>
@@ -1293,9 +1423,9 @@ export function registerSectionBlocks(editor: Editor) {
     category: 'Business',
     content: `
       <div class="wb-add-el wb-fade-in" style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:center; align-items:center; padding:1.25rem; max-width:40rem; margin:0 auto;">
-        <a href="tel:+15551234567" class="component-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:0.35rem;">Call</a>
+        <a href="tel:+15551234567" class="component-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem;${WB_CMP_BTN_INLINE.tel}">Call</a>
         <a class="wb-wa-btn" href="https://wa.me/15551234567" target="_blank" rel="noopener noreferrer" data-wb-wa-phone="15551234567" style="display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none; padding:0.5rem 1rem; border-radius:8px; background:#22c55e; color:#fff; font-weight:600;">WhatsApp</a>
-        <a href="mailto:hello@gym.com" class="component-btn" style="text-decoration:none;">Email</a>
+        <a href="mailto:hello@gym.com" class="component-btn" style="text-decoration:none;${WB_CMP_BTN_INLINE.mailto}">Email</a>
       </div>
     `,
   });

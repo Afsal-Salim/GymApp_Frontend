@@ -10,7 +10,11 @@ import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlin
 import TabletMacOutlinedIcon from '@mui/icons-material/TabletMacOutlined';
 import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Component, Editor } from 'grapesjs';
 import type { InspectorKind, SelectionInfo } from '@/features/website/editor/right-column/websiteBuilderInspector/websiteBuilderInspector';
 import { findOne, getDirectText, getHeroContent, setDirectText } from '@/features/website/editor/right-column/websiteBuilderInspector/websiteBuilderInspector';
@@ -130,12 +134,23 @@ function parseTelNumber(href: string): string {
   return href.replace(/^tel:/i, '').trim();
 }
 
+/**
+ * Walk ancestors looking for a gallery carousel root. Two markup variants resolve here:
+ *   - Generic gallery block: `.wb-gallery-carousel[data-wb-gallery-carousel="1"]`
+ *   - Design-system gallery: `.wb-sys-carousel[data-wb-ds-gallery="1"]`
+ *
+ * Keep in sync with the matcher in `websiteBuilderInspector.ts > describeSelection`.
+ */
 function resolveGalleryCarouselRoot(comp: Component): Component | undefined {
   let cur: Component | null | undefined = comp;
   while (cur && !cur.is?.('wrapper')) {
     const attrs = cur.getAttributes?.() ?? {};
     const cls = String(attrs.class || '');
-    if (/\bwb-gallery-carousel\b/.test(cls) || String(attrs['data-wb-gallery-carousel'] || '') === '1') {
+    const isGenericGallery =
+      /\bwb-gallery-carousel\b/.test(cls) || String(attrs['data-wb-gallery-carousel'] || '') === '1';
+    const isDsGallery =
+      String(attrs['data-wb-ds-gallery'] || '') === '1' && /\bwb-sys-carousel\b/.test(cls);
+    if (isGenericGallery || isDsGallery) {
       return cur;
     }
     cur = cur.parent?.();
@@ -392,6 +407,37 @@ function GalleryCarouselContent({
 
   const findTrack = useCallback(() => findOne(root, '.wb-sys-carousel__track'), [root]);
 
+  /**
+   * Earlier versions of `addSlide` injected `style: { height: '100%' }` on each new slide image.
+   * That rendered fine in the editor (Grapes gives empty `<figure>` elements a fallback display
+   * height) but collapsed to 0 in preview / published HTML — so users saw "no image". Repair any
+   * legacy slide images on load so the bug fixes itself without forcing a re-add.
+   */
+  const repairLegacySlideImageStyles = useCallback(() => {
+    const track = findTrack();
+    if (!track) return;
+    const ch = track.components();
+    const len = typeof ch.length === 'number' ? ch.length : 0;
+    for (let i = 0; i < len; i += 1) {
+      const slide = typeof ch.at === 'function' ? ch.at(i) : null;
+      if (!slide) continue;
+      const img = findOne(slide, 'img') as Component | undefined;
+      if (!img) continue;
+      const styleObj =
+        typeof (img as unknown as { getStyle?: () => Record<string, string> }).getStyle === 'function'
+          ? ((img as unknown as { getStyle: () => Record<string, string> }).getStyle() ?? {})
+          : {};
+      const h = String(styleObj.height ?? '').trim().toLowerCase();
+      if (h !== '100%') continue;
+      const fixed: Record<string, string> = { ...styleObj };
+      fixed.height = 'auto';
+      if (!fixed.width) fixed.width = '100%';
+      if (!fixed.display) fixed.display = 'block';
+      if (!fixed['object-fit']) fixed['object-fit'] = 'cover';
+      (img as unknown as { setStyle: (s: Record<string, string>) => void }).setStyle(fixed);
+    }
+  }, [findTrack]);
+
   const readSlides = useCallback(() => {
     const track = findTrack();
     const out: Array<{ src: string; alt: string; caption: string }> = [];
@@ -414,8 +460,9 @@ function GalleryCarouselContent({
   }, [findTrack]);
 
   useEffect(() => {
+    repairLegacySlideImageStyles();
     setSlides(readSlides());
-  }, [readSlides, root]);
+  }, [readSlides, repairLegacySlideImageStyles, root]);
 
   const writeSlideSrc = (idx: number, value: string) => {
     setSlides((prev) => prev.map((s, i) => (i === idx ? { ...s, src: value } : s)));
@@ -424,7 +471,24 @@ function GalleryCarouselContent({
     const coll = track.components();
     const slide = typeof coll.at === 'function' ? coll.at(idx) : null;
     const img = slide ? findOne(slide, 'img') : undefined;
-    if (img) img.addAttributes({ src: value });
+    if (!img) return;
+    /**
+     * GrapesJS' built-in `ComponentImage.getAttrToHTML()` (see node_modules/grapesjs > line ~38216)
+     * unconditionally overwrites the serialized `src` attribute with the value of the model
+     * property `src` (`this.get('src')`). So calling only `addAttributes({ src })` updates the
+     * canvas (which watches the attributes hash) but `editor.getHtml()` — which is what the
+     * preview window and the persisted snapshot use — keeps emitting the OLD `src`, producing
+     * the "shows in canvas, missing in preview" bug.
+     *
+     * Update both the attributes hash AND the model property so canvas, preview, and persistence
+     * all stay in sync.
+     */
+    img.addAttributes({ src: value });
+    try {
+      (img as unknown as { set?: (k: string, v: unknown) => void }).set?.('src', value);
+    } catch {
+      /* non-image components may not expose `set('src', …)`; updating attributes alone is fine */
+    }
   };
 
   const writeSlideAlt = (idx: number, value: string) => {
@@ -443,7 +507,26 @@ function GalleryCarouselContent({
     if (!track) return;
     const coll = track.components();
     const slide = typeof coll.at === 'function' ? coll.at(idx) : null;
-    const cap = slide ? findOne(slide, 'figcaption') : undefined;
+    if (!slide) return;
+    let cap = findOne(slide, 'figcaption');
+    /* Design-system gallery slides ship without a <figcaption>; create one lazily on first edit
+       so the user is not silently typing into a no-op input. */
+    if (!cap) {
+      const slideColl = slide.components() as unknown as {
+        add?: (value: unknown) => unknown;
+      };
+      slideColl.add?.({
+        type: 'text',
+        tagName: 'figcaption',
+        content: value,
+        style: {
+          marginTop: '0.5rem',
+          color: '#64748b',
+          fontSize: '0.8rem',
+        },
+      });
+      cap = findOne(slide, 'figcaption');
+    }
     if (cap) setDirectText(cap, value);
   };
 
@@ -459,6 +542,14 @@ function GalleryCarouselContent({
     const svg = encodeURIComponent(
       `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='420' viewBox='0 0 640 420'><rect fill='#f8fafc' width='640' height='420' rx='18'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#94a3b8' font-family='system-ui' font-size='15' font-weight='600'>${label}</text></svg>`
     );
+    /**
+     * Image sizing rules below intentionally mirror the original slide markup (both DS gallery and
+     * generic `wb-gallery-carousel`): `height: auto` lets the browser preserve aspect ratio. The
+     * old version used `height: 100%` which rendered fine in the editor (Grapes gives empty figures
+     * a fallback height) but collapsed to 0 in preview / published HTML, so users saw "no image".
+     * `width` is set via the HTML attribute so the browser knows the intrinsic ratio before the
+     * (possibly large data: URI) image is decoded.
+     */
     coll.add?.({
       type: 'default',
       tagName: 'figure',
@@ -467,12 +558,21 @@ function GalleryCarouselContent({
         {
           type: 'image',
           tagName: 'img',
-          attributes: { src: `data:image/svg+xml,${svg}`, alt: label },
+          attributes: {
+            src: `data:image/svg+xml,${svg}`,
+            alt: label,
+            loading: 'lazy',
+            decoding: 'async',
+            width: '640',
+            height: '420',
+          },
           style: {
             width: '100%',
-            height: '100%',
-            objectFit: 'cover',
+            height: 'auto',
             display: 'block',
+            'border-radius': '12px',
+            'object-fit': 'cover',
+            'aspect-ratio': '16 / 10',
           },
         },
         {
@@ -483,6 +583,7 @@ function GalleryCarouselContent({
             marginTop: '0.5rem',
             color: '#64748b',
             fontSize: '0.8rem',
+            textAlign: 'center',
           },
         },
       ],
@@ -505,54 +606,261 @@ function GalleryCarouselContent({
     });
   };
 
+  /**
+   * Move a slide one position in the given direction. We do this by removing the underlying
+   * Grapes Component and re-adding it at the new index (the Grapes `Components` collection
+   * exposes `add(value, { at })` and any node returned by `.remove()` can be re-inserted).
+   */
+  const moveSlide = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= slides.length) return;
+    const track = findTrack();
+    if (!track) return;
+    const coll = track.components() as unknown as {
+      at?: (i: number) => Component | null;
+      remove?: (c: Component) => Component | null;
+      add?: (value: unknown, opts?: { at?: number }) => unknown;
+    };
+    const slide = typeof coll.at === 'function' ? coll.at(idx) : null;
+    if (!slide) return;
+    coll.remove?.(slide);
+    coll.add?.(slide, { at: target });
+    window.requestAnimationFrame(() => {
+      refreshDsGalleriesInCanvas(editor);
+      setSlides(readSlides());
+    });
+  };
+
+  return (
+    <GalleryCarouselPanel
+      slides={slides}
+      onAddSlide={addSlide}
+      onRemoveSlide={removeSlide}
+      onMoveSlide={moveSlide}
+      onSrcChange={writeSlideSrc}
+      onAltChange={writeSlideAlt}
+      onCaptionChange={writeSlideCaption}
+    />
+  );
+}
+
+/**
+ * Presentational shell for the gallery editor. Splitting this out keeps the GrapesJS-touching
+ * state logic above readable and lets the markup focus on layout (thumbnail tile, reorder,
+ * file upload, collapsible URL).
+ */
+function GalleryCarouselPanel({
+  slides,
+  onAddSlide,
+  onRemoveSlide,
+  onMoveSlide,
+  onSrcChange,
+  onAltChange,
+  onCaptionChange,
+}: {
+  slides: Array<{ src: string; alt: string; caption: string }>;
+  onAddSlide: () => void;
+  onRemoveSlide: (idx: number) => void;
+  onMoveSlide: (idx: number, dir: -1 | 1) => void;
+  onSrcChange: (idx: number, value: string) => void;
+  onAltChange: (idx: number, value: string) => void;
+  onCaptionChange: (idx: number, value: string) => void;
+}) {
   return (
     <>
-      <div className="website-builder-page__panel-group-title">Gallery carousel</div>
-      <p className="website-builder-page__field-hint">
-        Manage slide count and images here. Next/prev stays active in canvas preview.
-      </p>
-      <div className="website-builder-page__form-block">
-        <button type="button" className="website-builder-page__save-section-btn" onClick={addSlide}>
-          Add slide
+      <div className="wb-gallery-panel__header">
+        <div className="wb-gallery-panel__header-text">
+          <div className="wb-gallery-panel__title">Gallery carousel</div>
+          <div className="wb-gallery-panel__subtitle">
+            {slides.length} {slides.length === 1 ? 'slide' : 'slides'}
+          </div>
+        </div>
+        <button type="button" className="wb-gallery-panel__add-btn" onClick={onAddSlide}>
+          <AddOutlinedIcon style={{ fontSize: '1rem' }} />
+          <span>Add slide</span>
         </button>
       </div>
-      {slides.map((slide, idx) => (
-        <div key={`gallery-slide-${idx}`} className="website-builder-page__form-block">
-          <label className="website-builder-page__field-label">Slide {idx + 1} image URL</label>
-          <input
-            className="website-builder-page__field-control"
-            value={slide.src}
-            placeholder="https://…"
-            onChange={(e) => writeSlideSrc(idx, e.target.value)}
+      <p className="website-builder-page__field-hint" style={{ margin: '0 0 0.65rem' }}>
+        Tap a thumbnail to replace its image. Reorder with the arrows. Preview updates live.
+      </p>
+      <div className="wb-gallery-panel__list">
+        {slides.map((slide, idx) => (
+          <GallerySlideCard
+            key={`gallery-slide-${idx}`}
+            index={idx}
+            total={slides.length}
+            slide={slide}
+            onRemove={() => onRemoveSlide(idx)}
+            onMoveUp={() => onMoveSlide(idx, -1)}
+            onMoveDown={() => onMoveSlide(idx, 1)}
+            onSrcChange={(v) => onSrcChange(idx, v)}
+            onAltChange={(v) => onAltChange(idx, v)}
+            onCaptionChange={(v) => onCaptionChange(idx, v)}
           />
-          <label className="website-builder-page__field-label" style={{ marginTop: '0.5rem' }}>
-            Alt text
-          </label>
-          <input
-            className="website-builder-page__field-control"
-            value={slide.alt}
-            onChange={(e) => writeSlideAlt(idx, e.target.value)}
-          />
-          <label className="website-builder-page__field-label" style={{ marginTop: '0.5rem' }}>
-            Caption
-          </label>
-          <input
-            className="website-builder-page__field-control"
-            value={slide.caption}
-            onChange={(e) => writeSlideCaption(idx, e.target.value)}
-          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function GallerySlideCard({
+  index,
+  total,
+  slide,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  onSrcChange,
+  onAltChange,
+  onCaptionChange,
+}: {
+  index: number;
+  total: number;
+  slide: { src: string; alt: string; caption: string };
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onSrcChange: (value: string) => void;
+  onAltChange: (value: string) => void;
+  onCaptionChange: (value: string) => void;
+}) {
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePickFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') onSrcChange(result);
+    };
+    reader.readAsDataURL(file);
+    /* Reset the input value so picking the same file twice in a row still fires onChange. */
+    event.target.value = '';
+  };
+
+  const isDataUri = slide.src.startsWith('data:');
+  const isDisabledRemove = total <= 1;
+
+  return (
+    <div className="wb-gallery-slide">
+      <div className="wb-gallery-slide__main">
+        <div className="wb-gallery-slide__thumb-wrap">
           <button
             type="button"
-            className="website-builder-page__remove-row-btn"
-            disabled={slides.length <= 1}
-            onClick={() => removeSlide(idx)}
-            style={{ marginTop: '0.5rem' }}
+            className="wb-gallery-slide__thumb"
+            onClick={handlePickFile}
+            title="Replace image"
+            aria-label={`Replace image for slide ${index + 1}`}
           >
-            Remove slide
+            {slide.src ? (
+              <img src={slide.src} alt={slide.alt || `Slide ${index + 1} preview`} />
+            ) : (
+              <span className="wb-gallery-slide__thumb-empty">
+                <ImageOutlinedIcon style={{ fontSize: '1.4rem' }} />
+              </span>
+            )}
+            <span className="wb-gallery-slide__thumb-overlay">
+              <CloudUploadOutlinedIcon style={{ fontSize: '1.1rem' }} />
+            </span>
           </button>
+          <span className="wb-gallery-slide__badge">{index + 1}</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
         </div>
-      ))}
-    </>
+        <div className="wb-gallery-slide__fields">
+          <input
+            className="website-builder-page__field-control wb-gallery-slide__caption-input"
+            placeholder="Caption (shown under image)"
+            value={slide.caption}
+            onChange={(e) => onCaptionChange(e.target.value)}
+          />
+          <input
+            className="website-builder-page__field-control wb-gallery-slide__alt-input"
+            placeholder="Alt text (for screen readers)"
+            value={slide.alt}
+            onChange={(e) => onAltChange(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="wb-gallery-slide__actions">
+        <button
+          type="button"
+          className="wb-gallery-slide__action-btn"
+          onClick={handlePickFile}
+          title="Upload from device"
+        >
+          <CloudUploadOutlinedIcon style={{ fontSize: '0.95rem' }} />
+          <span>Upload</span>
+        </button>
+        <button
+          type="button"
+          className={`wb-gallery-slide__action-btn${showUrlInput ? ' is-active' : ''}`}
+          onClick={() => setShowUrlInput((prev) => !prev)}
+          title="Use image URL"
+        >
+          <LinkOutlinedIcon style={{ fontSize: '0.95rem' }} />
+          <span>URL</span>
+        </button>
+        <span className="wb-gallery-slide__actions-spacer" />
+        <button
+          type="button"
+          className="wb-gallery-slide__icon-btn"
+          onClick={onMoveUp}
+          disabled={index === 0}
+          title="Move up"
+          aria-label="Move slide up"
+        >
+          <KeyboardArrowUpRoundedIcon style={{ fontSize: '1.15rem' }} />
+        </button>
+        <button
+          type="button"
+          className="wb-gallery-slide__icon-btn"
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          title="Move down"
+          aria-label="Move slide down"
+        >
+          <KeyboardArrowDownRoundedIcon style={{ fontSize: '1.15rem' }} />
+        </button>
+        <button
+          type="button"
+          className="wb-gallery-slide__icon-btn wb-gallery-slide__icon-btn--danger"
+          onClick={onRemove}
+          disabled={isDisabledRemove}
+          title={isDisabledRemove ? 'Galleries need at least one slide' : 'Remove slide'}
+          aria-label="Remove slide"
+        >
+          <DeleteOutlineOutlinedIcon style={{ fontSize: '1.05rem' }} />
+        </button>
+      </div>
+      {showUrlInput && (
+        <div className="wb-gallery-slide__url-row">
+          <input
+            className="website-builder-page__field-control wb-gallery-slide__url-input"
+            placeholder="https://… or paste image URL"
+            /* Hide unreadable base64 data URIs from the input so the field stays usable. */
+            value={isDataUri ? '' : slide.src}
+            onChange={(e) => onSrcChange(e.target.value)}
+          />
+          {isDataUri && (
+            <span className="wb-gallery-slide__url-note">
+              Uploaded image in use. Paste a URL above to replace.
+            </span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1069,7 +1377,7 @@ function PushButtonContent({
       {action === 'join' || action === 'visit' || action === 'trial' || action === 'enquiry' ?
         <p className="website-builder-page__field-hint">
           <strong>Button action</strong> above is what this control does. Lead modals run in the editor canvas and in Preview when{' '}
-          <code>NEXT_PUBLIC_API_BASE_URL</code> is set; join, visit, and trial also need a valid gym slug (edit site or create-flow preview slug). If something is missing, the browser shows a short alert when you click.
+          <code>API_BASE_URL</code> is set; join, visit, and trial also need a valid gym slug (edit site or create-flow preview slug). If something is missing, the browser shows a short alert when you click.
         </p>
       : null}
       {action === 'none' ?
@@ -1117,6 +1425,29 @@ function IframeContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
       comp.off('change:attributes', sync);
     };
   }, [comp]);
+  /**
+   * GrapesJS' built-in `ComponentFrame` (see node_modules/grapesjs around line 38110) registers
+   * `src` as a trait — so the canonical value lives in BOTH the attributes hash and the model
+   * property. Trimming and writing through one helper guarantees both are kept in sync, which
+   * avoids the "I pasted a new URL but the map still shows the old place" class of bug:
+   *
+   *   • leading/trailing whitespace from a paste (very common when copying a URL from
+   *     Google Maps' "Share" panel) would otherwise be stored verbatim and silently fail to load
+   *     in some browsers, or be normalised by the iframe element causing a mismatch with what
+   *     the user sees in the inspector,
+   *   • setting only the attributes hash works today for ComponentFrame's `getAttrToHTML` (it
+   *     doesn't override the base behaviour), but the trait API expects the model property to
+   *     also be in sync — mirroring it is cheap insurance against future GrapesJS changes.
+   */
+  const writeSrc = (raw: string) => {
+    const v = raw.trim();
+    comp.addAttributes({ src: v });
+    try {
+      (comp as unknown as { set?: (k: string, v: unknown) => void }).set?.('src', v);
+    } catch {
+      /* component types without an `src` model property are safe to skip */
+    }
+  };
   return (
     <>
       <div className="website-builder-page__panel-group-title">Iframe</div>
@@ -1132,7 +1463,7 @@ function IframeContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
           onChange={(e) => {
             const v = e.target.value;
             setSrc(v);
-            comp.addAttributes({ src: v });
+            writeSrc(v);
           }}
           onBlur={() => {
             const cur = src.trim();
@@ -1140,14 +1471,19 @@ function IframeContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelec
             const next = normalizeGoogleMapsIframeSrc(cur);
             if (next !== cur) {
               setSrc(next);
-              comp.addAttributes({ src: next });
+              writeSrc(next);
+            } else if (cur !== src) {
+              /* Whitespace-only change (paste with stray newline / leading spaces) — persist the
+                 trimmed value so the saved HTML matches what we display in the inspector. */
+              setSrc(cur);
+              writeSrc(cur);
             }
           }}
         />
         <p className="website-builder-page__field-hint" style={{ marginTop: '0.35rem' }}>
           Google Maps: paste any maps link, then tab out of this field — we convert place and search links to an embed
           URL. For short links (maps.app.goo.gl), open Google Maps → Share → <strong>Embed a map</strong> and paste the{' '}
-          <code>iframe src</code> here.
+          <code>iframe src</code> here. After changing the URL, close any open preview tab and click <strong>Preview</strong> again — the preview is a static snapshot.
         </p>
       </div>
       <div className="website-builder-page__form-block">
@@ -1540,7 +1876,7 @@ function ButtonContent({
       : null}
       {action === 'join' || action === 'visit' || action === 'trial' || action === 'enquiry' ?
         <p className="website-builder-page__field-hint">
-          <strong>Button action</strong> above is what this link does. Lead modals run in the canvas and Preview when <code>NEXT_PUBLIC_API_BASE_URL</code> is set; join, visit, and trial need a valid gym slug. If configuration is missing, a short browser alert appears when you click.
+          <strong>Button action</strong> above is what this link does. Lead modals run in the canvas and Preview when <code>API_BASE_URL</code> is set; join, visit, and trial need a valid gym slug. If configuration is missing, a short browser alert appears when you click.
         </p>
       : null}
       {action === 'none' ?
@@ -1561,6 +1897,21 @@ function ImageContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelect
     setSrc(String(a.src ?? ''));
     setAlt(String(a.alt ?? ''));
   }, [comp]);
+  /**
+   * GrapesJS' built-in `ComponentImage.getAttrToHTML()` overwrites the serialized `src` with the
+   * value of the model property (`this.get('src')`), so `editor.getHtml()` will keep emitting the
+   * OLD src unless we also update the model property here. Without this the canvas updates but
+   * the preview window and the persisted HTML snapshot do not. Encapsulating both writes in one
+   * helper keeps the input handlers below honest.
+   */
+  const writeSrc = (v: string) => {
+    comp.addAttributes({ src: v });
+    try {
+      (comp as unknown as { set?: (k: string, v: unknown) => void }).set?.('src', v);
+    } catch {
+      /* component types without a `src` model property are safe to skip */
+    }
+  };
   return (
     <>
       <div className="website-builder-page__panel-group-title">Image</div>
@@ -1575,13 +1926,13 @@ function ImageContent({ comp }: { comp: NonNullable<ReturnType<Editor['getSelect
           onChange={(e) => {
             const v = e.target.value;
             setSrc(v);
-            comp.addAttributes({ src: v });
+            writeSrc(v);
           }}
           onBlur={() => {
             const normalized = normalizeImageSrcInput(src);
             if (normalized !== src) {
               setSrc(normalized);
-              comp.addAttributes({ src: normalized });
+              writeSrc(normalized);
             }
           }}
         />

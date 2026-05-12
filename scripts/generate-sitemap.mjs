@@ -7,7 +7,7 @@
  *
  *   node scripts/generate-sitemap.mjs
  *
- * Origin is read from `VITE_SITE_URL` → `VITE_PUBLIC_SITE_DOMAIN` → `NEXT_PUBLIC_*` fallbacks.
+ * Origin is read from `SITE_URL`, falling back to `PUBLIC_SITE_DOMAIN`.
  */
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -30,7 +30,7 @@ const STATIC_PATHS = [
 
 function resolveOrigin() {
   const env = process.env;
-  const explicit = (env.VITE_SITE_URL ?? env.NEXT_PUBLIC_SITE_URL ?? '').trim();
+  const explicit = (env.SITE_URL ?? '').trim();
   if (explicit) {
     try {
       return new URL(explicit.includes('://') ? explicit : `https://${explicit}`).origin;
@@ -38,7 +38,7 @@ function resolveOrigin() {
       /* fall through */
     }
   }
-  const domain = (env.VITE_PUBLIC_SITE_DOMAIN ?? env.NEXT_PUBLIC_PUBLIC_SITE_DOMAIN ?? '').trim();
+  const domain = (env.PUBLIC_SITE_DOMAIN ?? '').trim();
   if (domain) {
     return `https://${domain.replace(/^https?:\/\//, '').split('/')[0]}`;
   }
